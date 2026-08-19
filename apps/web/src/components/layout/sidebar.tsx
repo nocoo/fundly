@@ -10,7 +10,7 @@ import {
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Collapsible, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMe } from '@/hooks/use-me';
 import {
@@ -21,7 +21,7 @@ import {
   type NavItemDef,
   shouldGroupBeOpenOnMount,
 } from '@/lib/navigation';
-import { getDisplayName } from '@/lib/user';
+import { sidebarUserState } from '@/lib/user';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
 
@@ -129,37 +129,29 @@ function NavGroupSection({
           </span>
         </CollapsibleTrigger>
       </div>
-      <div
-        className="grid overflow-hidden"
-        style={{
-          gridTemplateRows: open ? '1fr' : '0fr',
-          transition: 'grid-template-rows 200ms ease-out',
-        }}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-0.5 px-3">
-            {group.items.map((item) => {
-              const isActive = isItemActive(item.href, pathname);
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors',
-                    isActive
-                      ? 'bg-accent text-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                  <span className="flex-1 text-left">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+      <CollapsibleContent>
+        <div className="flex flex-col gap-0.5 px-3">
+          {group.items.map((item) => {
+            const isActive = isItemActive(item.href, pathname);
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                onClick={onNavigate}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors',
+                  isActive
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                <span className="flex-1 text-left">{item.label}</span>
+              </Link>
+            );
+          })}
         </div>
-      </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 }
@@ -171,13 +163,14 @@ interface SidebarProps {
 export function Sidebar({ mobile = false }: SidebarProps) {
   const { pathname } = useLocation();
   const { collapsed, toggle, setMobileOpen } = useSidebar();
-  const { data: user } = useMe();
+  const { data: user, error: userError, isLoading: userLoading } = useMe();
+  const host = typeof window === 'undefined' ? '' : window.location.host;
   const {
     name: userName,
     initial: userInitial,
     email: userEmail,
     avatar: userAvatar,
-  } = getDisplayName(user);
+  } = sidebarUserState(userLoading, userError, user, host);
 
   const handleNavigate = () => setMobileOpen(false);
   const isCollapsed = mobile ? false : collapsed;
@@ -220,6 +213,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                       <Link
                         to={item.href}
                         onClick={handleNavigate}
+                        aria-label={item.label}
                         className={cn(
                           'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
                           isActive
