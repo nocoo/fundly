@@ -20,6 +20,11 @@ logs/
 dist/
 build/
 *.tsbuildinfo
+apps/worker/static/*
+!apps/worker/static/.gitkeep
+apps/worker/.wrangler/
+.wrangler/
+output/
 
 # OS
 .DS_Store

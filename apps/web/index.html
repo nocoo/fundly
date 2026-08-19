@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fundly — 基金浏览与排名</title>
+    <meta name="description" content="中国公募基金浏览和排名工具" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <script>
+      (()=>{try{const s=localStorage.getItem("theme");const d=window.matchMedia("(prefers-color-scheme:dark)").matches;if(s==="dark"||(s!=="light"&&d))document.documentElement.classList.add("dark")}catch(_e){}})()
+    </script>
+  </head>
+  <body class="antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

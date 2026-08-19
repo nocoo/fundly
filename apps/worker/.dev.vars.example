@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local wrangler dev if you need to test JWT verify.
+# Localhost / *.dev.hexly.ai bypass Access; these are only required on the edge.
+CF_ACCESS_TEAM_DOMAIN=nocoo.cloudflareaccess.com
+CF_ACCESS_AUD=
+ENVIRONMENT=development

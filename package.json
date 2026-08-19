@@ -14,12 +14,18 @@
     "fetch:nav": "bun run scripts/fetch-fund-nav.ts",
     "fetch:all": "bun run scripts/fetch-all.ts",
     "db:init": "bun run scripts/init-db.ts",
-    "lint": "biome check src scripts tests",
-    "lint:fix": "biome check --write src scripts tests",
-    "format": "biome format --write src scripts tests",
-    "test": "bun test",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:worker": "bun run --cwd apps/worker dev",
+    "build:web": "bun run --cwd apps/web build",
+    "deploy:web": "bun run --cwd apps/web build && bun run --cwd apps/worker deploy",
+    "lint": "biome check src scripts tests apps",
+    "lint:fix": "biome check --write src scripts tests apps",
+    "format": "biome format --write src scripts tests apps",
+    "test": "bun test tests src",
+    "test:web": "bun test apps",
     "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:web": "bun run --cwd apps/web typecheck && bun run --cwd apps/worker typecheck"
   },
   "type": "module"
 }
