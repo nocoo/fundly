@@ -11,6 +11,8 @@ data/*.db-shm
 # Env
 .env
 .env.local
+.dev.vars
+apps/worker/.dev.vars
 
 # Logs
 *.log

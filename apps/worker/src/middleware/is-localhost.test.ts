@@ -9,27 +9,28 @@ function makeApp() {
   return app;
 }
 
+async function probe(
+  environment: string | undefined,
+  host: string,
+  withCf: boolean,
+): Promise<{ local: boolean }> {
+  const req = new Request('http://127.0.0.1:8787/probe', { headers: { host } });
+  if (withCf) Object.defineProperty(req, 'cf', { value: { colo: 'SJC' } });
+  const res = await makeApp().request(req, undefined, { ENVIRONMENT: environment });
+  return (await res.json()) as { local: boolean };
+}
+
 describe('isLocalhost', () => {
-  it('treats localhost without cf as local', async () => {
-    const res = await makeApp().request('http://localhost:8787/probe', {
-      headers: { host: 'localhost:8787' },
-    });
-    expect(await res.json()).toEqual({ local: true });
+  it('bypasses wrangler-style cf + 127.0.0.1 in development', async () => {
+    expect(await probe('development', '127.0.0.1:8787', true)).toEqual({ local: true });
   });
 
-  it('treats fundly.dev.hexly.ai without cf as local', async () => {
-    const res = await makeApp().request('https://fundly.dev.hexly.ai/probe', {
-      headers: { host: 'fundly.dev.hexly.ai' },
-    });
-    expect(await res.json()).toEqual({ local: true });
+  it('bypasses fundly.dev.hexly.ai in development even with cf', async () => {
+    expect(await probe('development', 'fundly.dev.hexly.ai', true)).toEqual({ local: true });
   });
 
-  it('rejects a spoofed localhost Host when cf is present', async () => {
-    const req = new Request('https://fundly.hexly.ai/probe', {
-      headers: { host: 'localhost' },
-    });
-    Object.defineProperty(req, 'cf', { value: { colo: 'SJC' } });
-    const res = await makeApp().request(req);
-    expect(await res.json()).toEqual({ local: false });
+  it('never bypasses in production, even with a local Host', async () => {
+    expect(await probe('production', 'localhost:8787', true)).toEqual({ local: false });
+    expect(await probe('production', 'fundly.dev.hexly.ai', true)).toEqual({ local: false });
   });
 });

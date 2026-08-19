@@ -1,5 +1,6 @@
-# Copy to .dev.vars for local wrangler dev if you need to test JWT verify.
-# Localhost / *.dev.hexly.ai bypass Access; these are only required on the edge.
+# Copy to .dev.vars for wrangler dev. ENVIRONMENT=development enables the
+# localhost / *.dev.hexly.ai API bypass. Production Worker keeps
+# ENVIRONMENT=production and never bypasses.
 CF_ACCESS_TEAM_DOMAIN=nocoo.cloudflareaccess.com
 CF_ACCESS_AUD=3cc4b46229051f806a91d53dea596f6aaccd197c1a780ba5f5515f764f1bbe80
 ENVIRONMENT=development
