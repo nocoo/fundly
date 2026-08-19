@@ -42,8 +42,8 @@ export function parseFundList(jsText: string): RawFundListRow[] {
   return result;
 }
 
-export async function fetchFundList(): Promise<RawFundListRow[]> {
-  const text = await fetchText(FUNDCODE_SEARCH_URL, { timeout: 30000, retries: 3 });
+export async function fetchFundList(url: string = FUNDCODE_SEARCH_URL): Promise<RawFundListRow[]> {
+  const text = await fetchText(url, { timeout: 30000, retries: 3 });
   return parseFundList(text);
 }
 
@@ -241,8 +241,11 @@ export function tsToDate(ts: number): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export async function fetchPingzhongData(fundCode: string): Promise<PingzhongData> {
-  const text = await fetchText(PINGZHONG_URL(fundCode), {
+export async function fetchPingzhongData(
+  fundCode: string,
+  urlBuilder: (code: string) => string = PINGZHONG_URL,
+): Promise<PingzhongData> {
+  const text = await fetchText(urlBuilder(fundCode), {
     timeout: 20000,
     retries: 3,
     headers: { Referer: `http://fund.eastmoney.com/${fundCode}.html` },
