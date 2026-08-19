@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { fetchAuthorProfile } from '../lib/author-profile';
 import type { AppEnv } from '../lib/types';
 
 export interface AccessJwtPayload {
@@ -17,46 +18,44 @@ export function decodeJwtPayload(jwt: string): AccessJwtPayload | null {
   }
 }
 
+async function meResponse(
+  email: string | null,
+  fallbackName: string | null,
+  authenticated: boolean,
+) {
+  if (!authenticated) {
+    return { email: null, name: null, avatar: null, authenticated: false };
+  }
+  const profile = email ? await fetchAuthorProfile(email) : { name: null, avatar: null };
+  return {
+    email,
+    name: profile.name ?? fallbackName,
+    avatar: profile.avatar,
+    authenticated: true,
+  };
+}
+
 const app = new Hono<AppEnv>();
 
-app.get('/api/me', (c) => {
+app.get('/api/me', async (c) => {
   const ctxEmail = c.get('accessEmail');
   if (ctxEmail) {
-    return c.json({
-      email: ctxEmail,
-      name: ctxEmail.split('@')[0] ?? null,
-      avatar: null,
-      authenticated: true,
-    });
+    return c.json(await meResponse(ctxEmail, ctxEmail.split('@')[0] ?? null, true));
   }
 
   const jwt = c.req.header('Cf-Access-Jwt-Assertion');
   if (!jwt) {
-    return c.json({
-      email: null,
-      name: null,
-      avatar: null,
-      authenticated: false,
-    });
+    return c.json(await meResponse(null, null, false));
   }
 
   const payload = decodeJwtPayload(jwt);
   if (!payload) {
-    return c.json({
-      email: null,
-      name: null,
-      avatar: null,
-      authenticated: false,
-    });
+    return c.json(await meResponse(null, null, false));
   }
 
   const email = payload.email ?? null;
-  return c.json({
-    email,
-    name: payload.name ?? email?.split('@')[0] ?? null,
-    avatar: null,
-    authenticated: true,
-  });
+  const fallbackName = payload.name ?? email?.split('@')[0] ?? null;
+  return c.json(await meResponse(email, fallbackName, true));
 });
 
 export default app;
