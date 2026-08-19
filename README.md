@@ -57,6 +57,7 @@ fundly/
 git clone https://github.com/nocoo/fundly.git
 cd fundly
 bun install
+bun run install:web   # apps/web + apps/worker，各自一份 lockfile
 ```
 
 ### 初始化数据库
