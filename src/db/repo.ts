@@ -104,6 +104,19 @@ export function listMvpFundCodes(db: Database): string[] {
   return rows.map((r) => r.fund_code);
 }
 
+/** 列出 MVP 池中尚未抓过 performance 的基金代码（增量续跑用） */
+export function listMvpFundCodesMissingPerformance(db: Database): string[] {
+  const rows = db
+    .query(
+      `SELECT b.fund_code FROM fund_basic_info b
+       WHERE b.in_mvp_pool = 1
+         AND NOT EXISTS (SELECT 1 FROM fund_performance p WHERE p.fund_code = b.fund_code)
+       ORDER BY b.fund_code`,
+    )
+    .all() as { fund_code: string }[];
+  return rows.map((r) => r.fund_code);
+}
+
 // ============================================================
 // fund_performance
 // ============================================================

@@ -7,6 +7,7 @@ import {
   countNavPoints,
   initSchema,
   listMvpFundCodes,
+  listMvpFundCodesMissingPerformance,
   openDb,
   upsertFundList,
   upsertNavPoints,
@@ -67,6 +68,54 @@ describe('db repo', () => {
     // 再写一次应更新，不新增
     upsertFundList(db, rows);
     expect(countFunds(db)).toBe(2);
+
+    db.close();
+    unlinkSync(path);
+  });
+
+  test('listMvpFundCodesMissingPerformance returns only funds without performance row', () => {
+    const path = tmpDbPath();
+    const db = openDb(path);
+    initSchema(db);
+
+    upsertFundList(db, [
+      { fundCode: '000001', pinyinAbbr: 'A', fundName: 'A', fundType: '股票型', pinyinFull: 'A' },
+      { fundCode: '000002', pinyinAbbr: 'B', fundName: 'B', fundType: '股票型', pinyinFull: 'B' },
+      {
+        fundCode: '000003',
+        pinyinAbbr: 'C',
+        fundName: 'C',
+        fundType: '债券型-长债',
+        pinyinFull: 'C',
+      },
+    ]);
+    // 手动把 000003 也拉进 MVP 池
+    db.exec("UPDATE fund_basic_info SET in_mvp_pool = 1 WHERE fund_code = '000003'");
+
+    // 只给 000001 写 performance
+    upsertPerformance(db, {
+      fundCode: '000001',
+      return1m: null,
+      return3m: null,
+      return6m: null,
+      return1y: null,
+      return2y: null,
+      return3y: null,
+      return5y: null,
+      returnYtd: null,
+      returnSinceStart: null,
+      rankPct1m: null,
+      rankPct3m: null,
+      rankPct6m: null,
+      rankPct1y: null,
+      rankPct2y: null,
+      rankPct3y: null,
+      rankPct5y: null,
+      dataDate: null,
+    });
+
+    const missing = listMvpFundCodesMissingPerformance(db);
+    expect(missing).toEqual(['000002', '000003']);
 
     db.close();
     unlinkSync(path);

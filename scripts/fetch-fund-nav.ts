@@ -11,6 +11,7 @@ import {
   DEFAULT_DB_PATH,
   initSchema,
   listMvpFundCodes,
+  listMvpFundCodesMissingPerformance,
   openDb,
   upsertNavPoints,
   upsertPerformance,
@@ -23,6 +24,7 @@ import { ConcurrencyPool, RateLimiter } from '../src/utils/pool.ts';
 
 const CONCURRENCY = Number(process.env.FUNDLY_CONCURRENCY ?? 5);
 const QPS = Number(process.env.FUNDLY_QPS ?? 5);
+const RESUME = process.env.FUNDLY_RESUME !== '0'; // 默认开启断点续跑
 
 async function main(): Promise<void> {
   const dbPath = process.argv[2] ?? DEFAULT_DB_PATH;
@@ -32,9 +34,14 @@ async function main(): Promise<void> {
   const db = openDb(dbPath);
   initSchema(db);
 
-  const allCodes = listMvpFundCodes(db);
+  const allCodes = RESUME ? listMvpFundCodesMissingPerformance(db) : listMvpFundCodes(db);
   const codes = Number.isFinite(limit) ? allCodes.slice(0, limit) : allCodes;
   if (codes.length === 0) {
+    if (RESUME) {
+      logger.info('nothing to fetch (all funds already have performance data)');
+      db.close();
+      return;
+    }
     logger.error('no funds in MVP pool. run fetch:list first.');
     process.exit(1);
   }
@@ -43,6 +50,7 @@ async function main(): Promise<void> {
     total: codes.length,
     concurrency: CONCURRENCY,
     qps: QPS,
+    resumeMode: RESUME,
   });
 
   const limiter = new RateLimiter(QPS);
