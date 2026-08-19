@@ -4,9 +4,10 @@
 > 数据面仍由仓库根目录的 Bun 爬虫写入 SQLite；本文件只覆盖浏览层。
 >
 > 相关文档：
-> - [07-DASHBOARD.md](./07-DASHBOARD.md) — 仪表盘信息架构与占位约定
+> - [07-DASHBOARD.md](./07-DASHBOARD.md) — 仪表盘指标与 `/api/stats`
 > - [01-ARCHITECTURE.md](./01-ARCHITECTURE.md) — 爬虫与 SQLite 数据面
 > - [02-SCHEMA.md](./02-SCHEMA.md) — 本地库表结构
+> - [03-SCRIPTS.md](./03-SCRIPTS.md) — `import:d1` / `dev:api`
 
 ---
 
@@ -14,7 +15,7 @@
 
 Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权益基金的列表、净值、阶段业绩、同类排名摊开，按 4433 / 夏普 / 回撤等规则筛选。不做交易、不做投顾、不做公开站点。
 
-当前阶段只搭**可登录的应用壳**。基金数据仍由另一个进程写入 `data/fundly.db`，UI 先不读库。
+采集进程写本地 `data/fundly.db`。浏览层读 **D1 `fundly-db`**（生产 Worker 只绑 D1）。本机默认同源 SQLite，可用 header 切到远端 D1。
 
 ---
 
@@ -31,12 +32,14 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
 | 本地域名 | `fundly.dev.hexly.ai` → `:7044` | Caddy v2.11.4，端口按首次立项续编 |
 | 生产域名 | `fundly.hexly.ai` | 与 `surety.hexly.ai` / `bat.hexly.ai` 对齐 |
 | 与爬虫关系 | `apps/` 独立，不改 `src/` `scripts/` `tests/` | 避免和正在跑的采集进程抢文件 |
+| 生产数据 | Cloudflare D1 `fundly-db`，binding `DB` | Worker 在边缘读不到本机 sqlite |
+| 本机数据 | `bun run dev:api`（默认 sqlite，可切 D1） | Vite `/api` 代理到 `:7045` |
 
 不采用的方案：
 
 - 不把 UI 塞进根目录 `src/`（和采集器混在一起）。
-- 不在 Phase 1 把 SQLite 直接绑到 Worker。采集库是单机文件，Worker 在边缘读不到；以后要嘛导出到 D1，要嘛走受控 API。
-- 不单独做 `fundly-api.hexly.ai`。现在没有机器写路径，一个浏览器域名够用。
+- 不把本机 sqlite 文件绑进 workerd。生产只读 D1；本机 sqlite 走 Bun API。
+- 不单独做 `fundly-api.hexly.ai`。浏览器域名同时托管 SPA 和 `/api/*`。
 
 ---
 
@@ -48,9 +51,11 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
                          │
                          ▼
                     Vite :7044
-                         │  /api/* proxy
+                         │  /api/* proxy → :7045
                          ▼
-                    wrangler dev 或占位 JSON
+                    bun run dev:api
+                         ├── sqlite  data/fundly.db（默认）
+                         └── d1      需 `X-Fundly-Source: d1`
 
 生产
   Browser ──► Cloudflare Access (nocoo.cloudflareaccess.com)
@@ -59,9 +64,11 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
               fundly.hexly.ai
                  │
                  ▼
-              Hono Worker
-                 ├── /api/live     探活（目前整站 Access，监控需带会话）
+              Hono Worker + D1 fundly-db
+                 ├── /api/live     探活（整站 Access；无令牌会 302）
                  ├── /api/me       Access JWT → lizheng.blog 头像/名字
+                 ├── /api/funds*   列表 / 详情 / 净值
+                 ├── /api/stats    仪表盘与数据管理
                  └── /*            Vite SPA（Worker 先处理，再 ASSETS）
 ```
 
@@ -104,14 +111,16 @@ fundly/
 | Content | 浮动卡片（`rounded-[20px] bg-card`） |
 | 用户 | `/api/me` 头像与邮箱；本地显示「本地开发」 |
 
-路由（全部先放 placeholder）：
+路由：
 
-| 路径 | 页面 | 后续 |
+| 路径 | 页面 | 数据 |
 |------|------|------|
-| `/` | 仪表盘 | 见 [07-DASHBOARD.md](./07-DASHBOARD.md) |
-| `/funds` | 基金浏览 | 列表、类型过滤、详情 |
-| `/ranking` | 排名 | 4433 / 夏普 / 回撤榜 |
-| `/settings` | 设置 | 数据新鲜度、主题以外的偏好 |
+| `/` | 仪表盘 | `/api/stats`、`/api/fund-types` |
+| `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排 |
+| `/funds/:code` | 基金详情 | `/api/funds/:code` + 最近 400 点净值 |
+| `/data` | 数据管理 | 表行数、净值区间、覆盖率 |
+| `/ranking` | 排名 | 仍是入口页 |
+| `/settings` | 设置 | 本机可切 sqlite / D1 |
 
 导航数据在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。
 
@@ -153,26 +162,23 @@ nmem 本机不可用，端口与版本以 Caddyfile + `caddy version` 为准。
 ## 开发与部署
 
 ```bash
-# 本地 SPA（日常入口）
+# 本机浏览：先起 API，再起 SPA
+bun run dev:api          # :7045，默认 sqlite
 bun run dev:web
 # 浏览器打开 https://fundly.dev.hexly.ai
 
-# 本地 Worker（可选）
+# 可选：直接打远端 Worker（无 sqlite）
 bun run dev:worker
+
+# sqlite → D1（可变表 upsert，净值按日期水位追加）
+bun run import:d1
 
 # 构建 SPA → Worker static，再发布
 bun run deploy:web
 ```
 
+本机切 D1：设置页或请求头 `X-Fundly-Source: d1`。生产 Worker 的 `/api/source` 只声明 `d1`。
+
+Token 优先读 `CLOUDFLARE_API_TOKEN`，没有再回退本机 Wrangler oauth。
+
 质量门槛与爬虫相同：Biome 零告警，核心逻辑单测。UI 新增 ViewModel 必须带测试。
-
----
-
-## 以后怎么接数据
-
-仪表盘和列表**不**在本阶段读 `data/fundly.db`。采集稳定后有两条路，到时单独立项：
-
-1. 定时把 SQLite 同步进 D1，Worker 直查。
-2. 本机起只读 API，Worker 不碰原库。
-
-在那之前，页面一律走 placeholder，避免半套 schema 绑死 UI。

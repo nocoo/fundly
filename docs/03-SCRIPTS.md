@@ -11,6 +11,8 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
+| `import-d1.ts` | `bun run import:d1` | sqlite → D1：可变表 upsert，净值按水位追加 | 视行数 |
+| `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
 
 ---
 
@@ -118,6 +120,33 @@ FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
 技术上 `fetch:nav` 走 `listMvpFundCodesMissingPerformance()`，`fetch:daily` 走 `listMvpFundCodes()` 或全表扫描。
 
 ---
+
+## ☁ D1 导入：`import-d1.ts`
+
+把本机 `data/fundly.db` 增量拷进 Cloudflare D1 `fundly-db`。
+
+```bash
+bun run import:d1                 # 默认 data/fundly.db
+bun run import:d1 path/to/db      # 指定 sqlite
+```
+
+规则：
+
+- `fund_basic_info` / `fund_performance` / `fund_trend_extra`：`ON CONFLICT DO UPDATE`
+- `fund_nav`：按基金取远端 `MAX(nav_date)`，只上传更新的日期
+- `fetch_log`：按主键追加
+- Token：`CLOUDFLARE_API_TOKEN`，没有再读本机 Wrangler oauth
+
+首次全量净值仍会走很长时间；重跑只补水位之后的行。
+
+### 本机 API：`dev-api.ts`
+
+```bash
+bun run dev:api                   # http://127.0.0.1:7045
+FUNDLY_SQLITE=/path bun run dev:api
+```
+
+Vite 把 `/api/*` 代理到这里。默认读 sqlite；请求头 `X-Fundly-Source: d1` 改打远端 D1。
 
 ## 🛠 工具脚本
 

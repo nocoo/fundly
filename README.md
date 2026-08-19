@@ -90,16 +90,19 @@ bun run fetch:daily
 日常入口是本地域名，不要用 `localhost:7044`：
 
 ```bash
+bun run dev:api         # :7045，默认读 data/fundly.db
 bun run dev:web
-# https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044
+# https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044 → API :7045
 ```
 
-可选：本地 Worker（`https://fundly.dev.hexly.ai/api/*` 会代理过来，见 `apps/web/vite.config.ts`）。
+生产 Worker 只读 D1。把本机库同步上去：
 
 ```bash
-bun run dev:worker      # wrangler dev :8787
+bun run import:d1       # sqlite → D1 fundly-db
 bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
 ```
+
+可选：`bun run dev:worker` 直接打远端 schema（无 sqlite 切换）。本机设置页可把 `X-Fundly-Source` 切到 `d1`。
 
 生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。
 

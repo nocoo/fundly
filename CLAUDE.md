@@ -49,7 +49,7 @@ fundly/
 | **04** | `04-DATA_SOURCES.md` | 数据源清单、URL、请求头、限流约定 |
 | **05** | `05-CREDITS.md` | 致敬与参考项目（GoFundBot、AKShare 等） |
 | **06** | `06-ARCH-UI.md` | UI / Worker 架构、Access、本地域名 |
-| **07** | `07-DASHBOARD.md` | 仪表盘信息架构与占位约定 |
+| **07** | `07-DASHBOARD.md` | 仪表盘 `/api/stats` 与空态 |
 
 **新增文档规则**：
 - 数字**顺延**（下一份文档用 `08-`）
@@ -117,9 +117,15 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ Phase 1 MVP 完成：3.7GB 数据库、27,527 只基金、3069 万净值行
 - ✅ 覆盖率 99.15% 行 / 92.86% 函数、50/50 单测通过
 - ✅ 每日增量脚本 `fetch:daily` 上线
-- ✅ UI 壳：Vite SPA + CF Worker + Access，仪表盘仍是占位
+- ✅ UI：D1 浏览、本机 sqlite/D1 切换、仪表盘读 `/api/stats`
 - 📋 Phase 2 待办：4433 法则筛选、多因子打分、Reits ETF 补齐
 - 📋 Phase 3 待办：回测引擎、Discord 推送
+
+## Retrospective
+
+- `v0.1.1` 打在 D1 bind-limit 修复之前。不要移动已发布 tag；含导入修复的版本走 `0.1.2`。
+- 可变表不能只 `INSERT OR IGNORE`，否则业绩/经理永远停在首次导入。
+- `/api/live` 整站 Access，无令牌探活只能把 302 当成边缘存活，不能当成 `status=ok`。
 
 ## 🔗 关键文件快速链接
 
