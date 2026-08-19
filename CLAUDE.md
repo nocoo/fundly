@@ -118,8 +118,8 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ 覆盖率 99.15% 行 / 92.86% 函数、50/50 单测通过
 - ✅ 每日增量脚本 `fetch:daily` 上线
 - ✅ UI：D1 浏览、本机 sqlite/D1 切换、仪表盘读 `/api/stats`
-- 📋 Phase 2 待办：4433 法则筛选、多因子打分、Reits ETF 补齐
-- 📋 Phase 3 待办：回测引擎、Discord 推送
+- ✅ **Phase 2 卫星数据完成（2026-08-19）**：6 张新表、DB 涨到 3.8 GB、127+ 单测；风险指标/分红/费率/经理履历/持仓全覆盖，详见 `docs/08-PHASE2-REPORT.md`
+- 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
 
 ## Retrospective
 

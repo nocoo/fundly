@@ -171,3 +171,18 @@ CREATE TABLE schema_version (
 - `fund_dividend` — 分红送配
 - `fund_risk_metrics` — 风险指标（本地计算：夏普/卡玛/波动率/最大回撤）
 - `fund_screening_rank` — 多因子打分与筛选榜单快照
+
+## ✅ Phase 2 已交付（2026-08-19）
+
+以下 6 张表已建成并**全量填充**，详见 [`08-PHASE2-REPORT.md`](./08-PHASE2-REPORT.md)：
+
+| 表 | 记录数 | 主键 | 数据源 |
+|---|---|---|---|
+| `fund_risk_metrics` | 26,072 | `fund_code` | 本地计算 |
+| `fund_dividend` | 53,317 | `(fund_code, event_date, event_type)` | fhsp HTML |
+| `fund_fees` | 27,527 | `fund_code` | jjfl HTML |
+| `fund_manager` | 6,628 | `manager_id`（= name）| jjjl HTML |
+| `fund_manager_link` | 131,732 | `(fund_code, manager_id, start_date)` | jjjl HTML |
+| `fund_portfolio` | 250,658 | `(fund_code, report_date, stock_code)` WITHOUT ROWID | jjcc apidata |
+
+**schema_version 已升到 2**。DDL 见 [`src/db/schema.ts`](../src/db/schema.ts)。

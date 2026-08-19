@@ -11,6 +11,11 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
+| `fetch-dividend.ts` | `bun run fetch:dividend` | 抓分红事件 → `fund_dividend` | ~92 分钟 |
+| `fetch-fees.ts` | `bun run fetch:fees` | 抓费率结构 → `fund_fees` | ~92 分钟 |
+| `fetch-manager.ts` | `bun run fetch:manager` | 抓经理履历 → `fund_manager` + `fund_manager_link` | ~92 分钟 |
+| `fetch-portfolio.ts` | `bun run fetch:portfolio` | 抓最新季持仓 → `fund_portfolio` | ~98 分钟 |
+| `compute-risk-metrics.ts` | `bun run compute:risk` | **本地计算风险指标**（零请求） | ~10 秒 |
 | `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
 | `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
