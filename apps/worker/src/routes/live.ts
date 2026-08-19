@@ -8,12 +8,10 @@ const bootedAt = Date.now();
 export async function livePayload(env: AppEnv['Bindings']) {
   let database = { connected: false };
   try {
-    if (env.DB) {
-      await env.DB.prepare('SELECT 1 AS ok').first();
-      database = { connected: true };
-    } else {
-      database = { connected: true };
-    }
+    if (!env.DB) throw new Error('missing DB binding');
+    const row = await env.DB.prepare('SELECT version FROM schema_version LIMIT 1').first();
+    if (!row) throw new Error('schema missing');
+    database = { connected: true };
   } catch {
     database = { connected: false };
   }

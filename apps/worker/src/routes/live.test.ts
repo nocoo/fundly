@@ -17,6 +17,12 @@ describe('livePayload', () => {
     expect(body.database.connected).toBe(true);
   });
 
+  it('reports error when DB binding is missing', async () => {
+    const body = await livePayload({} as never);
+    expect(body.status).toBe('error');
+    expect(body.database.connected).toBe(false);
+  });
+
   it('reports error when DB probe throws', async () => {
     const env = {
       DB: {
