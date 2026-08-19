@@ -65,7 +65,7 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
                  └── /*            Vite SPA（Worker 先处理，再 ASSETS）
 ```
 
-本地 `*.dev.hexly.ai` **不走 Access**。`wrangler dev` 读 `.dev.vars` 里的 `ENVIRONMENT=development`，此时 Host 为 localhost / 127.0.0.1 / `*.dev.hexly.ai` 的请求走开发旁路。Vite 代理保留原始 Host（`changeOrigin: false`）。
+本地 `*.dev.hexly.ai` **不走 Access**。`wrangler dev --local-upstream fundly.dev.hexly.ai` 读 `.dev.vars` 的 `ENVIRONMENT=development`，Host / URL 落在 localhost、127.0.0.1 或 `*.dev.hexly.ai` 时走开发旁路。不加 `--local-upstream` 时 Wrangler 会把 Host 改写成生产域 `fundly.hexly.ai`，旁路失效。Vite 代理保留原始 Host（`changeOrigin: false`）。
 
 生产 `ENVIRONMENT=production`，Worker **从不**旁路，必须校验 `Cf-Access-Jwt-Assertion`（JWKS + `iss` + `aud`）。缺 header → 401，签名不对 → 403，环境变量没配 → 500。
 
