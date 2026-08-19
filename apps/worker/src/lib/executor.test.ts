@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { toSqlBindings } from '../src/lib/executor';
+import { toSqlBindings } from './executor';
 
 describe('toSqlBindings', () => {
   it('keeps sqlite-legal values and rejects objects', () => {

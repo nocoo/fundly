@@ -7,7 +7,7 @@
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { cloudflareApiToken } from '../apps/worker/scripts/cf-token.ts';
-import { toSqliteBindings } from '../apps/worker/scripts/sqlite-bindings.ts';
+import { type SqlBinding, toSqlBindings } from '../apps/worker/src/lib/executor.ts';
 import {
   copyTableIncremental,
   IMPORT_TABLES,
@@ -23,7 +23,7 @@ const SQLITE_PATH = resolve(process.argv[2] ?? 'data/fundly.db');
 function d1Exec(token: string): SqlExec {
   const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${DATABASE_ID}/query`;
   return {
-    async all<T>(sql: string, params: unknown[] = []) {
+    async all<T>(sql: string, params: SqlBinding[] = []) {
       const res = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -39,7 +39,7 @@ function d1Exec(token: string): SqlExec {
       }
       return (body.result?.[0]?.results ?? []) as T[];
     },
-    async run(sql: string, params: unknown[] = []) {
+    async run(sql: string, params: SqlBinding[] = []) {
       await this.all(sql, params);
     },
   };
@@ -47,11 +47,11 @@ function d1Exec(token: string): SqlExec {
 
 function sqliteExec(db: Database): SqlExec {
   return {
-    all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...toSqliteBindings(params)) as T[];
+    all<T>(sql: string, params: SqlBinding[] = []) {
+      return db.prepare(sql).all(...params) as T[];
     },
-    run(sql: string, params: unknown[] = []) {
-      db.prepare(sql).run(...toSqliteBindings(params));
+    run(sql: string, params: SqlBinding[] = []) {
+      db.prepare(sql).run(...params);
     },
   };
 }
@@ -92,7 +92,7 @@ async function copyNav(
       const tuples = chunk.map((row) => table.columns.map((c) => row[c] ?? null));
       await dest.run(
         sqlInsertOrIgnore(table.table, table.columns, chunk.length),
-        flattenRows(tuples),
+        toSqlBindings(flattenRows(tuples)),
       );
       inserted += chunk.length;
     }

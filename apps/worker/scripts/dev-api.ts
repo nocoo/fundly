@@ -4,7 +4,7 @@
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
-import type { QueryExec } from '../src/lib/executor.ts';
+import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
   getDataStats,
@@ -16,7 +16,6 @@ import {
 import { resolveDataSource } from '../src/lib/source.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
 import { cloudflareApiToken } from './cf-token.ts';
-import { toSqliteBindings } from './sqlite-bindings.ts';
 
 const PORT = Number(process.env.FUNDLY_API_PORT ?? 7045);
 const SQLITE_PATH = resolve(
@@ -25,11 +24,11 @@ const SQLITE_PATH = resolve(
 
 function sqliteExec(db: Database): QueryExec {
   return {
-    async all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...toSqliteBindings(params)) as T[];
+    async all<T>(sql: string, params: SqlBinding[] = []) {
+      return db.prepare(sql).all(...params) as T[];
     },
-    async first<T>(sql: string, params: unknown[] = []) {
-      return (db.prepare(sql).get(...toSqliteBindings(params)) as T | null) ?? null;
+    async first<T>(sql: string, params: SqlBinding[] = []) {
+      return (db.prepare(sql).get(...params) as T | null) ?? null;
     },
   };
 }
@@ -39,7 +38,7 @@ function d1HttpExec(token: string): QueryExec {
   const databaseId = 'ccc8336d-8c39-489a-a532-2ea856ec69ed';
   const url = `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}/query`;
   return {
-    async all<T>(sql: string, params: unknown[] = []) {
+    async all<T>(sql: string, params: SqlBinding[] = []) {
       const res = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -55,7 +54,7 @@ function d1HttpExec(token: string): QueryExec {
       }
       return (body.result?.[0]?.results ?? []) as T[];
     },
-    async first<T>(sql: string, params: unknown[] = []) {
+    async first<T>(sql: string, params: SqlBinding[] = []) {
       const rows = await this.all<T>(sql, params);
       return rows[0] ?? null;
     },

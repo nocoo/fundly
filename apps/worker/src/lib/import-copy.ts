@@ -1,3 +1,4 @@
+import { type SqlBinding, toSqlBindings } from './executor';
 import {
   flattenRows,
   planIncrementalInsert,
@@ -7,8 +8,8 @@ import {
 } from './import-plan';
 
 export interface SqlExec {
-  all<T>(sql: string, params?: unknown[]): T[] | Promise<T[]>;
-  run(sql: string, params?: unknown[]): unknown | Promise<unknown>;
+  all<T>(sql: string, params?: SqlBinding[]): T[] | Promise<T[]>;
+  run(sql: string, params?: SqlBinding[]): unknown | Promise<unknown>;
 }
 
 export const IMPORT_TABLES = [
@@ -135,7 +136,7 @@ export async function copyTableIncremental(
       mode === 'upsert'
         ? sqlUpsert(table.table, table.columns, table.keyCols, chunk.length)
         : sqlInsertOrIgnore(table.table, table.columns, chunk.length);
-    await dest.run(sql, flattenRows(tuples));
+    await dest.run(sql, toSqlBindings(flattenRows(tuples)));
     inserted += chunk.length;
   }
   return { inserted, skipped };

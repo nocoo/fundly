@@ -1,3 +1,5 @@
+import type { SqlBinding } from './executor';
+
 export type FundSortKey =
   | 'fund_code'
   | 'fund_name'
@@ -70,11 +72,11 @@ export function buildFundListClauses(query: FundListQuery): {
   whereSql: string;
   orderSql: string;
   limitSql: string;
-  filterParams: unknown[];
-  limitParams: unknown[];
+  filterParams: SqlBinding[];
+  limitParams: SqlBinding[];
 } {
   const where: string[] = [];
-  const filterParams: unknown[] = [];
+  const filterParams: SqlBinding[] = [];
   if (query.q) {
     where.push("(b.fund_code LIKE ? OR b.fund_name LIKE ? OR IFNULL(b.pinyin_abbr, '') LIKE ?)");
     const like = `%${query.q}%`;
@@ -110,8 +112,8 @@ export const FUND_LIST_SELECT = `SELECT b.fund_code, b.fund_name, b.fund_type, b
 export function fundListSql(query: FundListQuery): {
   listSql: string;
   countSql: string;
-  listParams: unknown[];
-  countParams: unknown[];
+  listParams: SqlBinding[];
+  countParams: SqlBinding[];
 } {
   const c = buildFundListClauses(query);
   return {
