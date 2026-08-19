@@ -21,6 +21,7 @@ import {
   assertSeedSnapshot,
   packInsertStatements,
   parseSkipFiles,
+  resolveSeedSqlitePath,
   selectSeedTables,
   sqliteSnapshot,
 } from '../apps/worker/src/lib/seed-sql.ts';
@@ -92,14 +93,27 @@ async function main() {
   if (skipFiles > 0 && tables.length !== 1) {
     throw new Error('FUNDLY_SEED_SKIP_FILES requires FUNDLY_SEED_TABLES with exactly one table');
   }
-  const st = statSync(SQLITE_PATH);
+  const sourcePath = resolveSeedSqlitePath({
+    livePath: SQLITE_PATH,
+    resumeSqlite: process.env.FUNDLY_SEED_SQLITE,
+    skipFiles,
+  });
+  let dbPath = sourcePath;
+  if (skipFiles === 0 && !process.env.FUNDLY_SEED_SQLITE) {
+    dbPath = `${SQLITE_PATH}.seed-snapshot.db`;
+    const live = new Database(SQLITE_PATH, { readonly: true });
+    live.exec(`VACUUM INTO '${dbPath.replaceAll("'", "''")}'`);
+    live.close();
+    console.log(`wrote immutable snapshot ${dbPath}`);
+  }
+  const st = statSync(dbPath);
   const snapshot = sqliteSnapshot(st.size, st.mtimeMs);
   assertSeedSnapshot(snapshot, process.env.FUNDLY_SEED_SNAPSHOT, skipFiles);
-  console.log(`sqlite snapshot ${snapshot}`);
+  console.log(`sqlite snapshot ${snapshot} path=${dbPath}`);
 
   const dest = d1Exec(cloudflareApiToken());
   runWrangler(['d1', 'migrations', 'apply', 'fundly-db', '--remote']);
-  const db = new Database(SQLITE_PATH, { readonly: true });
+  const db = new Database(dbPath, { readonly: true });
   let dir: string | undefined;
   let files = 0;
   let oversizedTotal = 0;

@@ -4,6 +4,7 @@ import {
   chunkByCount,
   packInsertStatements,
   parseSkipFiles,
+  resolveSeedSqlitePath,
   selectSeedTables,
   sqlByteLength,
   sqlInsertStatement,
@@ -35,6 +36,19 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('resumes only from an explicit sqlite file', () => {
+    expect(resolveSeedSqlitePath({ livePath: 'live.db', skipFiles: 0 })).toBe('live.db');
+    expect(
+      resolveSeedSqlitePath({ livePath: 'live.db', resumeSqlite: 'snap.db', skipFiles: 0 }),
+    ).toBe('snap.db');
+    expect(() => resolveSeedSqlitePath({ livePath: 'live.db', skipFiles: 2 })).toThrow(
+      'FUNDLY_SEED_SQLITE',
+    );
+    expect(
+      resolveSeedSqlitePath({ livePath: 'live.db', resumeSqlite: 'snap.db', skipFiles: 2 }),
+    ).toBe('snap.db');
   });
 
   it('requires a matching sqlite snapshot when skipping files', () => {

@@ -58,6 +58,18 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
+export function resolveSeedSqlitePath(opts: {
+  livePath: string;
+  resumeSqlite?: string;
+  skipFiles: number;
+}): string {
+  if (opts.skipFiles > 0) {
+    if (!opts.resumeSqlite) throw new Error('resume requires FUNDLY_SEED_SQLITE');
+    return opts.resumeSqlite;
+  }
+  return opts.resumeSqlite ?? opts.livePath;
+}
+
 export function sqliteSnapshot(size: number, mtimeMs: number): string {
   return `${size}:${mtimeMs}`;
 }

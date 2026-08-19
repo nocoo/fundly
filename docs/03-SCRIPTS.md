@@ -131,9 +131,10 @@ bun run migrate:d1                # wrangler d1 migrations apply --remote
 bun run import:d1:seed            # 默认 data/fundly.db → wrangler d1 execute --file
 FUNDLY_SEED_TABLES=fund_nav bun run import:d1:seed   # 只补一张表
 FUNDLY_SEED_TABLES=fund_nav FUNDLY_SEED_SKIP_FILES=46 \
+  FUNDLY_SEED_SQLITE=data/fundly.db.seed-snapshot.db \
   FUNDLY_SEED_SNAPSHOT='<size:mtimeMs from first run>' bun run import:d1:seed
-# SKIP_FILES 按 ORDER BY 主键后的真实打包结果跳过前 N 个文件，必须只指定一张表。
-# 首次 seed 会打印 sqlite snapshot；续跑必须带同一 SNAPSHOT，源库变了会失败。
+# 首次会 VACUUM INTO 不可变快照，避免 WAL 采集写入改动续跑边界。
+# SKIP_FILES 按快照内 ORDER BY 主键后的真实打包结果跳过前 N 个文件。
 bun run import:d1                 # 之后增量
 bun run import:d1 path/to/db      # 指定 sqlite
 ```
