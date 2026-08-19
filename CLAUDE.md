@@ -125,7 +125,8 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 
 - `v0.1.1` 打在 D1 bind-limit 修复之前。不要移动已发布 tag；含导入修复的版本走 `0.1.2`。
 - 可变表不能只 `INSERT OR IGNORE`，否则业绩/经理永远停在首次导入。
-- `/api/live` 整站 Access，无令牌探活只能把 302 当成边缘存活，不能当成 `status=ok`。
+- `/api/live` 整站 Access。发布探活必须带 Access service token，并校验 `status=ok` 和版本号；302 不能当成功。
+- 空库首次导入走 `import:d1:seed`（`wrangler d1 execute --file`）。REST 逐批只留给增量。
 
 ## 🔗 关键文件快速链接
 

@@ -167,10 +167,12 @@ bun run dev:api          # :7045，默认 sqlite
 bun run dev:web
 # 浏览器打开 https://fundly.dev.hexly.ai
 
-# 可选：直接打远端 Worker（无 sqlite）
+# 可选：本地 Worker + 本地 D1（不是远端库）
 bun run dev:worker
 
-# sqlite → D1（可变表 upsert，净值按日期水位追加）
+# 空库首次用 seed；之后增量
+bun run migrate:d1
+bun run import:d1:seed
 bun run import:d1
 
 # 构建 SPA → Worker static，再发布

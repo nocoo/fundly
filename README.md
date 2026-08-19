@@ -8,7 +8,7 @@
 
 - 📊 **数据源**：东方财富 / 天天基金公开接口（无需 API Key）
 - 🎯 **范围**：MVP 期只覆盖**主动权益基金**（股票型 + 混合型偏股 + 指数型）
-- 🖥️ **浏览**：基金列表、排名、4433 等规则（UI 壳已就绪，数据接入中）
+- 🖥️ **浏览**：基金列表、详情、仪表盘读本机 SQLite 或生产 D1
 - 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono Worker + Biome
 - 🧪 **质量**：单元测试覆盖率 ≥ 95%，Biome lint 零告警
 - 🔒 **登录**：Cloudflare Access（Google OAuth），生产域 `fundly.hexly.ai`
@@ -98,7 +98,9 @@ bun run dev:web
 生产 Worker 只读 D1。把本机库同步上去：
 
 ```bash
-bun run import:d1       # sqlite → D1 fundly-db
+bun run migrate:d1      # 先建表
+bun run import:d1:seed  # 空库首次：wrangler d1 execute --file
+bun run import:d1       # 之后增量：可变表 upsert，净值按水位追加
 bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
 ```
 
