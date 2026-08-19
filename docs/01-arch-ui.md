@@ -121,7 +121,7 @@ fundly/
 
 | 环境 | 谁拦登录 | Worker 做什么 |
 |------|----------|----------------|
-| `fundly.hexly.ai` | CF Access | 验 JWT，把 email 放进 `/api/me` |
+| `fundly.hexly.ai` | CF Access | 验 JWT；`/api/me` 用邮箱 SHA-256 查 `lizheng.blog` 头像和名字 |
 | `fundly.dev.hexly.ai` | 无 | `isLocalhost` 旁路 |
 | `wrangler dev` | 无 | 同上 |
 
@@ -131,6 +131,8 @@ fundly/
 - `CF_ACCESS_AUD` = `3cc4b46229051f806a91d53dea596f6aaccd197c1a780ba5f5515f764f1bbe80`
 
 `fundly.hexly.ai` 已被 team `nocoo` 的 Access 应用拦住（含 `/api/live`）。策略复用同一 Google OAuth / 邮箱白名单。本地 `*.dev.hexly.ai` 不走 Access。
+
+侧栏左下角用户区：`/api/me` 把 Access 邮箱规范化后做 SHA-256，请求 `https://lizheng.blog/api/authors/profile?hash=`。命中用博客上的 name / avatar；未命中或超时回退 JWT name / 邮箱前缀。和 Surety / Bat 同一套。
 
 ---
 
