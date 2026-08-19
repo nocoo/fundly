@@ -1,8 +1,6 @@
-export type Bindings = {
-  ASSETS: Fetcher;
+export type Bindings = Env & {
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
-  ENVIRONMENT?: string;
 };
 
 export type Variables = {
