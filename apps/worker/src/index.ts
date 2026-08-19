@@ -13,4 +13,6 @@ app.use('/api/*', accessAuth);
 app.route('/', liveRoutes);
 app.route('/', meRoutes);
 
+app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
+
 export default app;
