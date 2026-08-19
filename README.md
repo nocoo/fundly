@@ -1,15 +1,19 @@
 # Fundly 🪴
 
-> 中国公募基金全市场数据采集与量化选基工具
+> 中国公募基金浏览、排名与全市场数据采集工具
 
-**Fundly** 是一个专注于**中国公募基金**（不含股票）的开源项目，目标是把全市场基金数据爬回本地，做多维度筛选、评分与回测分析。
+**Fundly** 把中国公募基金（不含股票）爬回本地，再在私人 Web 里浏览、筛选、排名。采集是 CLI + SQLite；浏览是 Vite SPA，部署在 Cloudflare Worker，登录走 Cloudflare Access。
 
 ## 🎯 项目定位
 
 - 📊 **数据源**：东方财富 / 天天基金公开接口（无需 API Key）
 - 🎯 **范围**：MVP 期只覆盖**主动权益基金**（股票型 + 混合型偏股 + 指数型），约 14,700 只
-- 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Biome
+- 🖥️ **浏览**：基金列表、排名、4433 等规则（UI 壳已就绪，数据接入中）
+- 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono Worker + Biome
 - 🧪 **质量**：单元测试覆盖率 ≥ 95%，Biome lint 零告警
+- 🔒 **登录**：Cloudflare Access（Google OAuth），生产域 `fundly.hexly.ai`
+
+给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。
 
 ## 🗺 路线图
 
@@ -24,18 +28,20 @@
 
 ```
 fundly/
-├── docs/              # 项目文档
-│   ├── ARCHITECTURE.md    # 架构设计
-│   ├── DATA_SOURCES.md    # 数据源说明
-│   ├── SCHEMA.md          # 数据表设计
-│   └── CREDITS.md         # 致谢与参考
-├── data/              # SQLite 数据库（gitignore）
-├── scripts/           # 一次性脚本（爬取、初始化）
-├── src/               # 核心库代码
-│   ├── db/                # 数据库层
-│   ├── fetchers/          # 数据抓取器（分数据源）
-│   └── utils/             # 工具函数（限流、日志、类型）
-└── tests/             # 单元测试
+├── docs/                  # 文档树
+│   ├── 01-arch-ui.md      # UI / Worker 架构
+│   ├── 02-dashboard.md    # 仪表盘信息架构
+│   ├── ARCHITECTURE.md    # 爬虫架构
+│   ├── DATA_SOURCES.md    # 数据源
+│   ├── SCHEMA.md          # SQLite 表
+│   └── CREDITS.md         # 致谢
+├── apps/
+│   ├── web/               # Vite + React SPA（MVVM）
+│   └── worker/            # Hono Worker + 静态资源
+├── data/                  # SQLite（gitignore）
+├── scripts/               # 爬取、初始化
+├── src/                   # 采集核心库
+└── tests/                 # 采集单测
 ```
 
 ## 🚀 快速开始
@@ -72,13 +78,33 @@ bun run fetch:nav
 bun run fetch:all
 ```
 
+### 浏览 UI
+
+日常入口是本地域名，不要用 `localhost:7044`：
+
+```bash
+bun run dev:web
+# https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044
+```
+
+可选：本地 Worker（`https://fundly.dev.hexly.ai/api/*` 会代理过来，见 `apps/web/vite.config.ts`）。
+
+```bash
+bun run dev:worker      # wrangler dev :8787
+bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
+```
+
+生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/01-arch-ui.md`](docs/01-arch-ui.md)，仪表盘约定见 [`docs/02-dashboard.md`](docs/02-dashboard.md)。
+
 ### 开发
 
 ```bash
-bun run typecheck       # TS 类型检查
-bun run lint            # Biome 检查
+bun run typecheck       # 爬虫 TS 类型检查
+bun run typecheck:web   # UI + Worker 类型检查
+bun run lint            # Biome 检查（含 apps）
 bun run lint:fix        # 自动修复
-bun run test            # 跑单测
+bun run test            # 爬虫单测
+bun run test:web        # UI / Worker 单测
 bun run test:coverage   # 带覆盖率
 ```
 
