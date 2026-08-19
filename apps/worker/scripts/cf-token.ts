@@ -1,13 +1,17 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 export function cloudflareApiToken(): string {
   const env = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (env) return env;
-  const text = readFileSync(
-    `${process.env.HOME}/Library/Preferences/.wrangler/config/default.toml`,
-    'utf8',
-  );
-  const line = text.split('\n').find((l) => l.startsWith('oauth_token'));
-  if (!line) throw new Error('CLOUDFLARE_API_TOKEN or wrangler oauth_token not found');
-  return line.split('=', 2)[1]?.trim().replaceAll('"', '') ?? '';
+  const wrangler =
+    process.env.WRANGLER_BIN ?? resolve(import.meta.dirname, '../node_modules/.bin/wrangler');
+  const res = spawnSync(wrangler, ['auth', 'token'], { encoding: 'utf8' });
+  const token = res.stdout.trim().split('\n').at(-1)?.trim() ?? '';
+  if (res.status !== 0 || !token) {
+    throw new Error(
+      res.stderr.trim() || 'CLOUDFLARE_API_TOKEN missing; wrangler auth token failed',
+    );
+  }
+  return token;
 }
