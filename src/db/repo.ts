@@ -451,3 +451,174 @@ export function countDividends(db: Database): number {
   const row = db.query('SELECT COUNT(*) as n FROM fund_dividend').get() as { n: number } | null;
   return row?.n ?? 0;
 }
+
+// ============================================================
+// fund_fees
+// ============================================================
+
+export interface FeesRow {
+  fundCode: string;
+  mgmtFeePct: number | null;
+  custodianFeePct: number | null;
+  salesServiceFeePct: number | null;
+  subscriptionFeeMax: number | null;
+  redemptionFeeMax: number | null;
+  minSubscribeAmount: number | null;
+  rawJson: string;
+}
+
+const UPSERT_FEES = `
+  INSERT INTO fund_fees (fund_code, mgmt_fee_pct, custodian_fee_pct,
+    sales_service_fee_pct, subscription_fee_max, redemption_fee_max,
+    min_subscribe_amount, raw_json, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code) DO UPDATE SET
+    mgmt_fee_pct         = excluded.mgmt_fee_pct,
+    custodian_fee_pct    = excluded.custodian_fee_pct,
+    sales_service_fee_pct= excluded.sales_service_fee_pct,
+    subscription_fee_max = excluded.subscription_fee_max,
+    redemption_fee_max   = excluded.redemption_fee_max,
+    min_subscribe_amount = excluded.min_subscribe_amount,
+    raw_json             = excluded.raw_json,
+    updated_at           = excluded.updated_at
+`;
+
+export function upsertFees(db: Database, row: FeesRow): void {
+  db.prepare(UPSERT_FEES).run(
+    row.fundCode,
+    row.mgmtFeePct,
+    row.custodianFeePct,
+    row.salesServiceFeePct,
+    row.subscriptionFeeMax,
+    row.redemptionFeeMax,
+    row.minSubscribeAmount,
+    row.rawJson,
+    Date.now(),
+  );
+}
+
+export function countFees(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_fees').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+// ============================================================
+// fund_manager + fund_manager_link
+// ============================================================
+
+export interface ManagerLinkRow {
+  fundCode: string;
+  managerName: string;
+  startDate: string;
+  endDate: string | null;
+  tenureDays: number | null;
+  returnDuring: number | null;
+}
+
+const UPSERT_MANAGER = `
+  INSERT INTO fund_manager (manager_id, name, company, updated_at)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(manager_id) DO UPDATE SET
+    name       = excluded.name,
+    company    = excluded.company,
+    updated_at = excluded.updated_at
+`;
+
+const UPSERT_LINK = `
+  INSERT INTO fund_manager_link (fund_code, manager_id, start_date,
+    end_date, tenure_days, return_during, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, manager_id, start_date) DO UPDATE SET
+    end_date      = excluded.end_date,
+    tenure_days   = excluded.tenure_days,
+    return_during = excluded.return_during,
+    updated_at    = excluded.updated_at
+`;
+
+/** 一次性写入某基金的所有经理任期 */
+export function upsertManagerLinks(db: Database, rows: readonly ManagerLinkRow[]): number {
+  const stmtMgr = db.prepare(UPSERT_MANAGER);
+  const stmtLink = db.prepare(UPSERT_LINK);
+  const tx = db.transaction((batch: readonly ManagerLinkRow[]) => {
+    let n = 0;
+    for (const r of batch) {
+      const managerId = r.managerName; // 简易稳定键：仅名字
+      stmtMgr.run(managerId, r.managerName, null, Date.now());
+      stmtLink.run(
+        r.fundCode,
+        managerId,
+        r.startDate,
+        r.endDate,
+        r.tenureDays,
+        r.returnDuring,
+        Date.now(),
+      );
+      n += 1;
+    }
+    return n;
+  });
+  return tx(rows);
+}
+
+export function countManagers(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_manager').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+export function countManagerLinks(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_manager_link').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+// ============================================================
+// fund_portfolio
+// ============================================================
+
+export interface PortfolioRow {
+  fundCode: string;
+  reportDate: string;
+  stockCode: string;
+  stockName: string;
+  holdPct: number | null;
+  holdShares: number | null;
+  holdValueWan: number | null;
+}
+
+const UPSERT_PORTFOLIO = `
+  INSERT INTO fund_portfolio (fund_code, report_date, stock_code, stock_name,
+    hold_pct, hold_shares, hold_value_wan, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, report_date, stock_code) DO UPDATE SET
+    stock_name      = excluded.stock_name,
+    hold_pct        = excluded.hold_pct,
+    hold_shares     = excluded.hold_shares,
+    hold_value_wan  = excluded.hold_value_wan,
+    updated_at      = excluded.updated_at
+`;
+
+export function upsertPortfolio(db: Database, rows: readonly PortfolioRow[]): number {
+  const stmt = db.prepare(UPSERT_PORTFOLIO);
+  const tx = db.transaction((batch: readonly PortfolioRow[]) => {
+    let n = 0;
+    for (const r of batch) {
+      stmt.run(
+        r.fundCode,
+        r.reportDate,
+        r.stockCode,
+        r.stockName,
+        r.holdPct,
+        r.holdShares,
+        r.holdValueWan,
+        Date.now(),
+      );
+      n += 1;
+    }
+    return n;
+  });
+  return tx(rows);
+}
+
+export function countPortfolio(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_portfolio').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
