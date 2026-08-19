@@ -30,14 +30,14 @@ export default function DataAdminPage() {
         <>
           <div className="grid gap-3 md:grid-cols-3">
             {Object.entries(data.counts).map(([table, n]) => (
-              <div key={table} className="rounded-card bg-secondary p-4">
+              <div key={table} className="rounded-card bg-secondary p-4 ring-1 ring-border/40">
                 <p className="text-xs text-muted-foreground">{LABELS[table] ?? table}</p>
                 <p className="text-2xl font-semibold">{n.toLocaleString('zh-CN')}</p>
                 <p className="text-[11px] text-muted-foreground">{table}</p>
               </div>
             ))}
           </div>
-          <div className="mt-6 rounded-card bg-secondary p-4 text-sm">
+          <div className="mt-6 rounded-card bg-secondary p-4 text-sm ring-1 ring-border/40">
             <p>
               净值覆盖：{data.navSpan.min ?? '—'} → {data.navSpan.max ?? '—'}
             </p>

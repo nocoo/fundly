@@ -9,7 +9,7 @@
  *
  * Color space: HSL (basalt design system).
  * Primary: Vermilion.
- * Luminance: 3-tier (L0 body > L1 card > L2 secondary).
+ * Luminance: 4-layer (L0 body > L1 island > L2 card > L3 control).
  */
 @theme inline {
 	--color-border: hsl(var(--border));
@@ -155,7 +155,11 @@
 
 /*
  * Design tokens — light (default) & dark mode
- * 3-tier luminance: L0 (background) > L1 (card) > L2 (secondary)
+ * 4-layer luminance:
+ *   L0 body    → --background  (~94%, chrome + sidebar)
+ *   L1 well    → --muted       (~92%, inset / hover)
+ *   L2 island  → --card        (100% white, AppShell content panel)
+ *   L3 control → --secondary + border (KPI / charts / filters)
  * Primary: Vermilion
  */
 :root {
@@ -163,11 +167,11 @@
 	--background: 220 14% 94%;
 	--foreground: 0 0% 12%;
 
-	/* L1 content panel */
-	--card: 220 14% 97%;
+	/* L2 content island — top surface of the right pane */
+	--card: 0 0% 100%;
 	--card-foreground: 0 0% 12%;
 
-	/* L2 inner cards */
+	/* L3 inner cards / controls */
 	--secondary: 0 0% 100%;
 	--secondary-foreground: 0 0% 12%;
 
@@ -287,12 +291,12 @@
 	--background: 0 0% 9%;
 	--foreground: 0 0% 93%;
 
-	/* L1 content panel: #1b1b1b */
-	--card: 0 0% 10.6%;
+	/* L2 content island — brightest pane */
+	--card: 0 0% 12.2%;
 	--card-foreground: 0 0% 93%;
 
-	/* L2 inner cards: #1f1f1f */
-	--secondary: 0 0% 12.2%;
+	/* L3 inner cards / controls */
+	--secondary: 0 0% 14%;
 	--secondary-foreground: 0 0% 93%;
 
 	--popover: 0 0% 10.6%;

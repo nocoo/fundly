@@ -32,7 +32,9 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <div className={cn('rounded-card bg-secondary p-10 text-center', className)}>
+    <div
+      className={cn('rounded-card bg-secondary p-10 text-center ring-1 ring-border/40', className)}
+    >
       <div
         aria-hidden="true"
         className={cn(
