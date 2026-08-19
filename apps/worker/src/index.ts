@@ -3,6 +3,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { apiNotFound, mutableAssetResponse } from './lib/assets';
 import type { AppEnv } from './lib/types';
 import { accessAuth } from './middleware/access-auth';
+import dataRoutes from './routes/data';
 import liveRoutes from './routes/live';
 import meRoutes from './routes/me';
 
@@ -13,6 +14,7 @@ app.use('/api/*', accessAuth);
 
 app.route('/', liveRoutes);
 app.route('/', meRoutes);
+app.route('/', dataRoutes);
 
 app.all('/api/*', () => apiNotFound());
 

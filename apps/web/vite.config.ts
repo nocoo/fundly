@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = env.FUNDLY_API_URL ?? 'http://127.0.0.1:8787';
+  const apiTarget = env.FUNDLY_API_URL ?? 'http://127.0.0.1:7045';
   const rootDir = import.meta.dirname;
 
   return {

@@ -1,0 +1,93 @@
+import type { QueryExec } from './executor';
+import { mapFundDetail } from './fund-detail';
+import { type FundListQuery, fundListSql } from './fund-query';
+
+export async function listFunds(exec: QueryExec, query: FundListQuery) {
+  const built = fundListSql(query);
+  const [rows, countRow] = await Promise.all([
+    exec.all<Record<string, unknown>>(built.listSql, built.listParams),
+    exec.first<{ n: number }>(built.countSql, built.countParams),
+  ]);
+  return {
+    items: rows,
+    total: countRow?.n ?? 0,
+    page: query.page,
+    pageSize: query.pageSize,
+  };
+}
+
+export async function getFundDetail(exec: QueryExec, code: string) {
+  const full = await exec.first<Record<string, unknown>>(
+    `SELECT b.*, p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.return_2y, p.return_3y, p.return_5y,
+            p.return_ytd, p.return_since_start, p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y,
+            p.rank_pct_2y, p.rank_pct_3y, p.rank_pct_5y, p.pass_4433, p.data_date
+     FROM fund_basic_info b
+     LEFT JOIN fund_performance p ON p.fund_code = b.fund_code
+     WHERE b.fund_code = ?`,
+    [code],
+  );
+  if (!full) return null;
+  const extra = await exec.first<Record<string, unknown>>(
+    'SELECT * FROM fund_trend_extra WHERE fund_code = ?',
+    [code],
+  );
+  const navCount = await exec.first<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?',
+    [code],
+  );
+  return {
+    fields: mapFundDetail(full),
+    extra: extra ?? null,
+    navCount: navCount?.n ?? 0,
+  };
+}
+
+export async function getFundNav(exec: QueryExec, code: string, limit = 400) {
+  return exec.all<{
+    nav_date: string;
+    unit_nav: number;
+    acc_nav: number | null;
+    daily_return: number | null;
+  }>(
+    `SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
+     WHERE fund_code = ? ORDER BY nav_date ASC LIMIT ?`,
+    [code, limit],
+  );
+}
+
+export async function listFundTypes(exec: QueryExec) {
+  return exec.all<{ fund_type: string; n: number }>(
+    'SELECT fund_type, COUNT(*) AS n FROM fund_basic_info GROUP BY fund_type ORDER BY n DESC',
+  );
+}
+
+export async function getDataStats(exec: QueryExec) {
+  const tables = [
+    'fund_basic_info',
+    'fund_performance',
+    'fund_nav',
+    'fund_trend_extra',
+    'fetch_log',
+  ] as const;
+  const counts: Record<string, number> = {};
+  for (const t of tables) {
+    const row = await exec.first<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`);
+    counts[t] = row?.n ?? 0;
+  }
+  const span = await exec.first<{ min_date: string | null; max_date: string | null }>(
+    'SELECT MIN(nav_date) AS min_date, MAX(nav_date) AS max_date FROM fund_nav',
+  );
+  const lastFetch = await exec.first<{ created_at: number | null; status: string | null }>(
+    'SELECT created_at, status FROM fetch_log ORDER BY created_at DESC LIMIT 1',
+  );
+  const lastPerf = await exec.first<{ data_date: string | null }>(
+    'SELECT MAX(data_date) AS data_date FROM fund_performance',
+  );
+  return {
+    counts,
+    navSpan: { min: span?.min_date ?? null, max: span?.max_date ?? null },
+    lastFetchAt: lastFetch?.created_at ?? null,
+    lastFetchStatus: lastFetch?.status ?? null,
+    lastPerfDate: lastPerf?.data_date ?? null,
+  };
+}
