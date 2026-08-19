@@ -58,13 +58,13 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
-export function seedSkipRows(
-  skipFiles: number,
-  statementsPerFile: number,
-  rowsPerPack: number,
-): number {
-  if (skipFiles <= 0) return 0;
-  return skipFiles * statementsPerFile * rowsPerPack;
+export function parseSkipFiles(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === '') return 0;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error('FUNDLY_SEED_SKIP_FILES must be an integer >= 0');
+  }
+  return n;
 }
 
 export function selectSeedTables<T extends { table: string }>(
@@ -76,10 +76,10 @@ export function selectSeedTables<T extends { table: string }>(
     .map((s) => s.trim())
     .filter(Boolean);
   if (wanted.length === 0) return [...all];
-  const set = new Set(wanted);
-  const picked = all.filter((t) => set.has(t.table));
-  if (picked.length === 0) throw new Error(`no seed tables matched ${raw}`);
-  return picked;
+  const known = new Set(all.map((t) => t.table));
+  const unknown = wanted.filter((name) => !known.has(name));
+  if (unknown.length) throw new Error(`unknown seed tables: ${unknown.join(', ')}`);
+  return all.filter((t) => wanted.includes(t.table));
 }
 
 export function chunkByCount<T>(items: readonly T[], size: number): T[][] {

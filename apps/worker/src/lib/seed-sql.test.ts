@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   chunkByCount,
   packInsertStatements,
-  seedSkipRows,
+  parseSkipFiles,
   selectSeedTables,
   sqlByteLength,
   sqlInsertStatement,
@@ -35,16 +35,19 @@ describe('seed-sql', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
   });
 
-  it('computes rows to skip when resuming after N files', () => {
-    expect(seedSkipRows(0, 800, 80)).toBe(0);
-    expect(seedSkipRows(46, 800, 80)).toBe(2_944_000);
+  it('parses skip-file counts as integers', () => {
+    expect(parseSkipFiles(undefined)).toBe(0);
+    expect(parseSkipFiles('46')).toBe(46);
+    expect(() => parseSkipFiles('1.5')).toThrow('integer');
+    expect(() => parseSkipFiles('Infinity')).toThrow('integer');
   });
 
   it('filters seed tables from a comma list', () => {
     const all = [{ table: 'fund_nav' }, { table: 'fetch_log' }] as const;
     expect(selectSeedTables(all).map((t) => t.table)).toEqual(['fund_nav', 'fetch_log']);
     expect(selectSeedTables(all, 'fund_nav').map((t) => t.table)).toEqual(['fund_nav']);
-    expect(() => selectSeedTables(all, 'nope')).toThrow('no seed tables');
+    expect(() => selectSeedTables(all, 'nope')).toThrow('unknown seed tables');
+    expect(() => selectSeedTables(all, 'fund_nav,nope')).toThrow('unknown seed tables');
   });
 
   it('packs by byte budget and isolates oversized rows', () => {

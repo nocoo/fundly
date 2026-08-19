@@ -19,7 +19,7 @@ import {
 import { flattenRows, sqlUpsert } from '../apps/worker/src/lib/import-plan.ts';
 import {
   packInsertStatements,
-  seedSkipRows,
+  parseSkipFiles,
   selectSeedTables,
 } from '../apps/worker/src/lib/seed-sql.ts';
 
@@ -45,6 +45,7 @@ function runWrangler(args: string[], attempts = 5) {
     });
     last = res.status ?? 1;
     if (last === 0) return;
+    if (i === attempts) break;
     console.warn(`wrangler failed (attempt ${i}/${attempts}), retrying…`);
     sleep(2000 * i);
   }
@@ -93,7 +94,12 @@ async function main() {
 
   try {
     dir = mkdtempSync(join(tmpdir(), 'fundly-d1-seed-'));
-    for (const table of selectSeedTables(IMPORT_TABLES, process.env.FUNDLY_SEED_TABLES)) {
+    const skipFiles = parseSkipFiles(process.env.FUNDLY_SEED_SKIP_FILES);
+    const tables = selectSeedTables(IMPORT_TABLES, process.env.FUNDLY_SEED_TABLES);
+    if (skipFiles > 0 && tables.length !== 1) {
+      throw new Error('FUNDLY_SEED_SKIP_FILES requires FUNDLY_SEED_TABLES with exactly one table');
+    }
+    for (const table of tables) {
       const countRow = db.prepare(`SELECT COUNT(*) AS n FROM ${table.table}`).get() as {
         n: number;
       };
@@ -101,13 +107,16 @@ async function main() {
       const select = db.prepare(`SELECT ${table.columns.join(', ')} FROM ${table.table}`);
       const statements: string[] = [];
       const pending: unknown[][] = [];
-      const skipFiles = Math.max(0, Number(process.env.FUNDLY_SEED_SKIP_FILES ?? 0) || 0);
-      const skipRows = seedSkipRows(skipFiles, STATEMENTS_PER_FILE, ROWS_PER_PACK);
-      let seen = 0;
-      let part = skipFiles;
+      let part = 0;
 
       const flushFile = () => {
         if (statements.length === 0 || !dir) return;
+        if (part < skipFiles) {
+          console.log(`skip ${table.table}-${part}.sql (${statements.length} statements)`);
+          part += 1;
+          statements.length = 0;
+          return;
+        }
         const path = join(dir, `${table.table}-${part}.sql`);
         writeFileSync(path, `${statements.join('\n')}\n`);
         console.log(`executing ${path} (${statements.length} statements)`);
@@ -126,24 +135,24 @@ async function main() {
         const packed = packInsertStatements(table.table, table.columns, pending);
         statements.push(...packed.statements);
         for (const row of packed.oversized) {
-          await upsertOversized(dest, table, [...row]);
-          oversizedTotal += 1;
+          if (part >= skipFiles) {
+            await upsertOversized(dest, table, [...row]);
+            oversizedTotal += 1;
+          }
         }
         pending.length = 0;
         if (statements.length >= STATEMENTS_PER_FILE) flushFile();
       };
 
-      if (skipRows) console.log(`${table.table}: skip first ${skipRows} rows (${skipFiles} files)`);
+      if (skipFiles) console.log(`${table.table}: skip first ${skipFiles} packed files`);
       for (const row of select.iterate() as Iterable<Record<string, unknown>>) {
-        if (seen < skipRows) {
-          seen += 1;
-          continue;
-        }
         const tuple = table.columns.map((c) => row[c] ?? null);
         const packed = packInsertStatements(table.table, table.columns, [tuple]);
         if (packed.oversized.length) {
-          await upsertOversized(dest, table, tuple);
-          oversizedTotal += 1;
+          if (part >= skipFiles) {
+            await upsertOversized(dest, table, tuple);
+            oversizedTotal += 1;
+          }
           continue;
         }
         pending.push(tuple);

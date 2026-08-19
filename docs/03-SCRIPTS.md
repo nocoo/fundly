@@ -130,6 +130,8 @@ FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
 bun run migrate:d1                # wrangler d1 migrations apply --remote
 bun run import:d1:seed            # 默认 data/fundly.db → wrangler d1 execute --file
 FUNDLY_SEED_TABLES=fund_nav bun run import:d1:seed   # 只补一张表
+FUNDLY_SEED_TABLES=fund_nav FUNDLY_SEED_SKIP_FILES=46 bun run import:d1:seed
+# SKIP_FILES 按真实打包结果跳过前 N 个 SQL 文件，必须只指定一张表；不是 800×80 行估算
 bun run import:d1                 # 之后增量
 bun run import:d1 path/to/db      # 指定 sqlite
 ```
