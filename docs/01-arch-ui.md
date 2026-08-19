@@ -127,8 +127,8 @@ fundly/
 
 密钥（`wrangler secret put`，不进 git）：
 
-- `CF_ACCESS_TEAM_DOMAIN` = `nocoo.cloudflareaccess.com`
-- `CF_ACCESS_AUD` = 该 Access application 的 AUD（部署后从登录跳转 URL 的 `kid` / meta JWT `aud` 回填）
+- `CF_ACCESS_TEAM_DOMAIN` = `nocoo.cloudflareaccess.com`（team：`nocoo`）
+- `CF_ACCESS_AUD` = `3cc4b46229051f806a91d53dea596f6aaccd197c1a780ba5f5515f764f1bbe80`
 
 `fundly.hexly.ai` 已被 team `nocoo` 的 Access 应用拦住（含 `/api/live`）。策略复用同一 Google OAuth / 邮箱白名单。本地 `*.dev.hexly.ai` 不走 Access。
 
