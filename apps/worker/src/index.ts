@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
+import { apiNotFound, mutableAssetResponse } from './lib/assets';
 import type { AppEnv } from './lib/types';
 import { accessAuth } from './middleware/access-auth';
 import liveRoutes from './routes/live';
@@ -13,6 +14,11 @@ app.use('/api/*', accessAuth);
 app.route('/', liveRoutes);
 app.route('/', meRoutes);
 
-app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
+app.all('/api/*', () => apiNotFound());
+
+app.all('*', async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw);
+  return mutableAssetResponse(res);
+});
 
 export default app;
