@@ -6,6 +6,12 @@ export function sqlLiteral(value: unknown): string {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+export const D1_MAX_SQL_BYTES = 90_000;
+
+export function sqlByteLength(sql: string): number {
+  return new TextEncoder().encode(sql).byteLength;
+}
+
 export function sqlInsertStatement(
   table: string,
   columns: readonly string[],
@@ -15,6 +21,41 @@ export function sqlInsertStatement(
   const colList = columns.join(', ');
   const values = rows.map((row) => `(${row.map(sqlLiteral).join(', ')})`).join(', ');
   return `INSERT OR IGNORE INTO ${table} (${colList}) VALUES ${values};`;
+}
+
+export function packInsertStatements(
+  table: string,
+  columns: readonly string[],
+  rows: readonly (readonly unknown[])[],
+  maxBytes = D1_MAX_SQL_BYTES,
+): { statements: string[]; oversized: (readonly unknown[])[] } {
+  const statements: string[] = [];
+  const oversized: (readonly unknown[])[] = [];
+  let batch: (readonly unknown[])[] = [];
+
+  const flush = () => {
+    if (batch.length === 0) return;
+    statements.push(sqlInsertStatement(table, columns, batch));
+    batch = [];
+  };
+
+  for (const row of rows) {
+    const alone = sqlInsertStatement(table, columns, [row]);
+    if (sqlByteLength(alone) > maxBytes) {
+      flush();
+      oversized.push(row);
+      continue;
+    }
+    const next = [...batch, row];
+    if (sqlByteLength(sqlInsertStatement(table, columns, next)) > maxBytes) {
+      flush();
+      batch = [row];
+    } else {
+      batch = next;
+    }
+  }
+  flush();
+  return { statements, oversized };
 }
 
 export function chunkByCount<T>(items: readonly T[], size: number): T[][] {

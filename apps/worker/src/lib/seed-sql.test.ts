@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { chunkByCount, sqlInsertStatement, sqlLiteral } from './seed-sql';
+import {
+  chunkByCount,
+  packInsertStatements,
+  sqlByteLength,
+  sqlInsertStatement,
+  sqlLiteral,
+} from './seed-sql';
 
 describe('seed-sql', () => {
   it('quotes text and leaves nulls unquoted', () => {
@@ -25,5 +31,12 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('packs by byte budget and isolates oversized rows', () => {
+    const packed = packInsertStatements('t', ['j'], [['ok'], ['x'.repeat(200)], ['also']], 80);
+    expect(packed.oversized).toEqual([['x'.repeat(200)]]);
+    expect(packed.statements.every((s) => sqlByteLength(s) <= 80)).toBe(true);
+    expect(packed.statements.join('\n')).toContain("'ok'");
   });
 });
