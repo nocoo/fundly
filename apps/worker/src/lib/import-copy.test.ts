@@ -51,6 +51,7 @@ describe('copyTableIncremental', () => {
     ]);
 
     const table = {
+      mode: 'append' as const,
       table: 'fund_basic_info',
       columns: [
         'fund_code',
@@ -89,5 +90,43 @@ describe('copyTableIncremental', () => {
       fund_code: string;
     }[];
     expect(destCodes.map((r) => r.fund_code)).toEqual(['000001', '000002', '000003']);
+  });
+
+  it('upserts changed columns on existing keys', async () => {
+    const src = new Database(':memory:');
+    const dest = new Database(':memory:');
+    src.exec(BASIC_DDL);
+    dest.exec(BASIC_DDL);
+    seedBasic(src, [{ code: '000001', name: 'A2' }]);
+    seedBasic(dest, [{ code: '000001', name: 'A' }]);
+
+    const table = {
+      mode: 'upsert' as const,
+      table: 'fund_basic_info',
+      columns: [
+        'fund_code',
+        'fund_name',
+        'fund_type',
+        'pinyin_abbr',
+        'pinyin_full',
+        'established_date',
+        'fund_manager',
+        'fund_company',
+        'fund_scale',
+        'scale_date',
+        'fee_rate',
+        'in_mvp_pool',
+        'created_at',
+        'updated_at',
+      ],
+      keyCols: ['fund_code'],
+    } as const;
+
+    const result = await copyTableIncremental(bunExec(src), bunExec(dest), table);
+    expect(result).toEqual({ inserted: 1, skipped: 0 });
+    const row = dest
+      .prepare('SELECT fund_name FROM fund_basic_info WHERE fund_code = ?')
+      .get('000001') as { fund_name: string };
+    expect(row.fund_name).toBe('A2');
   });
 });

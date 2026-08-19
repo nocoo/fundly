@@ -1,4 +1,10 @@
-import { flattenRows, planIncrementalInsert, rowKey, sqlInsertOrIgnore } from './import-plan';
+import {
+  flattenRows,
+  planIncrementalInsert,
+  rowKey,
+  sqlInsertOrIgnore,
+  sqlUpsert,
+} from './import-plan';
 
 export interface SqlExec {
   all<T>(sql: string, params?: unknown[]): T[] | Promise<T[]>;
@@ -7,6 +13,7 @@ export interface SqlExec {
 
 export const IMPORT_TABLES = [
   {
+    mode: 'upsert',
     table: 'fund_basic_info',
     columns: [
       'fund_code',
@@ -27,6 +34,7 @@ export const IMPORT_TABLES = [
     keyCols: ['fund_code'],
   },
   {
+    mode: 'upsert',
     table: 'fund_performance',
     columns: [
       'fund_code',
@@ -53,6 +61,7 @@ export const IMPORT_TABLES = [
     keyCols: ['fund_code'],
   },
   {
+    mode: 'upsert',
     table: 'fund_trend_extra',
     columns: [
       'fund_code',
@@ -66,11 +75,13 @@ export const IMPORT_TABLES = [
     keyCols: ['fund_code'],
   },
   {
+    mode: 'append',
     table: 'fund_nav',
     columns: ['fund_code', 'nav_date', 'unit_nav', 'acc_nav', 'daily_return'],
     keyCols: ['fund_code', 'nav_date'],
   },
   {
+    mode: 'append',
     table: 'fetch_log',
     columns: [
       'id',
@@ -107,17 +118,25 @@ export async function copyTableIncremental(
 ): Promise<{ inserted: number; skipped: number }> {
   const batchSize = options.batchSize ?? Math.max(1, Math.floor(80 / table.columns.length));
   const incoming = await src.all<Record<string, unknown>>(`SELECT * FROM ${table.table}`);
-  const existing = await existingKeys(dest, table);
-  const plan = planIncrementalInsert(existing, incoming, (r) => keyOfRow(table, r));
+  const mode = 'mode' in table ? table.mode : 'append';
+  let rows = incoming;
+  let skipped = 0;
+  if (mode === 'append') {
+    const existing = await existingKeys(dest, table);
+    const plan = planIncrementalInsert(existing, incoming, (r) => keyOfRow(table, r));
+    rows = plan.toInsert;
+    skipped = plan.skipped;
+  }
   let inserted = 0;
-  for (let i = 0; i < plan.toInsert.length; i += batchSize) {
-    const chunk = plan.toInsert.slice(i, i + batchSize);
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const chunk = rows.slice(i, i + batchSize);
     const tuples = chunk.map((row) => table.columns.map((c) => row[c] ?? null));
-    await dest.run(
-      sqlInsertOrIgnore(table.table, table.columns, chunk.length),
-      flattenRows(tuples),
-    );
+    const sql =
+      mode === 'upsert'
+        ? sqlUpsert(table.table, table.columns, table.keyCols, chunk.length)
+        : sqlInsertOrIgnore(table.table, table.columns, chunk.length);
+    await dest.run(sql, flattenRows(tuples));
     inserted += chunk.length;
   }
-  return { inserted, skipped: plan.skipped };
+  return { inserted, skipped };
 }

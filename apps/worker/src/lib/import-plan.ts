@@ -40,3 +40,17 @@ export function flattenRows(rows: readonly (readonly unknown[])[]): unknown[] {
   for (const row of rows) out.push(...row);
   return out;
 }
+
+export function sqlUpsert(
+  table: string,
+  columns: readonly string[],
+  conflictCols: readonly string[],
+  rowCount: number,
+): string {
+  const insert = sqlInsertOrIgnore(table, columns, rowCount).replace('INSERT OR IGNORE', 'INSERT');
+  const updates = columns
+    .filter((c) => !conflictCols.includes(c))
+    .map((c) => `${c} = excluded.${c}`)
+    .join(', ');
+  return `${insert} ON CONFLICT(${conflictCols.join(', ')}) DO UPDATE SET ${updates}`;
+}

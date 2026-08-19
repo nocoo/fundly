@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { flattenRows, planIncrementalInsert, rowKey, sqlInsertOrIgnore } from './import-plan';
+import {
+  flattenRows,
+  planIncrementalInsert,
+  rowKey,
+  sqlInsertOrIgnore,
+  sqlUpsert,
+} from './import-plan';
 
 describe('planIncrementalInsert', () => {
   it('inserts missing keys and skips ones already present', () => {
@@ -45,5 +51,11 @@ describe('rowKey / sqlInsertOrIgnore / flattenRows', () => {
         [3, 4],
       ]),
     ).toEqual([1, 2, 3, 4]);
+  });
+
+  it('builds ON CONFLICT DO UPDATE for non-key columns', () => {
+    expect(sqlUpsert('fund_basic_info', ['fund_code', 'fund_name'], ['fund_code'], 1)).toBe(
+      'INSERT INTO fund_basic_info (fund_code, fund_name) VALUES (?, ?) ON CONFLICT(fund_code) DO UPDATE SET fund_name = excluded.fund_name',
+    );
   });
 });
