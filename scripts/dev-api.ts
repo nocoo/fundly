@@ -88,7 +88,7 @@ app.use('/api/*', async (c, next) => {
 app.get('/api/live', (c) =>
   c.json({
     status: 'ok',
-    version: '0.1.0',
+    version: '0.1.1',
     component: 'local-api',
     timestamp: new Date().toISOString(),
     uptime: 0,

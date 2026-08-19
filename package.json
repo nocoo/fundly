@@ -29,7 +29,8 @@
     "test:web": "bun test apps",
     "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
     "typecheck": "tsc --noEmit",
-    "typecheck:web": "bun run --cwd apps/web typecheck && bun run --cwd apps/worker typecheck"
+    "typecheck:web": "bun run --cwd apps/web typecheck && bun run --cwd apps/worker typecheck",
+    "release": "bun run scripts/release.ts"
   },
   "type": "module"
 }
