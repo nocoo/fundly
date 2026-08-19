@@ -33,10 +33,9 @@ export default function FundDetailPage() {
     code ? `/api/funds/${code}` : null,
     fetchAPI,
   );
-  const { data: nav } = useSWR<{ items: { nav_date: string; unit_nav: number }[] }>(
-    code ? `/api/funds/${code}/nav?limit=400` : null,
-    fetchAPI,
-  );
+  const { data: nav, error: navError } = useSWR<{
+    items: { nav_date: string; unit_nav: number }[];
+  }>(code ? `/api/funds/${code}/nav?limit=400` : null, fetchAPI);
 
   if (isLoading) {
     return (
@@ -46,9 +45,15 @@ export default function FundDetailPage() {
     );
   }
   if (error || !data) {
+    const missing = !error || error.message === 'Not found';
     return (
       <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: code }]}>
-        <EmptyState icon={CircleOff} tone="error" title="未找到基金" description={error?.message} />
+        <EmptyState
+          icon={CircleOff}
+          tone="error"
+          title={missing ? '未找到基金' : '加载失败'}
+          description={error?.message}
+        />
       </AppShell>
     );
   }
@@ -62,6 +67,9 @@ export default function FundDetailPage() {
         {name} <span className="text-muted-foreground text-base">{code}</span>
       </h1>
 
+      {navError && (
+        <p className="mb-4 text-sm text-destructive-text">净值加载失败：{navError.message}</p>
+      )}
       {nav?.items && nav.items.length > 1 && (
         <div className="mb-6 h-64 rounded-card bg-secondary p-3">
           <p className="mb-2 text-sm text-muted-foreground">

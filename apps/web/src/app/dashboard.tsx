@@ -10,7 +10,7 @@ interface Stats {
 
 export default function Dashboard() {
   const { data: stats, error, isLoading, mutate } = useSWR<Stats>('/api/stats', fetchAPI);
-  const { data: types } = useSWR<{ items: { fund_type: string; n: number }[] }>(
+  const { data: types, error: typesError } = useSWR<{ items: { fund_type: string; n: number }[] }>(
     '/api/fund-types',
     fetchAPI,
   );
@@ -52,6 +52,9 @@ export default function Dashboard() {
       </div>
       <div className="h-80 rounded-card bg-secondary p-3">
         <p className="mb-2 text-sm text-muted-foreground">基金类型分布（前 12）</p>
+        {typesError && (
+          <p className="text-sm text-destructive-text">类型分布加载失败：{typesError.message}</p>
+        )}
         <ResponsiveContainer width="100%" height="90%">
           <BarChart data={chart}>
             <CartesianGrid strokeDasharray="3 3" />
