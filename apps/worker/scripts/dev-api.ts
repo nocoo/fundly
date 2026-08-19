@@ -2,24 +2,25 @@
 /** Local API: sqlite by default, D1 when X-Fundly-Source: d1 */
 
 import { Database } from 'bun:sqlite';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
-import type { QueryExec } from '../apps/worker/src/lib/executor.ts';
-import { parseFundListQuery } from '../apps/worker/src/lib/fund-query.ts';
+import type { QueryExec } from '../src/lib/executor.ts';
+import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
   getDataStats,
   getFundDetail,
   getFundNav,
   listFunds,
   listFundTypes,
-} from '../apps/worker/src/lib/funds-service.ts';
-import { resolveDataSource } from '../apps/worker/src/lib/source.ts';
+} from '../src/lib/funds-service.ts';
+import { resolveDataSource } from '../src/lib/source.ts';
+import { APP_VERSION } from '../src/lib/version.ts';
+import { cloudflareApiToken } from './cf-token.ts';
 
 const PORT = Number(process.env.FUNDLY_API_PORT ?? 7045);
-const SQLITE_PATH = resolve(process.env.FUNDLY_SQLITE ?? 'data/fundly.db');
-const ACCOUNT = 'd51a8fde361e4be31db17d8c56737c1f';
-const DATABASE_ID = 'ccc8336d-8c39-489a-a532-2ea856ec69ed';
+const SQLITE_PATH = resolve(
+  process.env.FUNDLY_SQLITE ?? `${import.meta.dirname}/../../../data/fundly.db`,
+);
 
 function sqliteExec(db: Database): QueryExec {
   return {
@@ -32,18 +33,10 @@ function sqliteExec(db: Database): QueryExec {
   };
 }
 
-function wranglerToken(): string {
-  const text = readFileSync(
-    `${process.env.HOME}/Library/Preferences/.wrangler/config/default.toml`,
-    'utf8',
-  );
-  const line = text.split('\n').find((l) => l.startsWith('oauth_token'));
-  if (!line) throw new Error('wrangler oauth_token not found');
-  return line.split('=', 2)[1]?.trim().replaceAll('"', '') ?? '';
-}
-
 function d1HttpExec(token: string): QueryExec {
-  const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${DATABASE_ID}/query`;
+  const account = 'd51a8fde361e4be31db17d8c56737c1f';
+  const databaseId = 'ccc8336d-8c39-489a-a532-2ea856ec69ed';
+  const url = `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}/query`;
   return {
     async all<T>(sql: string, params: unknown[] = []) {
       const res = await fetch(url, {
@@ -73,7 +66,7 @@ let d1: QueryExec | null = null;
 
 function execFor(source: 'sqlite' | 'd1'): QueryExec {
   if (source === 'sqlite') return sqlite;
-  if (!d1) d1 = d1HttpExec(wranglerToken());
+  if (!d1) d1 = d1HttpExec(cloudflareApiToken());
   return d1;
 }
 
@@ -88,7 +81,7 @@ app.use('/api/*', async (c, next) => {
 app.get('/api/live', (c) =>
   c.json({
     status: 'ok',
-    version: '0.1.1',
+    version: APP_VERSION,
     component: 'local-api',
     timestamp: new Date().toISOString(),
     uptime: 0,

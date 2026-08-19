@@ -16,7 +16,7 @@
     "fetch:all": "bun run scripts/fetch-all.ts",
     "db:init": "bun run scripts/init-db.ts",
     "install:web": "bun install --cwd apps/web && bun install --cwd apps/worker",
-    "dev:api": "bun run scripts/dev-api.ts",
+    "dev:api": "bun run apps/worker/scripts/dev-api.ts",
     "dev:web": "bun run --cwd apps/web dev",
     "dev:worker": "bun run --cwd apps/worker dev",
     "build:web": "bun run --cwd apps/web build",
