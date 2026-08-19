@@ -25,7 +25,7 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
 |------|------|------|
 | 运行时 | Bun + TypeScript 7 | 与爬虫、Surety 一致 |
 | 前端 | Vite 8 + React 19 + React Router | Surety / Bat / Pew 同一套 |
-| 样式 | Tailwind 4 + Basalt token（朱红主色、三层亮度） | 控件库对齐 Surety / Zhe / Pew / Bat |
+| 样式 | Tailwind 4 + Basalt token（朱红主色、四层亮度） | 控件库对齐 Surety / Zhe / Pew / Bat |
 | 结构 | MVVM：`lib/*-vm.ts` 纯函数，页面只渲染 | 可单测、页面不堆业务 |
 | 部署 | 单个 Cloudflare Worker 托管 API + SPA | 无独立 Pages / Node 主机 |
 | 登录 | Cloudflare Access（Google OAuth，hexly team） | 家族项目统一零信任入口 |
