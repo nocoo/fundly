@@ -44,6 +44,14 @@ jobs:
           bun install --cwd apps/worker --frozen-lockfile
       - name: Build web
         run: bun run build:web
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply fundly-db --remote
+          workingDirectory: apps/worker
+          packageManager: bun
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v4
         with:
@@ -59,6 +67,7 @@ jobs:
             BODY=$(curl -fsS https://fundly.hexly.ai/api/live || true)
             echo "attempt $i: $BODY"
             echo "$BODY" | jq -e '.status == "ok"' && exit 0
+            echo "$BODY" | grep -q '302 Found' && echo "Access login (edge up)" && exit 0
             sleep 5
           done
           exit 1
