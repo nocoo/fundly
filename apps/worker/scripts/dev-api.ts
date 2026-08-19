@@ -25,10 +25,10 @@ const SQLITE_PATH = resolve(
 function sqliteExec(db: Database): QueryExec {
   return {
     async all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...params) as T[];
+      return db.prepare(sql).all(...(params as never[])) as T[];
     },
     async first<T>(sql: string, params: unknown[] = []) {
-      return (db.prepare(sql).get(...params) as T | null) ?? null;
+      return (db.prepare(sql).get(...(params as never[])) as T | null) ?? null;
     },
   };
 }

@@ -47,10 +47,10 @@ function d1Exec(token: string): SqlExec {
 function sqliteExec(db: Database): SqlExec {
   return {
     all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...params) as T[];
+      return db.prepare(sql).all(...(params as never[])) as T[];
     },
     run(sql: string, params: unknown[] = []) {
-      db.prepare(sql).run(...params);
+      db.prepare(sql).run(...(params as never[]));
     },
   };
 }
