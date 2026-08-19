@@ -133,7 +133,7 @@ FUNDLY_SEED_TABLES=fund_nav bun run import:d1:seed   # 只补一张表
 FUNDLY_SEED_TABLES=fund_nav FUNDLY_SEED_SKIP_FILES=46 \
   FUNDLY_SEED_SQLITE=data/fundly.db.seed-snapshot.db \
   FUNDLY_SEED_SNAPSHOT='<size:mtimeMs from first run>' bun run import:d1:seed
-# 首次会 VACUUM INTO 不可变快照，避免 WAL 采集写入改动续跑边界。
+# 首次会 VACUUM INTO data/fundly.db.seed-snapshot.db；文件已存在则复用。续跑读该快照。
 # SKIP_FILES 按快照内 ORDER BY 主键后的真实打包结果跳过前 N 个文件。
 bun run import:d1                 # 之后增量
 bun run import:d1 path/to/db      # 指定 sqlite

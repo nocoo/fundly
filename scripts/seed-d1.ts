@@ -101,10 +101,15 @@ async function main() {
   let dbPath = sourcePath;
   if (skipFiles === 0 && !process.env.FUNDLY_SEED_SQLITE) {
     dbPath = `${SQLITE_PATH}.seed-snapshot.db`;
-    const live = new Database(SQLITE_PATH, { readonly: true });
-    live.exec(`VACUUM INTO '${dbPath.replaceAll("'", "''")}'`);
-    live.close();
-    console.log(`wrote immutable snapshot ${dbPath}`);
+    try {
+      statSync(dbPath);
+      console.log(`reusing immutable snapshot ${dbPath}`);
+    } catch {
+      const live = new Database(SQLITE_PATH, { readonly: true });
+      live.exec(`VACUUM INTO '${dbPath.replaceAll("'", "''")}'`);
+      live.close();
+      console.log(`wrote immutable snapshot ${dbPath}`);
+    }
   }
   const st = statSync(dbPath);
   const snapshot = sqliteSnapshot(st.size, st.mtimeMs);
@@ -192,7 +197,7 @@ async function main() {
     if (dir) rmSync(dir, { recursive: true, force: true });
   }
 
-  console.log(`seeded ${files} sql files, ${oversizedTotal} rest rows from ${SQLITE_PATH}`);
+  console.log(`seeded ${files} sql files, ${oversizedTotal} rest rows from ${dbPath}`);
 }
 
 await main();
