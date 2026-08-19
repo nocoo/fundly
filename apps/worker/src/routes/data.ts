@@ -8,7 +8,6 @@ import {
   listFunds,
   listFundTypes,
 } from '../lib/funds-service';
-import { resolveDataSource } from '../lib/source';
 import type { AppEnv } from '../lib/types';
 
 function requestedSource(c: {
@@ -20,11 +19,7 @@ function requestedSource(c: {
 const app = new Hono<AppEnv>();
 
 app.get('/api/source', (c) => {
-  const resolved = resolveDataSource({
-    requested: requestedSource(c),
-    environment: c.env.ENVIRONMENT,
-  });
-  return c.json(resolved);
+  return c.json({ source: 'd1', allowed: ['d1'], rejected: requestedSource(c) === 'sqlite' });
 });
 
 app.get('/api/funds', async (c) => {
