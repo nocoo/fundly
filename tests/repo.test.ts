@@ -6,6 +6,7 @@ import {
   countFunds,
   countNavPoints,
   initSchema,
+  latestNavDate,
   listMvpFundCodes,
   listMvpFundCodesMissingPerformance,
   openDb,
@@ -116,6 +117,25 @@ describe('db repo', () => {
 
     const missing = listMvpFundCodesMissingPerformance(db);
     expect(missing).toEqual(['000002', '000003']);
+
+    db.close();
+    unlinkSync(path);
+  });
+
+  test('latestNavDate reflects max nav_date, null when empty', () => {
+    const path = tmpDbPath();
+    const db = openDb(path);
+    initSchema(db);
+    expect(latestNavDate(db)).toBeNull();
+
+    upsertFundList(db, [
+      { fundCode: '000001', pinyinAbbr: 'X', fundName: 'x', fundType: '股票型', pinyinFull: 'X' },
+    ]);
+    upsertNavPoints(db, '000001', [
+      { navDate: '2026-08-17', unitNav: 1, accNav: 1, dailyReturn: 0 },
+      { navDate: '2026-08-18', unitNav: 1.02, accNav: 1.02, dailyReturn: 2 },
+    ]);
+    expect(latestNavDate(db)).toBe('2026-08-18');
 
     db.close();
     unlinkSync(path);

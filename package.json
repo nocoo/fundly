@@ -12,6 +12,7 @@
   "scripts": {
     "fetch:list": "bun run scripts/fetch-fund-list.ts",
     "fetch:nav": "bun run scripts/fetch-fund-nav.ts",
+    "fetch:daily": "bun run scripts/fetch-daily.ts",
     "fetch:all": "bun run scripts/fetch-all.ts",
     "db:init": "bun run scripts/init-db.ts",
     "lint": "biome check src scripts tests",

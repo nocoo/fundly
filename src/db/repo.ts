@@ -216,6 +216,14 @@ export function countNavPoints(db: Database, fundCode?: string): number {
   return row?.n ?? 0;
 }
 
+/** 返回全库最新净值日期（YYYY-MM-DD）；空库返回 null */
+export function latestNavDate(db: Database): string | null {
+  const row = db.query('SELECT MAX(nav_date) as d FROM fund_nav').get() as {
+    d: string | null;
+  } | null;
+  return row?.d ?? null;
+}
+
 // ============================================================
 // fund_trend_extra
 // ============================================================
