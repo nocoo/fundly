@@ -6,7 +6,7 @@
 
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { cloudflareApiToken } from '../apps/worker/scripts/cf-token.ts';
@@ -18,9 +18,11 @@ import {
 } from '../apps/worker/src/lib/import-copy.ts';
 import { flattenRows, sqlUpsert } from '../apps/worker/src/lib/import-plan.ts';
 import {
+  assertSeedSnapshot,
   packInsertStatements,
   parseSkipFiles,
   selectSeedTables,
+  sqliteSnapshot,
 } from '../apps/worker/src/lib/seed-sql.ts';
 
 const SQLITE_PATH = resolve(process.argv[2] ?? 'data/fundly.db');
@@ -85,6 +87,16 @@ async function upsertOversized(dest: SqlExec, table: ImportTable, row: unknown[]
 }
 
 async function main() {
+  const skipFiles = parseSkipFiles(process.env.FUNDLY_SEED_SKIP_FILES);
+  const tables = selectSeedTables(IMPORT_TABLES, process.env.FUNDLY_SEED_TABLES);
+  if (skipFiles > 0 && tables.length !== 1) {
+    throw new Error('FUNDLY_SEED_SKIP_FILES requires FUNDLY_SEED_TABLES with exactly one table');
+  }
+  const st = statSync(SQLITE_PATH);
+  const snapshot = sqliteSnapshot(st.size, st.mtimeMs);
+  assertSeedSnapshot(snapshot, process.env.FUNDLY_SEED_SNAPSHOT, skipFiles);
+  console.log(`sqlite snapshot ${snapshot}`);
+
   const dest = d1Exec(cloudflareApiToken());
   runWrangler(['d1', 'migrations', 'apply', 'fundly-db', '--remote']);
   const db = new Database(SQLITE_PATH, { readonly: true });
@@ -94,17 +106,14 @@ async function main() {
 
   try {
     dir = mkdtempSync(join(tmpdir(), 'fundly-d1-seed-'));
-    const skipFiles = parseSkipFiles(process.env.FUNDLY_SEED_SKIP_FILES);
-    const tables = selectSeedTables(IMPORT_TABLES, process.env.FUNDLY_SEED_TABLES);
-    if (skipFiles > 0 && tables.length !== 1) {
-      throw new Error('FUNDLY_SEED_SKIP_FILES requires FUNDLY_SEED_TABLES with exactly one table');
-    }
     for (const table of tables) {
       const countRow = db.prepare(`SELECT COUNT(*) AS n FROM ${table.table}`).get() as {
         n: number;
       };
       console.log(`dumping ${table.table} (${countRow.n} rows)`);
-      const select = db.prepare(`SELECT ${table.columns.join(', ')} FROM ${table.table}`);
+      const select = db.prepare(
+        `SELECT ${table.columns.join(', ')} FROM ${table.table} ORDER BY ${table.keyCols.join(', ')}`,
+      );
       const statements: string[] = [];
       const pending: unknown[][] = [];
       let part = 0;
@@ -160,6 +169,9 @@ async function main() {
       }
       await flushPending();
       flushFile();
+      if (part < skipFiles) {
+        throw new Error(`${table.table} only packed ${part} files, cannot skip ${skipFiles}`);
+      }
     }
   } finally {
     db.close();

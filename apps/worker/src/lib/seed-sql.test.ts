@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  assertSeedSnapshot,
   chunkByCount,
   packInsertStatements,
   parseSkipFiles,
   selectSeedTables,
   sqlByteLength,
   sqlInsertStatement,
+  sqliteSnapshot,
   sqlLiteral,
 } from './seed-sql';
 
@@ -33,6 +35,14 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('requires a matching sqlite snapshot when skipping files', () => {
+    expect(sqliteSnapshot(10, 20)).toBe('10:20');
+    expect(() => assertSeedSnapshot('10:20', undefined, 1)).toThrow('FUNDLY_SEED_SNAPSHOT');
+    expect(() => assertSeedSnapshot('10:20', '9:20', 1)).toThrow('sqlite snapshot');
+    assertSeedSnapshot('10:20', '10:20', 1);
+    assertSeedSnapshot('10:20', undefined, 0);
   });
 
   it('parses skip-file counts as integers', () => {

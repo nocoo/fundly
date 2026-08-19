@@ -58,6 +58,20 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
+export function sqliteSnapshot(size: number, mtimeMs: number): string {
+  return `${size}:${mtimeMs}`;
+}
+
+export function assertSeedSnapshot(
+  actual: string,
+  expected: string | undefined,
+  skipFiles: number,
+): void {
+  if (skipFiles <= 0) return;
+  if (!expected) throw new Error('FUNDLY_SEED_SKIP_FILES requires FUNDLY_SEED_SNAPSHOT');
+  if (expected !== actual) throw new Error(`sqlite snapshot ${actual} != ${expected}`);
+}
+
 export function parseSkipFiles(raw: string | undefined): number {
   if (raw === undefined || raw.trim() === '') return 0;
   const n = Number(raw);
