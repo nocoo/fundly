@@ -95,7 +95,7 @@ async function copyNav(
       rowKey([r.fund_code as string, r.nav_date as string]),
     );
     skipped += plan.skipped;
-    const batchSize = 20;
+    const batchSize = Math.max(1, Math.floor(80 / table.columns.length));
     for (let b = 0; b < plan.toInsert.length; b += batchSize) {
       const chunk = plan.toInsert.slice(b, b + batchSize);
       const tuples = chunk.map((row) => table.columns.map((c) => row[c] ?? null));
@@ -126,7 +126,7 @@ async function main() {
       continue;
     }
     console.log(`copying ${table.table}…`);
-    const r = await copyTableIncremental(src, dest, table as ImportTable, { batchSize: 20 });
+    const r = await copyTableIncremental(src, dest, table as ImportTable);
     console.log(table.table, r);
   }
   srcDb.close();

@@ -105,7 +105,7 @@ export async function copyTableIncremental(
   table: ImportTable,
   options: { batchSize?: number } = {},
 ): Promise<{ inserted: number; skipped: number }> {
-  const batchSize = options.batchSize ?? 200;
+  const batchSize = options.batchSize ?? Math.max(1, Math.floor(80 / table.columns.length));
   const incoming = await src.all<Record<string, unknown>>(`SELECT * FROM ${table.table}`);
   const existing = await existingKeys(dest, table);
   const plan = planIncrementalInsert(existing, incoming, (r) => keyOfRow(table, r));
