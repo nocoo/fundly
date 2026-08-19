@@ -28,6 +28,8 @@ describe('parseFundListQuery', () => {
     expect(q.sort).toBe('return_1y');
     expect(q.dir).toBe('desc');
     expect(q.page).toBe(2);
+    expect(parseFundListQuery({ page: 'Infinity' }).page).toBe(1);
+    expect(parseFundListQuery({ page: '1.9' }).page).toBe(1);
   });
 });
 
