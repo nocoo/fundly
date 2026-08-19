@@ -1,18 +1,12 @@
 import { CircleOff } from 'lucide-react';
 import { useParams } from 'react-router';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
+import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CHART_HEIGHTS } from '@/lib/chart-config';
+import { cleanNamedPoints, formatNav } from '@/lib/chart-data';
 
 interface FieldView {
   key: string;
@@ -60,6 +54,10 @@ export default function FundDetailPage() {
 
   const groups = [...new Set(data.fields.map((f) => f.group))];
   const name = data.fields.find((f) => f.key === 'fund_name')?.value ?? code;
+  const navPoints = cleanNamedPoints(
+    (nav?.items ?? []).map((item) => ({ name: item.nav_date, value: item.unit_nav })),
+    'unit_nav',
+  );
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: String(name) }]}>
@@ -70,21 +68,21 @@ export default function FundDetailPage() {
       {navError && (
         <p className="mb-4 text-sm text-destructive-text">净值加载失败：{navError.message}</p>
       )}
-      {nav?.items && nav.items.length > 1 && (
-        <div className="mb-6 h-64 rounded-card bg-secondary p-3">
-          <p className="mb-2 text-sm text-muted-foreground">
-            单位净值（最近 {nav.items.length} 点）
+      {navPoints.length > 1 && (
+        <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+          <p className="mb-4 text-sm font-semibold text-foreground">
+            单位净值（最近 {navPoints.length} 点）
           </p>
-          <ResponsiveContainer width="100%" height="90%">
-            <LineChart data={nav.items}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nav_date" hide />
-              <YAxis domain={['auto', 'auto']} width={48} />
-              <Tooltip />
-              <Line type="monotone" dataKey="unit_nav" stroke="hsl(var(--primary))" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          <SeriesChart
+            type="line"
+            points={navPoints}
+            series={[{ key: 'unit_nav', label: '单位净值' }]}
+            height={CHART_HEIGHTS.compact}
+            valueFormatter={formatNav}
+            xMinTickGap={48}
+            ariaLabel="单位净值走势"
+          />
+        </article>
       )}
 
       {groups.map((group) => (
@@ -97,13 +95,16 @@ export default function FundDetailPage() {
                 f.empty ? (
                   <div
                     key={f.key}
-                    className="flex items-center gap-2 rounded-widget bg-secondary px-3 py-2 text-sm"
+                    className="flex items-center gap-2 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
                   >
                     <CircleOff className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                     <span className="text-muted-foreground">{f.label}：暂无数据</span>
                   </div>
                 ) : (
-                  <div key={f.key} className="rounded-widget bg-secondary px-3 py-2 text-sm">
+                  <div
+                    key={f.key}
+                    className="rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
+                  >
                     <span className="text-muted-foreground">{f.label}</span>
                     <div className="font-medium">{String(f.value)}</div>
                   </div>

@@ -1,7 +1,9 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
+import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
+import { CHART_HEIGHTS } from '@/lib/chart-config';
+import { cleanNamedPoints, formatCompact } from '@/lib/chart-data';
 
 interface Stats {
   counts: Record<string, number>;
@@ -14,7 +16,10 @@ export default function Dashboard() {
     '/api/fund-types',
     fetchAPI,
   );
-  const chart = (types?.items ?? []).slice(0, 12);
+  const chart = cleanNamedPoints(
+    (types?.items ?? []).slice(0, 12).map((item) => ({ name: item.fund_type, value: item.n })),
+    'n',
+  );
   const fundCount = stats?.counts.fund_basic_info;
   const navCount = stats?.counts.fund_nav;
 
@@ -31,40 +36,62 @@ export default function Dashboard() {
         </p>
       )}
       <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <div className="rounded-card bg-secondary p-4">
-          <p className="text-xs text-muted-foreground">基金只数</p>
-          <p className="text-2xl font-semibold">
-            {fundCount == null ? '—' : fundCount.toLocaleString('zh-CN')}
-          </p>
-        </div>
-        <div className="rounded-card bg-secondary p-4">
-          <p className="text-xs text-muted-foreground">净值行</p>
-          <p className="text-2xl font-semibold">
-            {navCount == null ? '—' : navCount.toLocaleString('zh-CN')}
-          </p>
-        </div>
-        <div className="rounded-card bg-secondary p-4">
-          <p className="text-xs text-muted-foreground">净值区间</p>
-          <p className="text-sm font-medium">
-            {stats ? `${stats.navSpan.min ?? '—'} → ${stats.navSpan.max ?? '—'}` : '—'}
-          </p>
-        </div>
+        <KpiCard
+          label="基金只数"
+          value={fundCount == null ? '—' : fundCount.toLocaleString('zh-CN')}
+        />
+        <KpiCard label="净值行" value={navCount == null ? '—' : navCount.toLocaleString('zh-CN')} />
+        <KpiCard
+          label="净值区间"
+          value={stats ? `${stats.navSpan.min ?? '—'} → ${stats.navSpan.max ?? '—'}` : '—'}
+          compact
+        />
       </div>
-      <div className="h-80 rounded-card bg-secondary p-3">
-        <p className="mb-2 text-sm text-muted-foreground">基金类型分布（前 12）</p>
+      <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+        <p className="mb-4 text-sm font-semibold text-foreground">基金类型分布（前 12）</p>
         {typesError && (
           <p className="text-sm text-destructive-text">类型分布加载失败：{typesError.message}</p>
         )}
-        <ResponsiveContainer width="100%" height="90%">
-          <BarChart data={chart}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="fund_type" hide />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="n" fill="hsl(var(--primary))" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+        {chart.length > 0 ? (
+          <SeriesChart
+            type="bar"
+            orientation="horizontal"
+            points={chart}
+            series={[{ key: 'n', label: '基金只数' }]}
+            height={CHART_HEIGHTS.standard}
+            valueFormatter={formatCompact}
+            ariaLabel="基金类型分布"
+          />
+        ) : (
+          !typesError && <p className="text-sm text-muted-foreground">暂无类型数据</p>
+        )}
+      </article>
     </AppShell>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  compact?: boolean;
+}) {
+  return (
+    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+      <div className="mb-4 h-1 w-10 rounded-full bg-primary" />
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p
+        className={
+          compact
+            ? 'mt-2 text-sm font-medium tabular-nums'
+            : 'mt-2 text-2xl font-semibold tracking-tight tabular-nums'
+        }
+      >
+        {value}
+      </p>
+    </article>
   );
 }
