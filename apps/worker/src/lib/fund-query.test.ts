@@ -30,6 +30,10 @@ describe('parseFundListQuery', () => {
     expect(q.page).toBe(2);
     expect(parseFundListQuery({ page: 'Infinity' }).page).toBe(1);
     expect(parseFundListQuery({ page: '1.9' }).page).toBe(1);
+    expect(parseFundListQuery({ page: '0.5', pageSize: '0.5' })).toMatchObject({
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+    });
   });
 });
 

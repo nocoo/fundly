@@ -47,10 +47,11 @@ export function parseFundListQuery(input: {
   const sort = (input.sort && input.sort in SORT_COLUMNS ? input.sort : 'fund_code') as FundSortKey;
   const dir: SortDir = input.dir === 'desc' ? 'desc' : 'asc';
   const rawPage = Number(input.page);
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.min(100_000, Math.floor(rawPage)) : 1;
+  const page =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.min(100_000, Math.floor(rawPage)) : 1;
   const rawSize = Number(input.pageSize);
   const pageSize =
-    Number.isFinite(rawSize) && rawSize > 0
+    Number.isFinite(rawSize) && rawSize >= 1
       ? Math.min(500, Math.floor(rawSize))
       : DEFAULT_PAGE_SIZE;
   return {

@@ -75,5 +75,6 @@ describe('listFunds / getFundDetail', () => {
     const rows = await getFundNav(exec(db), '000001', 2);
     expect(rows.map((r) => r.nav_date)).toEqual(['2026-08-17', '2026-08-18']);
     expect(await getFundNav(exec(db), '000001', Number.POSITIVE_INFINITY)).toHaveLength(3);
+    expect(await getFundNav(exec(db), '000001', 0.5)).toHaveLength(3);
   });
 });

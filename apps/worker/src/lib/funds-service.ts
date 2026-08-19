@@ -53,7 +53,7 @@ export async function getFundNav(exec: QueryExec, code: string, limit = 400) {
         SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
         WHERE fund_code = ? ORDER BY nav_date DESC LIMIT ?
       ) newest ORDER BY nav_date ASC`,
-    [code, Number.isFinite(limit) && limit > 0 ? Math.min(2000, Math.floor(limit)) : 400],
+    [code, Number.isFinite(limit) && limit >= 1 ? Math.min(2000, Math.floor(limit)) : 400],
   );
 }
 

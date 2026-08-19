@@ -54,7 +54,8 @@ export default function FundsPage() {
   const sort = params.get('sort') ?? 'fund_code';
   const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
   const rawPage = Number(params.get('page') ?? 1);
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.min(100_000, Math.floor(rawPage)) : 1;
+  const page =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.min(100_000, Math.floor(rawPage)) : 1;
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
