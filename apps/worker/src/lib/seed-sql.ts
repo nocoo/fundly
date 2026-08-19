@@ -58,6 +58,15 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
+export function seedSkipRows(
+  skipFiles: number,
+  statementsPerFile: number,
+  rowsPerPack: number,
+): number {
+  if (skipFiles <= 0) return 0;
+  return skipFiles * statementsPerFile * rowsPerPack;
+}
+
 export function selectSeedTables<T extends { table: string }>(
   all: readonly T[],
   raw?: string,

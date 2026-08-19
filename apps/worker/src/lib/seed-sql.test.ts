@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   chunkByCount,
   packInsertStatements,
+  seedSkipRows,
   selectSeedTables,
   sqlByteLength,
   sqlInsertStatement,
@@ -32,6 +33,11 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('computes rows to skip when resuming after N files', () => {
+    expect(seedSkipRows(0, 800, 80)).toBe(0);
+    expect(seedSkipRows(46, 800, 80)).toBe(2_944_000);
   });
 
   it('filters seed tables from a comma list', () => {
