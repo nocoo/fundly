@@ -393,3 +393,61 @@ export function listFundCodesWithNav(db: Database): string[] {
   }[];
   return rows.map((r) => r.fund_code);
 }
+
+/** 列出所有基金 code（供卫星抓取遍历用） */
+export function listAllFundCodes(db: Database): string[] {
+  const rows = db.query('SELECT fund_code FROM fund_basic_info ORDER BY fund_code').all() as {
+    fund_code: string;
+  }[];
+  return rows.map((r) => r.fund_code);
+}
+
+// ============================================================
+// fund_dividend
+// ============================================================
+
+export interface DividendRow {
+  fundCode: string;
+  eventDate: string;
+  eventType: 'dividend' | 'split';
+  dividendPerShare: number | null;
+  splitRatio: number | null;
+  remark: string;
+}
+
+const UPSERT_DIVIDEND = `
+  INSERT INTO fund_dividend (fund_code, event_date, event_type,
+    dividend_per_share, split_ratio, remark, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, event_date, event_type) DO UPDATE SET
+    dividend_per_share = excluded.dividend_per_share,
+    split_ratio        = excluded.split_ratio,
+    remark             = excluded.remark,
+    updated_at         = excluded.updated_at
+`;
+
+export function upsertDividends(db: Database, rows: readonly DividendRow[]): number {
+  const stmt = db.prepare(UPSERT_DIVIDEND);
+  const tx = db.transaction((batch: readonly DividendRow[]) => {
+    let count = 0;
+    for (const r of batch) {
+      stmt.run(
+        r.fundCode,
+        r.eventDate,
+        r.eventType,
+        r.dividendPerShare,
+        r.splitRatio,
+        r.remark,
+        Date.now(),
+      );
+      count += 1;
+    }
+    return count;
+  });
+  return tx(rows);
+}
+
+export function countDividends(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_dividend').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
