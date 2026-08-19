@@ -14,6 +14,7 @@
     "fetch:nav": "bun run scripts/fetch-fund-nav.ts",
     "fetch:daily": "bun run scripts/fetch-daily.ts",
     "fetch:all": "bun run scripts/fetch-all.ts",
+    "compute:risk": "bun run scripts/compute-risk-metrics.ts",
     "db:init": "bun run scripts/init-db.ts",
     "install:web": "bun install --cwd apps/web && bun install --cwd apps/worker",
     "dev:api": "bun run apps/worker/scripts/dev-api.ts",
