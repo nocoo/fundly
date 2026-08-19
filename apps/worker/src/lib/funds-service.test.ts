@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite';
 import { describe, expect, it } from 'bun:test';
 import type { QueryExec } from './executor';
 import { parseFundListQuery } from './fund-query';
-import { getFundDetail, listFunds } from './funds-service';
+import { getFundDetail, getFundNav, listFunds } from './funds-service';
 
 function exec(db: Database): QueryExec {
   return {
@@ -58,5 +58,22 @@ describe('listFunds / getFundDetail', () => {
     const manager = detail?.fields.find((f) => f.key === 'fund_manager');
     expect(manager?.empty).toBe(true);
     expect(detail?.fields.find((f) => f.key === 'return_1y')?.empty).toBe(false);
+  });
+
+  it('returns the newest nav points in ascending date order', async () => {
+    const db = new Database(':memory:');
+    db.exec(
+      'CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL, acc_nav REAL, daily_return REAL)',
+    );
+    const insert = db.prepare(
+      'INSERT INTO fund_nav (fund_code, nav_date, unit_nav, acc_nav, daily_return) VALUES (?, ?, ?, NULL, NULL)',
+    );
+    insert.run('000001', '2001-01-01', 1);
+    insert.run('000001', '2026-08-17', 2);
+    insert.run('000001', '2026-08-18', 3);
+
+    const rows = await getFundNav(exec(db), '000001', 2);
+    expect(rows.map((r) => r.nav_date)).toEqual(['2026-08-17', '2026-08-18']);
+    expect(await getFundNav(exec(db), '000001', Number.POSITIVE_INFINITY)).toHaveLength(3);
   });
 });
