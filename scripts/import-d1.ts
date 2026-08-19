@@ -1,38 +1,23 @@
 #!/usr/bin/env bun
 /**
- * Incremental sqlite → D1 import. Re-runs INSERT OR IGNORE existing PKs.
+ * Incremental sqlite → D1 import. Mutable tables upsert; NAV appends after watermark.
  * Usage: bun run scripts/import-d1.ts [path-to-sqlite]
  */
 
 import { Database } from 'bun:sqlite';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { cloudflareApiToken } from '../apps/worker/scripts/cf-token.ts';
 import {
   copyTableIncremental,
   IMPORT_TABLES,
   type ImportTable,
   type SqlExec,
 } from '../apps/worker/src/lib/import-copy.ts';
-import {
-  flattenRows,
-  planIncrementalInsert,
-  rowKey,
-  sqlInsertOrIgnore,
-} from '../apps/worker/src/lib/import-plan.ts';
+import { flattenRows, sqlInsertOrIgnore } from '../apps/worker/src/lib/import-plan.ts';
 
 const ACCOUNT = 'd51a8fde361e4be31db17d8c56737c1f';
 const DATABASE_ID = 'ccc8336d-8c39-489a-a532-2ea856ec69ed';
 const SQLITE_PATH = resolve(process.argv[2] ?? 'data/fundly.db');
-
-function wranglerToken(): string {
-  const text = readFileSync(
-    `${process.env.HOME}/Library/Preferences/.wrangler/config/default.toml`,
-    'utf8',
-  );
-  const line = text.split('\n').find((l) => l.startsWith('oauth_token'));
-  if (!line) throw new Error('wrangler oauth_token not found');
-  return line.split('=', 2)[1]?.trim().replaceAll('"', '') ?? '';
-}
 
 function d1Exec(token: string): SqlExec {
   const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${DATABASE_ID}/query`;
@@ -77,27 +62,32 @@ async function copyNav(
   const table = IMPORT_TABLES.find((t) => t.table === 'fund_nav');
   if (!table) throw new Error('fund_nav missing');
   const codes = await src.all<{ fund_code: string }>('SELECT DISTINCT fund_code FROM fund_nav');
+  const marks = await dest.all<{ fund_code: string; max_date: string }>(
+    'SELECT fund_code, MAX(nav_date) AS max_date FROM fund_nav GROUP BY fund_code',
+  );
+  const watermark = new Map(marks.map((r) => [r.fund_code, r.max_date]));
   let inserted = 0;
   let skipped = 0;
   let i = 0;
   for (const { fund_code } of codes) {
     i += 1;
-    const destRows = await dest.all<{ nav_date: string }>(
-      'SELECT nav_date FROM fund_nav WHERE fund_code = ?',
-      [fund_code],
-    );
-    const existing = new Set(destRows.map((r) => rowKey([fund_code, r.nav_date])));
+    const minDate = watermark.get(fund_code);
     const incoming = await src.all<Record<string, unknown>>(
-      'SELECT * FROM fund_nav WHERE fund_code = ?',
-      [fund_code],
+      minDate
+        ? 'SELECT * FROM fund_nav WHERE fund_code = ? AND nav_date > ?'
+        : 'SELECT * FROM fund_nav WHERE fund_code = ?',
+      minDate ? [fund_code, minDate] : [fund_code],
     );
-    const plan = planIncrementalInsert(existing, incoming, (r) =>
-      rowKey([r.fund_code as string, r.nav_date as string]),
-    );
-    skipped += plan.skipped;
+    if (minDate) {
+      const older = await src.all<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ? AND nav_date <= ?',
+        [fund_code, minDate],
+      );
+      skipped += older[0]?.n ?? 0;
+    }
     const batchSize = Math.max(1, Math.floor(80 / table.columns.length));
-    for (let b = 0; b < plan.toInsert.length; b += batchSize) {
-      const chunk = plan.toInsert.slice(b, b + batchSize);
+    for (let b = 0; b < incoming.length; b += batchSize) {
+      const chunk = incoming.slice(b, b + batchSize);
       const tuples = chunk.map((row) => table.columns.map((c) => row[c] ?? null));
       await dest.run(
         sqlInsertOrIgnore(table.table, table.columns, chunk.length),
@@ -113,7 +103,7 @@ async function copyNav(
 }
 
 async function main() {
-  const token = wranglerToken();
+  const token = cloudflareApiToken();
   const srcDb = new Database(SQLITE_PATH, { readonly: true });
   const src = sqliteExec(srcDb);
   const dest = d1Exec(token);
