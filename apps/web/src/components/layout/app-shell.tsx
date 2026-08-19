@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Breadcrumbs } from './breadcrumbs';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
+import { SourceToggle } from './source-toggle';
 import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
@@ -75,7 +76,10 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
             )}
             <Breadcrumbs items={[{ label: '首页', href: '/' }, ...breadcrumbs]} />
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <SourceToggle />
+            <ThemeToggle />
+          </div>
         </header>
 
         <div className="flex-1 px-2 pb-2 md:px-3 md:pb-3">

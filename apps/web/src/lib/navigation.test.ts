@@ -19,7 +19,7 @@ describe('shouldGroupBeOpenOnMount', () => {
   it('opens the group containing the current route', () => {
     const ranking = NAV_GROUPS.find((g) => g.label === '选基');
     if (!ranking) throw new Error("expected '选基' group");
-    expect(shouldGroupBeOpenOnMount(ranking, '/ranking')).toBe(true);
+    expect(shouldGroupBeOpenOnMount(ranking, '/data')).toBe(true);
   });
 
   it('respects defaultOpen=true even without a route match', () => {

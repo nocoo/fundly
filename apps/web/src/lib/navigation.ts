@@ -21,7 +21,7 @@ export const NAV_GROUPS: NavGroupDef[] = [
     defaultOpen: true,
     items: [
       { href: '/funds', label: '基金浏览', icon: 'Search' },
-      { href: '/ranking', label: '排名', icon: 'Trophy' },
+      { href: '/data', label: '数据管理', icon: 'Database' },
     ],
   },
   {

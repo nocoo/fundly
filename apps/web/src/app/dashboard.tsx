@@ -1,41 +1,56 @@
-import { BarChart3, Database, Search, Trophy } from 'lucide-react';
-import { Link } from 'react-router';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import useSWR from 'swr';
+import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
-import { EmptyState } from '@/components/ui/empty-state';
-import { emptyDashboard } from '@/lib/dashboard-vm';
+
+interface Stats {
+  counts: Record<string, number>;
+  navSpan: { min: string | null; max: string | null };
+}
 
 export default function Dashboard() {
-  const snapshot = emptyDashboard();
+  const { data: stats } = useSWR<Stats>('/api/stats', fetchAPI);
+  const { data: types } = useSWR<{ items: { fund_type: string; n: number }[] }>(
+    '/api/fund-types',
+    fetchAPI,
+  );
+  const chart = (types?.items ?? []).slice(0, 12);
 
   return (
     <AppShell>
-      <EmptyState
-        icon={BarChart3}
-        title="数据还在采集"
-        description={snapshot.message}
-        action={
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              to="/funds"
-              className="inline-flex h-9 items-center gap-2 rounded-widget bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Search className="h-4 w-4" strokeWidth={1.5} />
-              浏览基金
-            </Link>
-            <Link
-              to="/ranking"
-              className="inline-flex h-9 items-center gap-2 rounded-widget border border-border bg-secondary px-4 text-sm font-medium hover:bg-accent"
-            >
-              <Trophy className="h-4 w-4" strokeWidth={1.5} />
-              查看排名
-            </Link>
-          </div>
-        }
-      />
-      <p className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Database className="h-3.5 w-3.5" strokeWidth={1.5} />
-        采集完成后这里会显示全市场数量、MVP 池和最新净值日
-      </p>
+      <h1 className="mb-4 text-xl font-semibold">仪表盘</h1>
+      <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="rounded-card bg-secondary p-4">
+          <p className="text-xs text-muted-foreground">基金只数</p>
+          <p className="text-2xl font-semibold">
+            {(stats?.counts.fund_basic_info ?? 0).toLocaleString('zh-CN')}
+          </p>
+        </div>
+        <div className="rounded-card bg-secondary p-4">
+          <p className="text-xs text-muted-foreground">净值行</p>
+          <p className="text-2xl font-semibold">
+            {(stats?.counts.fund_nav ?? 0).toLocaleString('zh-CN')}
+          </p>
+        </div>
+        <div className="rounded-card bg-secondary p-4">
+          <p className="text-xs text-muted-foreground">净值区间</p>
+          <p className="text-sm font-medium">
+            {stats?.navSpan.min ?? '—'} → {stats?.navSpan.max ?? '—'}
+          </p>
+        </div>
+      </div>
+      <div className="h-80 rounded-card bg-secondary p-3">
+        <p className="mb-2 text-sm text-muted-foreground">基金类型分布（前 12）</p>
+        <ResponsiveContainer width="100%" height="90%">
+          <BarChart data={chart}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="fund_type" hide />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="n" fill="hsl(var(--primary))" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </AppShell>
   );
 }

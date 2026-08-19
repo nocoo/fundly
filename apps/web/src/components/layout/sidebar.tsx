@@ -1,11 +1,11 @@
 import {
   ChevronUp,
+  Database,
   LayoutDashboard,
   type LucideIcon,
   PanelLeft,
   Search,
   Settings,
-  Trophy,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -28,7 +28,7 @@ import { useSidebar } from './sidebar-context';
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
   Search,
-  Trophy,
+  Database,
   Settings,
 };
 
