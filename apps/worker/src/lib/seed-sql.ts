@@ -58,6 +58,21 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
+export function selectSeedTables<T extends { table: string }>(
+  all: readonly T[],
+  raw?: string,
+): T[] {
+  const wanted = (raw ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (wanted.length === 0) return [...all];
+  const set = new Set(wanted);
+  const picked = all.filter((t) => set.has(t.table));
+  if (picked.length === 0) throw new Error(`no seed tables matched ${raw}`);
+  return picked;
+}
+
 export function chunkByCount<T>(items: readonly T[], size: number): T[][] {
   const n = Math.max(1, size);
   const out: T[][] = [];

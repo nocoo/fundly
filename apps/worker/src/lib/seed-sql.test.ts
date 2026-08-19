@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   chunkByCount,
   packInsertStatements,
+  selectSeedTables,
   sqlByteLength,
   sqlInsertStatement,
   sqlLiteral,
@@ -31,6 +32,13 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('filters seed tables from a comma list', () => {
+    const all = [{ table: 'fund_nav' }, { table: 'fetch_log' }] as const;
+    expect(selectSeedTables(all).map((t) => t.table)).toEqual(['fund_nav', 'fetch_log']);
+    expect(selectSeedTables(all, 'fund_nav').map((t) => t.table)).toEqual(['fund_nav']);
+    expect(() => selectSeedTables(all, 'nope')).toThrow('no seed tables');
   });
 
   it('packs by byte budget and isolates oversized rows', () => {

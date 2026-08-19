@@ -17,7 +17,7 @@ import {
   type SqlExec,
 } from '../apps/worker/src/lib/import-copy.ts';
 import { flattenRows, sqlUpsert } from '../apps/worker/src/lib/import-plan.ts';
-import { packInsertStatements } from '../apps/worker/src/lib/seed-sql.ts';
+import { packInsertStatements, selectSeedTables } from '../apps/worker/src/lib/seed-sql.ts';
 
 const SQLITE_PATH = resolve(process.argv[2] ?? 'data/fundly.db');
 const ROOT = resolve(import.meta.dirname, '..');
@@ -78,7 +78,7 @@ async function main() {
 
   try {
     dir = mkdtempSync(join(tmpdir(), 'fundly-d1-seed-'));
-    for (const table of IMPORT_TABLES) {
+    for (const table of selectSeedTables(IMPORT_TABLES, process.env.FUNDLY_SEED_TABLES)) {
       const countRow = db.prepare(`SELECT COUNT(*) AS n FROM ${table.table}`).get() as {
         n: number;
       };
