@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import type { AppEnv } from '../lib/types';
-import { isLocalhost } from './is-localhost';
+import { isLocalhost, looksLocalHost } from './is-localhost';
 
 function makeApp() {
   const app = new Hono<AppEnv>();
@@ -11,26 +11,43 @@ function makeApp() {
 
 async function probe(
   environment: string | undefined,
-  host: string,
-  withCf: boolean,
+  url: string,
+  host?: string,
 ): Promise<{ local: boolean }> {
-  const req = new Request('http://127.0.0.1:8787/probe', { headers: { host } });
-  if (withCf) Object.defineProperty(req, 'cf', { value: { colo: 'SJC' } });
+  const headers = host ? { host } : undefined;
+  const req = new Request(url, headers ? { headers } : undefined);
+  Object.defineProperty(req, 'cf', { value: { colo: 'SJC' } });
   const res = await makeApp().request(req, undefined, { ENVIRONMENT: environment });
   return (await res.json()) as { local: boolean };
 }
 
+describe('looksLocalHost', () => {
+  it('accepts localhost, loopback, and the Caddy domain', () => {
+    expect(looksLocalHost('localhost:8787')).toBe(true);
+    expect(looksLocalHost('127.0.0.1:8787')).toBe(true);
+    expect(looksLocalHost('fundly.dev.hexly.ai')).toBe(true);
+    expect(looksLocalHost('fundly.hexly.ai')).toBe(false);
+  });
+});
+
 describe('isLocalhost', () => {
-  it('bypasses wrangler-style cf + 127.0.0.1 in development', async () => {
-    expect(await probe('development', '127.0.0.1:8787', true)).toEqual({ local: true });
+  it('bypasses when the request URL is loopback in development', async () => {
+    expect(await probe('development', 'http://127.0.0.1:8787/probe')).toEqual({ local: true });
   });
 
-  it('bypasses fundly.dev.hexly.ai in development even with cf', async () => {
-    expect(await probe('development', 'fundly.dev.hexly.ai', true)).toEqual({ local: true });
+  it('bypasses when only the Host header is the Caddy domain', async () => {
+    expect(
+      await probe('development', 'http://127.0.0.1:8787/probe', 'fundly.dev.hexly.ai'),
+    ).toEqual({
+      local: true,
+    });
   });
 
-  it('never bypasses in production, even with a local Host', async () => {
-    expect(await probe('production', 'localhost:8787', true)).toEqual({ local: false });
-    expect(await probe('production', 'fundly.dev.hexly.ai', true)).toEqual({ local: false });
+  it('does not bypass when ENVIRONMENT is missing or not development', async () => {
+    expect(await probe(undefined, 'http://127.0.0.1:8787/probe')).toEqual({ local: false });
+    expect(await probe('production', 'http://127.0.0.1:8787/probe', 'localhost')).toEqual({
+      local: false,
+    });
+    expect(await probe('staging', 'http://fundly.dev.hexly.ai/probe')).toEqual({ local: false });
   });
 });
