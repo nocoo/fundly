@@ -249,7 +249,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                   <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
                   <span className="text-lg font-bold tracking-tighter">fundly</span>
                   <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] leading-none font-medium text-muted-foreground">
-                    v0.1.0
+                    v0.1.1
                   </span>
                 </div>
                 {!mobile && (
