@@ -22,6 +22,8 @@
     "build:web": "bun run --cwd apps/web build",
     "deploy:web": "bun run --cwd apps/web build && bun run --cwd apps/worker deploy",
     "import:d1": "bun run scripts/import-d1.ts",
+    "import:d1:seed": "bun run scripts/seed-d1.ts",
+    "migrate:d1": "./apps/worker/node_modules/.bin/wrangler d1 migrations apply fundly-db --remote --config apps/worker/wrangler.jsonc",
     "lint": "biome check src scripts tests apps",
     "lint:fix": "biome check --write src scripts tests apps",
     "format": "biome format --write src scripts tests apps",
@@ -29,6 +31,7 @@
     "test:web": "bun test apps",
     "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
     "typecheck": "tsc --noEmit",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
     "typecheck:web": "bun run --cwd apps/web typecheck && bun run --cwd apps/worker typecheck",
     "release": "bun run scripts/release.ts"
   },

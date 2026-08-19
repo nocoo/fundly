@@ -11,7 +11,8 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
-| `import-d1.ts` | `bun run import:d1` | sqlite → D1：可变表 upsert，净值按水位追加 | 视行数 |
+| `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
+| `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
 
 ---
@@ -121,21 +122,26 @@ FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
 
 ---
 
-## ☁ D1 导入：`import-d1.ts`
+## ☁ D1 导入
 
-把本机 `data/fundly.db` 增量拷进 Cloudflare D1 `fundly-db`。
+空库先建表，再用 SQL 文件做首次 seed。不要对空库跑 REST 逐批导入 3000 万净值行。
 
 ```bash
-bun run import:d1                 # 默认 data/fundly.db
+bun run migrate:d1                # wrangler d1 migrations apply --remote
+bun run import:d1:seed            # 默认 data/fundly.db → wrangler d1 execute --file
+bun run import:d1                 # 之后增量
 bun run import:d1 path/to/db      # 指定 sqlite
 ```
 
 规则：
 
-- `fund_basic_info` / `fund_performance` / `fund_trend_extra`：`ON CONFLICT DO UPDATE`
-- `fund_nav`：按基金取远端 `MAX(nav_date)`，只上传更新的日期
+- 首次：`INSERT OR IGNORE` 写成 SQL 文件，走 D1 execute/import，不是 193 万次 HTTP POST
+- 增量 `fund_basic_info` / `fund_performance` / `fund_trend_extra`：`ON CONFLICT DO UPDATE`
+- 增量 `fund_nav`：按基金取远端 `MAX(nav_date)`，只上传更新的日期
 - `fetch_log`：按主键追加
-- Token：`CLOUDFLARE_API_TOKEN`，没有再读本机 Wrangler oauth
+- Token：`CLOUDFLARE_API_TOKEN`，没有再跑 `wrangler auth token`
+
+发布探活需要 GitHub secrets `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`，校验 `/api/live` 的 `status=ok` 和版本号。Access 302 不算成功。
 
 首次全量净值仍会走很长时间；重跑只补水位之后的行。
 
