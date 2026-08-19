@@ -3,18 +3,27 @@ export interface QueryExec {
   first<T>(sql: string, params?: unknown[]): Promise<T | null>;
 }
 
-export function d1Exec(db: D1Database): QueryExec {
+type D1Like = {
+  prepare: (sql: string) => {
+    bind: (...args: unknown[]) => {
+      all: <T>() => Promise<{ results?: T[] }>;
+      first: <T>() => Promise<T | null>;
+    };
+    all: <T>() => Promise<{ results?: T[] }>;
+    first: <T>() => Promise<T | null>;
+  };
+};
+
+export function d1Exec(db: D1Like): QueryExec {
   return {
     async all<T>(sql: string, params: unknown[] = []) {
       const stmt = db.prepare(sql);
-      const bound = params.length ? stmt.bind(...params) : stmt;
-      const res = await bound.all<T>();
+      const res = params.length ? await stmt.bind(...params).all<T>() : await stmt.all<T>();
       return res.results ?? [];
     },
     async first<T>(sql: string, params: unknown[] = []) {
       const stmt = db.prepare(sql);
-      const bound = params.length ? stmt.bind(...params) : stmt;
-      return (await bound.first<T>()) ?? null;
+      return params.length ? await stmt.bind(...params).first<T>() : await stmt.first<T>();
     },
   };
 }
