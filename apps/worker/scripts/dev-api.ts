@@ -16,6 +16,7 @@ import {
 import { resolveDataSource } from '../src/lib/source.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
 import { cloudflareApiToken } from './cf-token.ts';
+import { toSqliteBindings } from './sqlite-bindings.ts';
 
 const PORT = Number(process.env.FUNDLY_API_PORT ?? 7045);
 const SQLITE_PATH = resolve(
@@ -25,10 +26,10 @@ const SQLITE_PATH = resolve(
 function sqliteExec(db: Database): QueryExec {
   return {
     async all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...(params as never[])) as T[];
+      return db.prepare(sql).all(...toSqliteBindings(params)) as T[];
     },
     async first<T>(sql: string, params: unknown[] = []) {
-      return (db.prepare(sql).get(...(params as never[])) as T | null) ?? null;
+      return (db.prepare(sql).get(...toSqliteBindings(params)) as T | null) ?? null;
     },
   };
 }

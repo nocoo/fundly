@@ -16,6 +16,7 @@
     "scripts/import-d1.ts",
     "scripts/seed-d1.ts",
     "apps/worker/scripts/**/*.ts",
+    "apps/worker/scripts/sqlite-bindings.ts",
     "apps/worker/src/lib/import-copy.ts",
     "apps/worker/src/lib/import-plan.ts",
     "apps/worker/src/lib/seed-sql.ts",

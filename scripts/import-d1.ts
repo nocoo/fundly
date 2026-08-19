@@ -7,6 +7,7 @@
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { cloudflareApiToken } from '../apps/worker/scripts/cf-token.ts';
+import { toSqliteBindings } from '../apps/worker/scripts/sqlite-bindings.ts';
 import {
   copyTableIncremental,
   IMPORT_TABLES,
@@ -47,10 +48,10 @@ function d1Exec(token: string): SqlExec {
 function sqliteExec(db: Database): SqlExec {
   return {
     all<T>(sql: string, params: unknown[] = []) {
-      return db.prepare(sql).all(...(params as never[])) as T[];
+      return db.prepare(sql).all(...toSqliteBindings(params)) as T[];
     },
     run(sql: string, params: unknown[] = []) {
-      db.prepare(sql).run(...(params as never[]));
+      db.prepare(sql).run(...toSqliteBindings(params));
     },
   };
 }
