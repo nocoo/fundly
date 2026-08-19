@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { cloudflareApiToken } from '../apps/worker/scripts/cf-token.ts';
+import { type SqlBinding, toSqlBindings } from '../apps/worker/src/lib/executor.ts';
 import {
   IMPORT_TABLES,
   type ImportTable,
@@ -38,7 +39,7 @@ function runWrangler(args: string[]) {
 function d1Exec(token: string): SqlExec {
   const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${DATABASE_ID}/query`;
   return {
-    async all<T>(sql: string, params: unknown[] = []) {
+    async all<T>(sql: string, params: SqlBinding[] = []) {
       const res = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -54,27 +55,29 @@ function d1Exec(token: string): SqlExec {
       }
       return (body.result?.[0]?.results ?? []) as T[];
     },
-    async run(sql: string, params: unknown[] = []) {
+    async run(sql: string, params: SqlBinding[] = []) {
       await this.all(sql, params);
     },
   };
 }
 
-async function upsertOversized(dest: SqlExec, table: ImportTable, rows: unknown[][]) {
-  for (const row of rows) {
-    await dest.run(sqlUpsert(table.table, table.columns, table.keyCols, 1), flattenRows([row]));
-  }
+async function upsertOversized(dest: SqlExec, table: ImportTable, row: unknown[]) {
+  await dest.run(
+    sqlUpsert(table.table, table.columns, table.keyCols, 1),
+    toSqlBindings(flattenRows([row])),
+  );
 }
 
 async function main() {
+  const dest = d1Exec(cloudflareApiToken());
   runWrangler(['d1', 'migrations', 'apply', 'fundly-db', '--remote']);
   const db = new Database(SQLITE_PATH, { readonly: true });
-  const dir = mkdtempSync(join(tmpdir(), 'fundly-d1-seed-'));
-  const dest = d1Exec(cloudflareApiToken());
+  let dir: string | undefined;
   let files = 0;
   let oversizedTotal = 0;
 
   try {
+    dir = mkdtempSync(join(tmpdir(), 'fundly-d1-seed-'));
     for (const table of IMPORT_TABLES) {
       const countRow = db.prepare(`SELECT COUNT(*) AS n FROM ${table.table}`).get() as {
         n: number;
@@ -83,11 +86,10 @@ async function main() {
       const select = db.prepare(`SELECT ${table.columns.join(', ')} FROM ${table.table}`);
       const statements: string[] = [];
       const pending: unknown[][] = [];
-      const oversized: unknown[][] = [];
       let part = 0;
 
       const flushFile = () => {
-        if (statements.length === 0) return;
+        if (statements.length === 0 || !dir) return;
         const path = join(dir, `${table.table}-${part}.sql`);
         writeFileSync(path, `${statements.join('\n')}\n`);
         console.log(`executing ${path} (${statements.length} statements)`);
@@ -101,30 +103,35 @@ async function main() {
         statements.length = 0;
       };
 
-      const flushPending = () => {
+      const flushPending = async () => {
         if (pending.length === 0) return;
         const packed = packInsertStatements(table.table, table.columns, pending);
         statements.push(...packed.statements);
-        oversized.push(...packed.oversized.map((r) => [...r]));
+        for (const row of packed.oversized) {
+          await upsertOversized(dest, table, [...row]);
+          oversizedTotal += 1;
+        }
         pending.length = 0;
         if (statements.length >= STATEMENTS_PER_FILE) flushFile();
       };
 
       for (const row of select.iterate() as Iterable<Record<string, unknown>>) {
-        pending.push(table.columns.map((c) => row[c] ?? null));
-        if (pending.length >= ROWS_PER_PACK) flushPending();
+        const tuple = table.columns.map((c) => row[c] ?? null);
+        const packed = packInsertStatements(table.table, table.columns, [tuple]);
+        if (packed.oversized.length) {
+          await upsertOversized(dest, table, tuple);
+          oversizedTotal += 1;
+          continue;
+        }
+        pending.push(tuple);
+        if (pending.length >= ROWS_PER_PACK) await flushPending();
       }
-      flushPending();
+      await flushPending();
       flushFile();
-      if (oversized.length) {
-        console.log(`${table.table}: ${oversized.length} oversized rows via REST`);
-        await upsertOversized(dest, table, oversized);
-        oversizedTotal += oversized.length;
-      }
     }
   } finally {
     db.close();
-    rmSync(dir, { recursive: true, force: true });
+    if (dir) rmSync(dir, { recursive: true, force: true });
   }
 
   console.log(`seeded ${files} sql files, ${oversizedTotal} rest rows from ${SQLITE_PATH}`);
