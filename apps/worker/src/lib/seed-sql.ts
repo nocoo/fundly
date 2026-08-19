@@ -58,6 +58,15 @@ export function packInsertStatements(
   return { statements, oversized };
 }
 
+export function defaultSnapshotAction(
+  exists: boolean,
+  explicitPath: boolean,
+): 'create' | 'reuse' | 'reject' {
+  if (explicitPath) return 'reuse';
+  if (exists) return 'reject';
+  return 'create';
+}
+
 export function resolveSeedSqlitePath(opts: {
   livePath: string;
   resumeSqlite?: string;

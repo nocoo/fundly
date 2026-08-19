@@ -19,6 +19,7 @@ import {
 import { flattenRows, sqlUpsert } from '../apps/worker/src/lib/import-plan.ts';
 import {
   assertSeedSnapshot,
+  defaultSnapshotAction,
   packInsertStatements,
   parseSkipFiles,
   resolveSeedSqlitePath,
@@ -101,15 +102,23 @@ async function main() {
   let dbPath = sourcePath;
   if (skipFiles === 0 && !process.env.FUNDLY_SEED_SQLITE) {
     dbPath = `${SQLITE_PATH}.seed-snapshot.db`;
+    let exists = false;
     try {
       statSync(dbPath);
-      console.log(`reusing immutable snapshot ${dbPath}`);
+      exists = true;
     } catch {
-      const live = new Database(SQLITE_PATH, { readonly: true });
-      live.exec(`VACUUM INTO '${dbPath.replaceAll("'", "''")}'`);
-      live.close();
-      console.log(`wrote immutable snapshot ${dbPath}`);
+      exists = false;
     }
+    const action = defaultSnapshotAction(exists, false);
+    if (action === 'reject') {
+      throw new Error(
+        `snapshot exists at ${dbPath}; pass FUNDLY_SEED_SQLITE=${dbPath} to reuse or delete it`,
+      );
+    }
+    const live = new Database(SQLITE_PATH, { readonly: true });
+    live.exec(`VACUUM INTO '${dbPath.replaceAll("'", "''")}'`);
+    live.close();
+    console.log(`wrote immutable snapshot ${dbPath}`);
   }
   const st = statSync(dbPath);
   const snapshot = sqliteSnapshot(st.size, st.mtimeMs);
@@ -119,6 +128,9 @@ async function main() {
   const dest = d1Exec(cloudflareApiToken());
   runWrangler(['d1', 'migrations', 'apply', 'fundly-db', '--remote']);
   const db = new Database(dbPath, { readonly: true });
+  const check = db.prepare('PRAGMA quick_check').get() as Record<string, string> | undefined;
+  const checkValue = check ? Object.values(check)[0] : undefined;
+  if (checkValue !== 'ok') throw new Error(`sqlite snapshot failed quick_check: ${checkValue}`);
   let dir: string | undefined;
   let files = 0;
   let oversizedTotal = 0;

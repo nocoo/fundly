@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   assertSeedSnapshot,
   chunkByCount,
+  defaultSnapshotAction,
   packInsertStatements,
   parseSkipFiles,
   resolveSeedSqlitePath,
@@ -36,6 +37,12 @@ describe('seed-sql', () => {
 
   it('chunks rows for file-sized batches', () => {
     expect(chunkByCount([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('refuses to silently reuse an implicit snapshot', () => {
+    expect(defaultSnapshotAction(false, false)).toBe('create');
+    expect(defaultSnapshotAction(true, false)).toBe('reject');
+    expect(defaultSnapshotAction(true, true)).toBe('reuse');
   });
 
   it('resumes only from an explicit sqlite file', () => {
