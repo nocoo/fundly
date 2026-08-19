@@ -53,7 +53,8 @@ export default function FundsPage() {
   const hasNav = params.get('hasNav') === '1';
   const sort = params.get('sort') ?? 'fund_code';
   const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
-  const page = Math.max(1, Number(params.get('page') ?? 1));
+  const rawPage = Number(params.get('page') ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.min(100_000, Math.floor(rawPage)) : 1;
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -150,7 +151,10 @@ export default function FundsPage() {
             <TableHeader>
               <TableRow>
                 {SORTS.map(([key, label]) => (
-                  <TableHead key={key}>
+                  <TableHead
+                    key={key}
+                    aria-sort={sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
                     <button type="button" className="font-medium" onClick={() => toggleSort(key)}>
                       {label}
                       {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
@@ -181,16 +185,16 @@ export default function FundsPage() {
             <button
               type="button"
               className="rounded-md border border-border px-3 py-1 text-sm disabled:opacity-40"
-              disabled={page <= 1}
-              onClick={() => set({ page: String(page - 1) })}
+              disabled={data.page <= 1}
+              onClick={() => set({ page: String(data.page - 1) })}
             >
               上一页
             </button>
             <button
               type="button"
               className="rounded-md border border-border px-3 py-1 text-sm disabled:opacity-40"
-              disabled={page >= pages}
-              onClick={() => set({ page: String(page + 1) })}
+              disabled={data.page >= pages}
+              onClick={() => set({ page: String(data.page + 1) })}
             >
               下一页
             </button>
