@@ -34,7 +34,7 @@ export const NAV_GROUPS: NavGroupDef[] = [
 export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
 export function isItemActive(href: string, pathname: string): boolean {
-  return href === '/' ? pathname === '/' : pathname.startsWith(href);
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function shouldGroupBeOpenOnMount(

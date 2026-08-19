@@ -10,6 +10,7 @@ describe('isItemActive', () => {
   it('matches a non-root href as a prefix', () => {
     expect(isItemActive('/funds', '/funds')).toBe(true);
     expect(isItemActive('/funds', '/funds/000001')).toBe(true);
+    expect(isItemActive('/funds', '/funds-old')).toBe(false);
     expect(isItemActive('/ranking', '/funds')).toBe(false);
   });
 });
