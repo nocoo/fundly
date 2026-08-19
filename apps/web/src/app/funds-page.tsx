@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
+import { FilterCheck } from '@/components/ui/filter-check';
+import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -92,59 +94,58 @@ export default function FundsPage() {
   };
 
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const typeOptions = (types?.items ?? []).map((item) => ({
+    value: item.fund_type,
+    label: `${item.fund_type} (${item.n})`,
+  }));
+  const filterActive = Boolean(q || fundType || mvpOnly || hasNav);
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览' }]}>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground" htmlFor="fund-q">
-          关键词
+      <div className="mb-5 rounded-card bg-secondary p-3 ring-1 ring-border/40">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             id="fund-q"
             value={q}
             placeholder="代码 / 名称 / 拼音"
+            aria-label="关键词"
+            className="h-[38px] w-52 shadow-xs"
             onChange={(e) => set({ q: e.target.value || null })}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground" htmlFor="fund-type">
-          类型
-          <select
-            id="fund-type"
-            className="h-9 rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
-            value={fundType}
-            onChange={(e) => set({ fundType: e.target.value || null })}
-          >
-            <option value="">全部类型</option>
-            {(types?.items ?? []).map((t) => (
-              <option key={t.fund_type} value={t.fund_type}>
-                {t.fund_type} ({t.n})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+          <FilterDropdown
+            label="类型"
+            value={fundType || 'all'}
+            options={typeOptions}
+            onChange={(value) => set({ fundType: value === 'all' ? null : value })}
+          />
+          <FilterCheck
+            label="MVP 池"
             checked={mvpOnly}
-            onChange={(e) => set({ mvpOnly: e.target.checked ? '1' : null })}
+            onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
           />
-          MVP 池
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+          <FilterCheck
+            label="有净值"
             checked={hasNav}
-            onChange={(e) => set({ hasNav: e.target.checked ? '1' : null })}
+            onChange={(checked) => set({ hasNav: checked ? '1' : null })}
           />
-          有净值
-        </label>
+          {filterActive ? (
+            <button
+              type="button"
+              onClick={() => set({ q: null, fundType: null, mvpOnly: null, hasNav: null })}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              重置
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive-text">{error.message}</p>}
       {isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
 
       {data && (
-        <>
-          <p className="mb-2 text-xs text-muted-foreground">
+        <div className="rounded-card bg-secondary ring-1 ring-border/40">
+          <p className="px-3 pt-3 text-xs text-muted-foreground">
             共 {data.total.toLocaleString('zh-CN')} 只 · 第 {data.page}/{pages} 页 · 每页{' '}
             {data.pageSize}
           </p>
@@ -182,7 +183,7 @@ export default function FundsPage() {
               ))}
             </TableBody>
           </Table>
-          <div className="mt-4 flex gap-2">
+          <div className="flex gap-2 p-3">
             <button
               type="button"
               className="rounded-md border border-border px-3 py-1 text-sm disabled:opacity-40"
@@ -200,7 +201,7 @@ export default function FundsPage() {
               下一页
             </button>
           </div>
-        </>
+        </div>
       )}
     </AppShell>
   );
