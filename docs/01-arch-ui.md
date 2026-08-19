@@ -60,9 +60,9 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
                  │
                  ▼
               Hono Worker
-                 ├── /api/live     公开探活
-                 ├── /api/me       Access JWT → 当前用户
-                 └── /*            Vite SPA（ASSETS binding）
+                 ├── /api/live     探活（目前整站 Access，监控需带会话）
+                 ├── /api/me       Access JWT → lizheng.blog 头像/名字
+                 └── /*            Vite SPA（Worker 先处理，再 ASSETS）
 ```
 
 本地 `*.dev.hexly.ai` **不走 Access**。`wrangler dev` 读 `.dev.vars` 里的 `ENVIRONMENT=development`，此时 Host 为 localhost / 127.0.0.1 / `*.dev.hexly.ai` 的请求走开发旁路。Vite 代理保留原始 Host（`changeOrigin: false`）。

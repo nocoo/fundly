@@ -123,6 +123,6 @@ MVP 池类型白名单以 `src/utils/types.ts` 的 `MVP_FUND_TYPES` 为准，UI 
 - [x] `/` 包在 AppShell 里，Sidebar 高亮「仪表盘」
 - [x] 桌面 / 窄屏都能看到占位 EmptyState
 - [x] `emptyDashboard()` 有单测
-- [ ] 不请求不存在的 `/api/dashboard`
+- [x] 不请求不存在的 `/api/dashboard`
 
 接数据之后另开编号文档补：API 合同、指标卡视觉、失败抓取下钻。
