@@ -61,13 +61,26 @@ jobs:
           workingDirectory: apps/worker
           packageManager: bun
       - name: Verify /api/live
+        env:
+          ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          EXPECT_VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          set -e
+          set -euo pipefail
+          if [ -z "${ACCESS_CLIENT_ID}" ] || [ -z "${ACCESS_CLIENT_SECRET}" ]; then
+            echo "CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET are required" >&2
+            exit 1
+          fi
           for i in 1 2 3 4 5 6; do
-            BODY=$(curl -fsS https://fundly.hexly.ai/api/live || true)
-            echo "attempt $i: $BODY"
-            echo "$BODY" | jq -e '.status == "ok"' && exit 0
-            echo "$BODY" | grep -q '302 Found' && echo "Access login (edge up)" && exit 0
+            CODE=$(curl -sS -o /tmp/fundly-live.json -w '%{http_code}' \
+              -H "CF-Access-Client-Id: ${ACCESS_CLIENT_ID}" \
+              -H "CF-Access-Client-Secret: ${ACCESS_CLIENT_SECRET}" \
+              https://fundly.hexly.ai/api/live || true)
+            echo "attempt $i: http ${CODE} $(cat /tmp/fundly-live.json)"
+            if [ "${CODE}" = "200" ] && jq -e --arg v "${EXPECT_VERSION}" \
+              '.status == "ok" and .version == $v' /tmp/fundly-live.json >/dev/null; then
+              exit 0
+            fi
             sleep 5
           done
           exit 1
