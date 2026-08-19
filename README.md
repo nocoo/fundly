@@ -104,7 +104,7 @@ bun run import:d1       # 之后增量：可变表 upsert，净值按水位追�
 bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
 ```
 
-可选：`bun run dev:worker` 直接打远端 schema（无 sqlite 切换）。本机设置页可把 `X-Fundly-Source` 切到 `d1`。
+可选：`bun run dev:worker` 走本地 Worker + 本地 D1（无 sqlite 切换）。本机设置页可把 `X-Fundly-Source` 切到远端 `d1`。
 
 生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。
 
@@ -112,6 +112,7 @@ bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
 
 ```bash
 bun run typecheck       # 爬虫 TS 类型检查
+bun run typecheck:scripts  # import/seed/dev-api
 bun run typecheck:web   # UI + Worker 类型检查
 bun run lint            # Biome 检查（含 apps）
 bun run lint:fix        # 自动修复
