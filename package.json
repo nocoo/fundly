@@ -20,6 +20,7 @@
     "dev:worker": "bun run --cwd apps/worker dev",
     "build:web": "bun run --cwd apps/web build",
     "deploy:web": "bun run --cwd apps/web build && bun run --cwd apps/worker deploy",
+    "import:d1": "bun run scripts/import-d1.ts",
     "lint": "biome check src scripts tests apps",
     "lint:fix": "biome check --write src scripts tests apps",
     "format": "biome format --write src scripts tests apps",
