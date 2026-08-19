@@ -1,6 +1,6 @@
 /**
  * SQLite Schema DDL
- * 参考 GoFundBot 的 models.py，做了简化和优化（详见 docs/SCHEMA.md）
+ * 参考 GoFundBot 的 models.py，做了简化和优化（详见 docs/02-SCHEMA.md）
  */
 
 export const SCHEMA_VERSION = 1;

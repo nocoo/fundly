@@ -7,19 +7,19 @@
 ## 🎯 项目定位
 
 - 📊 **数据源**：东方财富 / 天天基金公开接口（无需 API Key）
-- 🎯 **范围**：MVP 期只覆盖**主动权益基金**（股票型 + 混合型偏股 + 指数型），约 14,700 只
+- 🎯 **范围**：MVP 期只覆盖**主动权益基金**（股票型 + 混合型偏股 + 指数型）
 - 🖥️ **浏览**：基金列表、排名、4433 等规则（UI 壳已就绪，数据接入中）
 - 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono Worker + Biome
 - 🧪 **质量**：单元测试覆盖率 ≥ 95%，Biome lint 零告警
 - 🔒 **登录**：Cloudflare Access（Google OAuth），生产域 `fundly.hexly.ai`
 
-给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。
+给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。完整规约见 [`CLAUDE.md`](CLAUDE.md)。
 
 ## 🗺 路线图
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| **Phase 1 · MVP** | 基本信息 + 净值 + 阶段业绩爬取，SQLite 存储 | 🚧 进行中 |
+| **Phase 1 · MVP** | 基本信息 + 净值 + 阶段业绩爬取，SQLite 存储 | ✅ 完成 |
 | Phase 2 · 筛选 | 4433 法则、夏普/卡玛榜、多因子打分 | 📋 计划中 |
 | Phase 3 · 回测 | 定投、网格、均线择时等策略回测 | 📋 计划中 |
 | Phase 4 · 服务 | HTTP API + 定时增量 + Discord 推送 | 📋 计划中 |
@@ -28,17 +28,18 @@
 
 ```
 fundly/
-├── docs/                  # 文档树
-│   ├── 01-arch-ui.md      # UI / Worker 架构
-│   ├── 02-dashboard.md    # 仪表盘信息架构
-│   ├── ARCHITECTURE.md    # 爬虫架构
-│   ├── DATA_SOURCES.md    # 数据源
-│   ├── SCHEMA.md          # SQLite 表
-│   └── CREDITS.md         # 致谢
+├── docs/                  # 项目文档（编号 01-07，详见 CLAUDE.md）
+│   ├── 01-ARCHITECTURE.md # 采集架构
+│   ├── 02-SCHEMA.md       # 数据表
+│   ├── 03-SCRIPTS.md      # CLI 手册
+│   ├── 04-DATA_SOURCES.md # 数据源
+│   ├── 05-CREDITS.md      # 致谢
+│   ├── 06-ARCH-UI.md      # UI / Worker 架构
+│   └── 07-DASHBOARD.md    # 仪表盘
 ├── apps/
 │   ├── web/               # Vite + React SPA（MVVM）
 │   └── worker/            # Hono Worker + 静态资源
-├── data/                  # SQLite（gitignore）
+├── data/                  # SQLite 数据库（gitignore）
 ├── scripts/               # 爬取、初始化
 ├── src/                   # 采集核心库
 └── tests/                 # 采集单测
@@ -69,15 +70,20 @@ bun run db:init
 ### 抓取数据
 
 ```bash
-# 1. 拉全市场基金列表（~1 秒）
+# 1. 拉全市场基金列表（~3 秒）
 bun run fetch:list
 
-# 2. 拉 MVP 池的历史净值（约 1.5 小时）
+# 2. 拉 MVP 池的历史净值（约 52 分钟，5 QPS）
 bun run fetch:nav
 
 # 或一键跑全流程
 bun run fetch:all
+
+# 每日增量刷新（约 52 分钟，交易日晚 21:00 后跑）
+bun run fetch:daily
 ```
+
+详见 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md)。
 
 ### 浏览 UI
 
@@ -95,7 +101,7 @@ bun run dev:worker      # wrangler dev :8787
 bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
 ```
 
-生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/01-arch-ui.md`](docs/01-arch-ui.md)，仪表盘约定见 [`docs/02-dashboard.md`](docs/02-dashboard.md)。
+生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。
 
 ### 开发
 
@@ -109,20 +115,19 @@ bun run test:web        # UI / Worker 单测
 bun run test:coverage   # 带覆盖率
 ```
 
-## 📊 数据规模估算（MVP，基于 100 只样本实测外推）
+## 📊 数据规模（Phase 1 MVP · 已实测完成）
 
 | 项目 | 数量 |
 |---|---|
-| 覆盖基金 | ~15,300 只（MVP 池实测值）|
-| 平均净值点/只 | ~3,200 条 |
-| 净值点总数 | **~4,900 万条** |
-| SQLite 磁盘 | **~5.8 GB**（含 WAL/索引）|
-| 首次爬取耗时 | **~50 分钟**（@5 QPS）|
-| 日增量更新 | ~5 分钟（只更最新一日）|
+| 全市场基金覆盖 | **27,527 只**（100%）|
+| Performance 覆盖 | 27,527 条 |
+| 有净值序列 | 26,072 只（94.7%）|
+| 净值行总数 | **~3,069 万条** |
+| SQLite 磁盘 | **~3.7 GB** |
+| 首次爬取耗时 | ~95 分钟（分两批完成）|
+| 每日增量 | ~52 分钟（`fetch:daily`）|
 
-> 实测数字比 `docs/ARCHITECTURE.md` 初稿高一倍，因为老基金（2001+ 成立）平均 4000-6000 条净值点。
-
-详见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+详见 [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md) 和 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md)。
 
 ## 🙏 致敬
 
@@ -131,7 +136,7 @@ bun run test:coverage   # 带覆盖率
 - [**GoFundBot**](https://github.com/Sebastian6848/GoFundBot) — 提供了 4433 法则实现、多因子筛选思路、反爬工程与数据源清单
 - [**AKShare**](https://github.com/akfamily/akshare) — 备用数据源与接口参考
 
-详见 [`docs/CREDITS.md`](docs/CREDITS.md)。
+详见 [`docs/05-CREDITS.md`](docs/05-CREDITS.md)。
 
 ## ⚖️ 免责声明
 

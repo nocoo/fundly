@@ -1,7 +1,20 @@
 #!/usr/bin/env bun
 /**
- * 拉取 MVP 池中所有基金的 pingzhongdata（详情 + 净值 + 业绩）。
- * Usage: bun run scripts/fetch-fund-nav.ts [db_path] [limit]
+ * 每日增量：复用 pingzhongdata 逐只刷新（默认只刷权益 MVP 池）
+ *
+ * 与 fetch-fund-nav.ts 的区别：
+ *   fetch:nav 只抓"还没有 performance 记录的"基金（用于首次全量）；
+ *   fetch:daily 强制重抓所有池内基金，覆盖最新净值 + 阶段业绩。
+ *
+ * 用法：
+ *   bun run scripts/fetch-daily.ts                 # 默认 MVP 权益池 15,337 只
+ *   bun run scripts/fetch-daily.ts data/fundly.db  # 指定 db
+ *   FUNDLY_DAILY_POOL=all bun run fetch:daily      # 全市场 27,527 只
+ *
+ * 环境变量：
+ *   FUNDLY_DAILY_POOL   = 'mvp' | 'all'  (默认 'mvp')
+ *   FUNDLY_CONCURRENCY  = 5
+ *   FUNDLY_QPS          = 5
  */
 
 import { mkdirSync } from 'node:fs';
@@ -10,8 +23,8 @@ import {
   countNavPoints,
   DEFAULT_DB_PATH,
   initSchema,
+  latestNavDate,
   listMvpFundCodes,
-  listMvpFundCodesMissingPerformance,
   openDb,
   upsertNavPoints,
   upsertPerformance,
@@ -24,33 +37,40 @@ import { ConcurrencyPool, RateLimiter } from '../src/utils/pool.ts';
 
 const CONCURRENCY = Number(process.env.FUNDLY_CONCURRENCY ?? 5);
 const QPS = Number(process.env.FUNDLY_QPS ?? 5);
-const RESUME = process.env.FUNDLY_RESUME !== '0'; // 默认开启断点续跑
+const POOL_MODE = (process.env.FUNDLY_DAILY_POOL ?? 'mvp').toLowerCase();
 
 async function main(): Promise<void> {
   const dbPath = process.argv[2] ?? DEFAULT_DB_PATH;
-  const limit = process.argv[3] ? Number(process.argv[3]) : Number.POSITIVE_INFINITY;
   mkdirSync(dirname(dbPath), { recursive: true });
 
   const db = openDb(dbPath);
   initSchema(db);
 
-  const allCodes = RESUME ? listMvpFundCodesMissingPerformance(db) : listMvpFundCodes(db);
-  const codes = Number.isFinite(limit) ? allCodes.slice(0, limit) : allCodes;
+  // 池选择：mvp 只刷权益类型；all 全市场
+  let codes: string[];
+  if (POOL_MODE === 'all') {
+    const rows = db.query('SELECT fund_code FROM fund_basic_info ORDER BY fund_code').all() as {
+      fund_code: string;
+    }[];
+    codes = rows.map((r) => r.fund_code);
+  } else {
+    codes = listMvpFundCodes(db);
+  }
+
   if (codes.length === 0) {
-    if (RESUME) {
-      logger.info('nothing to fetch (all funds already have performance data)');
-      db.close();
-      return;
-    }
-    logger.error('no funds in MVP pool. run fetch:list first.');
+    logger.error('no funds. run fetch:list first.');
     process.exit(1);
   }
 
-  logger.info('start fetching pingzhongdata', {
+  const beforeLatest = latestNavDate(db);
+  const beforeRows = countNavPoints(db);
+  logger.info('daily incremental start', {
+    poolMode: POOL_MODE,
     total: codes.length,
     concurrency: CONCURRENCY,
     qps: QPS,
-    resumeMode: RESUME,
+    beforeLatest,
+    beforeRows,
   });
 
   const limiter = new RateLimiter(QPS);
@@ -58,7 +78,7 @@ async function main(): Promise<void> {
   const t0 = Date.now();
   let ok = 0;
   let failed = 0;
-  let navRows = 0;
+  let navRowsWritten = 0;
 
   await pool.run(
     codes,
@@ -80,7 +100,7 @@ async function main(): Promise<void> {
           durationMs: Date.now() - start,
         });
         ok += 1;
-        navRows += wrote;
+        navRowsWritten += wrote;
       } catch (err) {
         const msg = (err as Error).message;
         writeFetchLog(db, {
@@ -97,7 +117,7 @@ async function main(): Promise<void> {
       }
     },
     (done, total) => {
-      if (done % 50 === 0 || done === total) {
+      if (done % 500 === 0 || done === total) {
         const elapsed = Date.now() - t0;
         const rate = (done / (elapsed / 1000)).toFixed(2);
         const eta = Math.round((total - done) / Number(rate));
@@ -113,15 +133,20 @@ async function main(): Promise<void> {
     },
   );
 
-  const elapsed = Date.now() - t0;
-  const totalNavInDb = countNavPoints(db);
-  logger.info('done', {
+  const afterLatest = latestNavDate(db);
+  const afterRows = countNavPoints(db);
+  const elapsedSec = Math.round((Date.now() - t0) / 1000);
+  logger.info('daily incremental done', {
     total: codes.length,
     ok,
     failed,
-    navRowsWritten: navRows,
-    totalNavInDb,
-    elapsedSec: Math.round(elapsed / 1000),
+    navRowsWritten,
+    dateAdvanced: afterLatest !== beforeLatest,
+    beforeLatest,
+    newLatestDate: afterLatest,
+    deltaRows: afterRows - beforeRows,
+    totalNavRows: afterRows,
+    elapsedSec,
   });
 
   db.close();

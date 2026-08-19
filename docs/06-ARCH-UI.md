@@ -1,12 +1,12 @@
-# 01 — UI 架构
+# 06 · UI 架构
 
 > 中国公募基金浏览与排名工具的前端 / Worker 架构。
 > 数据面仍由仓库根目录的 Bun 爬虫写入 SQLite；本文件只覆盖浏览层。
 >
 > 相关文档：
-> - [02-dashboard.md](./02-dashboard.md) — 仪表盘信息架构与占位约定
-> - [ARCHITECTURE.md](./ARCHITECTURE.md) — 爬虫与 SQLite 数据面
-> - [SCHEMA.md](./SCHEMA.md) — 本地库表结构
+> - [07-DASHBOARD.md](./07-DASHBOARD.md) — 仪表盘信息架构与占位约定
+> - [01-ARCHITECTURE.md](./01-ARCHITECTURE.md) — 爬虫与 SQLite 数据面
+> - [02-SCHEMA.md](./02-SCHEMA.md) — 本地库表结构
 
 ---
 
@@ -86,7 +86,7 @@ fundly/
 │   └── worker/                  # Hono + wrangler
 │       ├── src/                 # /api/live /api/me + Access
 │       └── static/              # Vite 构建产物（gitignore）
-└── docs/01-arch-ui.md           # 本文件
+└── docs/06-ARCH-UI.md           # 本文件
 ```
 
 依赖方向：`apps/web` 构建写入 `apps/worker/static`；Worker 只服务静态资源和 `/api/*`。两边各自 `package.json`，不并进根 workspace，避免和爬虫的 `bun.lock` 打架。
@@ -108,7 +108,7 @@ fundly/
 
 | 路径 | 页面 | 后续 |
 |------|------|------|
-| `/` | 仪表盘 | 见 [02-dashboard.md](./02-dashboard.md) |
+| `/` | 仪表盘 | 见 [07-DASHBOARD.md](./07-DASHBOARD.md) |
 | `/funds` | 基金浏览 | 列表、类型过滤、详情 |
 | `/ranking` | 排名 | 4433 / 夏普 / 回撤榜 |
 | `/settings` | 设置 | 数据新鲜度、主题以外的偏好 |

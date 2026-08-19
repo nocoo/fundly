@@ -85,7 +85,7 @@
 
 ## 📊 数据规模（MVP）
 
-详见 [`SCHEMA.md`](SCHEMA.md)。
+详见 [`02-SCHEMA.md`](02-SCHEMA.md)。
 
 | 表 | 行数 | 估算大小 |
 |---|---|---|

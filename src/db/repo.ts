@@ -104,6 +104,19 @@ export function listMvpFundCodes(db: Database): string[] {
   return rows.map((r) => r.fund_code);
 }
 
+/** 列出 MVP 池中尚未抓过 performance 的基金代码（增量续跑用） */
+export function listMvpFundCodesMissingPerformance(db: Database): string[] {
+  const rows = db
+    .query(
+      `SELECT b.fund_code FROM fund_basic_info b
+       WHERE b.in_mvp_pool = 1
+         AND NOT EXISTS (SELECT 1 FROM fund_performance p WHERE p.fund_code = b.fund_code)
+       ORDER BY b.fund_code`,
+    )
+    .all() as { fund_code: string }[];
+  return rows.map((r) => r.fund_code);
+}
+
 // ============================================================
 // fund_performance
 // ============================================================
@@ -201,6 +214,14 @@ export function countNavPoints(db: Database, fundCode?: string): number {
   }
   const row = db.query('SELECT COUNT(*) as n FROM fund_nav').get() as { n: number } | null;
   return row?.n ?? 0;
+}
+
+/** 返回全库最新净值日期（YYYY-MM-DD）；空库返回 null */
+export function latestNavDate(db: Database): string | null {
+  const row = db.query('SELECT MAX(nav_date) as d FROM fund_nav').get() as {
+    d: string | null;
+  } | null;
+  return row?.d ?? null;
 }
 
 // ============================================================
