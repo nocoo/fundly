@@ -351,7 +351,7 @@ function FieldGroup({ title, fields }: { title: string; fields: FieldView[] }) {
           ) : (
             <div
               key={f.key}
-              className="min-w-0 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
+              className="flex min-w-0 flex-col items-start gap-0.5 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
             >
               <span className="text-muted-foreground">{f.label}</span>
               <FieldValue fieldKey={f.key} value={f.value} />
@@ -366,7 +366,14 @@ function FieldGroup({ title, fields }: { title: string; fields: FieldView[] }) {
 function FieldValue({ fieldKey, value }: { fieldKey: string; value: string | number | null }) {
   const kind = fieldNumberKind(fieldKey);
   if (kind) {
-    return <Metric value={value} kind={kind} signed={isSignedPercentField(fieldKey)} />;
+    return (
+      <Metric
+        value={value}
+        kind={kind}
+        signed={isSignedPercentField(fieldKey)}
+        className="w-auto text-left"
+      />
+    );
   }
   return <div className="min-w-0 break-words font-medium">{String(value)}</div>;
 }
