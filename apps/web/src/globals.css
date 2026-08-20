@@ -8,7 +8,7 @@
  * so utilities like bg-background, text-foreground, etc. work.
  *
  * Color space: HSL (basalt design system).
- * Primary: Vermilion.
+ * Primary: logo orange-red (#E85D2A).
  * Luminance: 4-layer (L0 body > L1 island > L2 card > L3 control).
  */
 @theme inline {
@@ -160,7 +160,7 @@
  *   L1 well    → --muted       (~92%, inset / hover)
  *   L2 island  → --card        (100% white, AppShell content panel)
  *   L3 control → --secondary + border (KPI / charts / filters)
- * Primary: Vermilion
+ * Primary: logo orange-red (#E85D2A)
  */
 :root {
 	/* L0 body */
@@ -178,8 +178,8 @@
 	--popover: 0 0% 100%;
 	--popover-foreground: 0 0% 12%;
 
-	/* Vermilion primary */
-	--primary: 15 85% 52%;
+	/* Logo orange-red #E85D2A */
+	--primary: 16 81% 54%;
 	--primary-foreground: 0 0% 100%;
 
 	--muted: 220 14% 92%;
@@ -193,18 +193,18 @@
 
 	--border: 220 13% 88%;
 	--input: 220 13% 88%;
-	--ring: 15 85% 52%;
+	--ring: 16 81% 54%;
 
 	--radius: 0.75rem;
 
 	--sidebar-background: 220 14% 94%;
 	--sidebar-foreground: 0 0% 12%;
-	--sidebar-primary: 15 85% 52%;
+	--sidebar-primary: 16 81% 54%;
 	--sidebar-primary-foreground: 0 0% 100%;
 	--sidebar-accent: 220 14% 90%;
 	--sidebar-accent-foreground: 0 0% 12%;
 	--sidebar-border: 220 13% 88%;
-	--sidebar-ring: 15 85% 52%;
+	--sidebar-ring: 16 81% 54%;
 
 	/* Semantic badge colors */
 	--success: 142 71% 32%;
@@ -252,35 +252,35 @@
 	--avatar-15: 0 60% 40%;
 	--avatar-16: 210 14% 38%;
 
-	/* Pew 14-stop chart / badge palette (violet→lime, includes red + green). */
-	--chart-1: 270 85% 52%;
-	--chart-2: 290 78% 48%;
-	--chart-3: 320 72% 48%;
-	--chart-4: 350 78% 50%;
-	--chart-5: 30 88% 48%;
-	--chart-6: 55 92% 42%;
-	--chart-7: 75 88% 38%;
-	--chart-8: 82 92% 42%;
-	--chart-9: 180 70% 40%;
-	--chart-10: 200 80% 45%;
-	--chart-11: 240 72% 52%;
-	--chart-12: 345 78% 50%;
-	--chart-13: 175 78% 42%;
-	--chart-14: 145 72% 34%;
-	--chart-15: 270 85% 52%;
-	--chart-16: 290 78% 48%;
-	--chart-17: 320 72% 48%;
-	--chart-18: 350 78% 50%;
-	--chart-19: 30 88% 48%;
-	--chart-20: 55 92% 42%;
-	--chart-21: 75 88% 38%;
-	--chart-22: 82 92% 42%;
-	--chart-23: 180 70% 40%;
-	--chart-24: 200 80% 45%;
+	/* Chart / badge: logo orange-red first, purple last. */
+	--chart-1: 16 81% 54%;
+	--chart-2: 30 88% 48%;
+	--chart-3: 350 78% 50%;
+	--chart-4: 345 78% 50%;
+	--chart-5: 145 72% 34%;
+	--chart-6: 175 78% 42%;
+	--chart-7: 180 70% 40%;
+	--chart-8: 200 80% 45%;
+	--chart-9: 55 92% 42%;
+	--chart-10: 75 88% 38%;
+	--chart-11: 82 92% 42%;
+	--chart-12: 240 72% 52%;
+	--chart-13: 270 85% 52%;
+	--chart-14: 290 78% 48%;
+	--chart-15: 16 81% 54%;
+	--chart-16: 30 88% 48%;
+	--chart-17: 350 78% 50%;
+	--chart-18: 345 78% 50%;
+	--chart-19: 145 72% 34%;
+	--chart-20: 175 78% 42%;
+	--chart-21: 180 70% 40%;
+	--chart-22: 200 80% 45%;
+	--chart-23: 55 92% 42%;
+	--chart-24: 75 88% 38%;
 
 	/* Chart utility tokens */
-	--chart-axis: 260 8% 32%;
-	--chart-muted: 260 8% 58%;
+	--chart-axis: 0 0% 40%;
+	--chart-muted: 0 0% 70%;
 }
 
 .dark {
@@ -299,9 +299,9 @@
 	--popover: 0 0% 10.6%;
 	--popover-foreground: 0 0% 93%;
 
-	/* Vermilion primary (muted for dark) */
-	--primary: 15 65% 48%;
-	--primary-foreground: 15 70% 92%;
+	/* Logo orange-red, slightly muted for dark */
+	--primary: 16 75% 56%;
+	--primary-foreground: 16 80% 96%;
 
 	--muted: 0 0% 12.2%;
 	--muted-foreground: 0 0% 48%;
@@ -314,16 +314,16 @@
 
 	--border: 0 0% 16%;
 	--input: 0 0% 12%;
-	--ring: 15 65% 48%;
+	--ring: 16 75% 56%;
 
 	--sidebar-background: 0 0% 9%;
 	--sidebar-foreground: 0 0% 93%;
-	--sidebar-primary: 15 65% 48%;
-	--sidebar-primary-foreground: 15 70% 92%;
+	--sidebar-primary: 16 75% 56%;
+	--sidebar-primary-foreground: 16 80% 96%;
 	--sidebar-accent: 0 0% 14%;
 	--sidebar-accent-foreground: 0 0% 93%;
 	--sidebar-border: 0 0% 16%;
-	--sidebar-ring: 15 65% 48%;
+	--sidebar-ring: 16 75% 56%;
 
 	/* Semantic badge colors (dark mode — vivid hue, controlled brightness) */
 	--success: 142 70% 42%;
@@ -366,35 +366,35 @@
 	--avatar-15: 0 50% 44%;
 	--avatar-16: 210 14% 42%;
 
-	/* Pew 14-stop chart / badge palette — boosted for dark. */
-	--chart-1: 270 90% 65%;
-	--chart-2: 290 80% 60%;
-	--chart-3: 320 75% 58%;
-	--chart-4: 350 80% 60%;
-	--chart-5: 30 90% 58%;
-	--chart-6: 55 95% 52%;
-	--chart-7: 75 90% 48%;
-	--chart-8: 82 95% 55%;
-	--chart-9: 180 75% 50%;
-	--chart-10: 200 85% 55%;
-	--chart-11: 240 78% 62%;
-	--chart-12: 345 82% 60%;
-	--chart-13: 175 82% 52%;
-	--chart-14: 145 76% 46%;
-	--chart-15: 270 90% 65%;
-	--chart-16: 290 80% 60%;
-	--chart-17: 320 75% 58%;
-	--chart-18: 350 80% 60%;
-	--chart-19: 30 90% 58%;
-	--chart-20: 55 95% 52%;
-	--chart-21: 75 90% 48%;
-	--chart-22: 82 95% 55%;
-	--chart-23: 180 75% 50%;
-	--chart-24: 200 85% 55%;
+	/* Chart / badge: logo orange-red first, purple last. */
+	--chart-1: 16 80% 58%;
+	--chart-2: 30 90% 58%;
+	--chart-3: 350 80% 60%;
+	--chart-4: 345 82% 60%;
+	--chart-5: 145 76% 46%;
+	--chart-6: 175 82% 52%;
+	--chart-7: 180 75% 50%;
+	--chart-8: 200 85% 55%;
+	--chart-9: 55 95% 52%;
+	--chart-10: 75 90% 48%;
+	--chart-11: 82 95% 55%;
+	--chart-12: 240 78% 62%;
+	--chart-13: 270 90% 65%;
+	--chart-14: 290 80% 60%;
+	--chart-15: 16 80% 58%;
+	--chart-16: 30 90% 58%;
+	--chart-17: 350 80% 60%;
+	--chart-18: 345 82% 60%;
+	--chart-19: 145 76% 46%;
+	--chart-20: 175 82% 52%;
+	--chart-21: 180 75% 50%;
+	--chart-22: 200 85% 55%;
+	--chart-23: 55 95% 52%;
+	--chart-24: 75 90% 48%;
 
 	/* Chart utility tokens */
-	--chart-axis: 260 5% 55%;
-	--chart-muted: 260 5% 35%;
+	--chart-axis: 0 0% 50%;
+	--chart-muted: 0 0% 35%;
 }
 
 /*
