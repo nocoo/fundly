@@ -1,4 +1,5 @@
 import { CircleOff } from 'lucide-react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
@@ -6,9 +7,18 @@ import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
+import { FundTypeBadges } from '@/components/ui/type-badge';
+import { useChartPrefs } from '@/hooks/use-chart-prefs';
+import { resolveBenchmark } from '@/lib/benchmark-defaults';
 import { CHART_HEIGHTS } from '@/lib/chart-config';
-import { cleanNamedPoints, formatNav } from '@/lib/chart-data';
-import { fieldNumberKind, formatCount, isSignedPercentField } from '@/lib/format-number';
+import type { ChartSeries } from '@/lib/chart-data';
+import { buildGrowthPoints } from '@/lib/chart-growth';
+import {
+  fieldNumberKind,
+  formatCount,
+  formatMetric,
+  isSignedPercentField,
+} from '@/lib/format-number';
 
 interface FieldView {
   key: string;
@@ -32,6 +42,25 @@ export default function FundDetailPage() {
   const { data: nav, error: navError } = useSWR<{
     items: { nav_date: string; unit_nav: number }[];
   }>(code ? `/api/funds/${code}/nav?limit=400` : null, fetchAPI);
+  const { prefs } = useChartPrefs();
+  const fundType = String(data?.fields.find((f) => f.key === 'fund_type')?.value ?? '');
+  const bench = resolveBenchmark(fundType, prefs.benchmarks);
+  const showBench = Boolean(bench && bench.code !== code);
+  const { data: benchNav } = useSWR<{ items: { nav_date: string; unit_nav: number }[] }>(
+    showBench && bench ? `/api/funds/${bench.code}/nav?limit=400` : null,
+    fetchAPI,
+  );
+  const growth = useMemo(() => {
+    const primary = (nav?.items ?? []).map((item) => ({ date: item.nav_date, nav: item.unit_nav }));
+    const benchPoints = (benchNav?.items ?? []).map((item) => ({
+      date: item.nav_date,
+      nav: item.unit_nav,
+    }));
+    return buildGrowthPoints(primary, {
+      ...(showBench ? { bench: benchPoints } : {}),
+      refRates: prefs.refRates,
+    });
+  }, [nav, benchNav, showBench, prefs.refRates]);
 
   if (isLoading) {
     return (
@@ -56,10 +85,18 @@ export default function FundDetailPage() {
 
   const groups = [...new Set(data.fields.map((f) => f.group))];
   const name = data.fields.find((f) => f.key === 'fund_name')?.value ?? code;
-  const navPoints = cleanNamedPoints(
-    (nav?.items ?? []).map((item) => ({ name: item.nav_date, value: item.unit_nav })),
-    'unit_nav',
-  );
+
+  const growthSeries: ChartSeries[] = [
+    { key: 'growth', label: String(name) },
+    ...(showBench && bench
+      ? [{ key: 'bench', label: `基准 ${bench.name}`, dashed: true as const }]
+      : []),
+    ...prefs.refRates.map((rate, index) => ({
+      key: `ref_${index}`,
+      label: `年化 ${rate.toFixed(2)}%`,
+      dashed: true as const,
+    })),
+  ];
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: String(name) }]}>
@@ -70,19 +107,19 @@ export default function FundDetailPage() {
       {navError && (
         <p className="mb-4 text-sm text-destructive-text">净值加载失败：{navError.message}</p>
       )}
-      {navPoints.length > 1 && (
+      {growth.length > 1 && (
         <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
           <p className="mb-4 text-sm font-semibold text-foreground">
-            单位净值（最近 {formatCount(navPoints.length)} 点）
+            净值增长（最近 {formatCount(growth.length)} 点）
           </p>
           <SeriesChart
             type="line"
-            points={navPoints}
-            series={[{ key: 'unit_nav', label: '单位净值' }]}
+            points={growth}
+            series={growthSeries}
             height={CHART_HEIGHTS.compact}
-            valueFormatter={formatNav}
+            valueFormatter={(value) => formatMetric(value, 'percent', { signed: true })}
             xMinTickGap={48}
-            ariaLabel="单位净值走势"
+            ariaLabel="净值增长"
           />
         </article>
       )}
@@ -121,6 +158,9 @@ export default function FundDetailPage() {
 }
 
 function FieldValue({ fieldKey, value }: { fieldKey: string; value: string | number | null }) {
+  if (fieldKey === 'fund_type' && typeof value === 'string') {
+    return <FundTypeBadges type={value} className="mt-1" />;
+  }
   const kind = fieldNumberKind(fieldKey);
   if (kind) {
     return <Metric value={value} kind={kind} signed={isSignedPercentField(fieldKey)} />;

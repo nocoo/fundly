@@ -25,6 +25,7 @@ import {
   RESPONSIVE_CONTAINER_PROPS,
   seriesFill,
   seriesStroke,
+  seriesStrokeDash,
 } from '@/lib/chart-config';
 import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
 import { formatCompact } from '@/lib/chart-data';
@@ -135,6 +136,7 @@ export function SeriesChart({
             {series.map((item, index) => {
               const stroke = item.color ?? seriesStroke(index);
               if (type === 'line') {
+                const dash = item.dashed ? seriesStrokeDash(1) : undefined;
                 return (
                   <Line
                     key={item.key}
@@ -144,6 +146,7 @@ export function SeriesChart({
                     stroke={stroke}
                     dot={false}
                     strokeWidth={CHART_TYPE.strokeWidth}
+                    {...(dash ? { strokeDasharray: dash } : {})}
                     {...ANIMATION_PROPS}
                   />
                 );

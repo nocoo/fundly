@@ -126,6 +126,17 @@ export const TOOLTIP_STYLES = {
   dotSize: CHART_TYPE.tooltipDot,
 };
 
+export const CHART_STROKE_DASHES: readonly (string | undefined)[] = [
+  undefined,
+  '6 4',
+  '2 3',
+  '8 3 2 3',
+];
+
+export function seriesStrokeDash(index: number): string | undefined {
+  return CHART_STROKE_DASHES[index % CHART_STROKE_DASHES.length];
+}
+
 export function seriesStroke(index: number): string {
   return getChartColor(index);
 }
