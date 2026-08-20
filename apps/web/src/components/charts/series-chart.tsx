@@ -36,9 +36,11 @@ export type SeriesChartType = 'line' | 'area' | 'bar';
 function ChartTooltipLayer({
   type,
   formatValue,
+  formatLabel,
 }: {
   type: SeriesChartType;
   formatValue: (value: number) => string;
+  formatLabel?: (label: string | number) => string;
 }) {
   const cursor = type === 'bar' ? CHART_TOOLTIP_CURSOR_BAR : CHART_TOOLTIP_PROPS.cursor;
   return (
@@ -53,7 +55,7 @@ function ChartTooltipLayer({
             value: item.value,
             color: item.color,
           }))}
-          label={props.label}
+          label={formatLabel && props.label !== undefined ? formatLabel(props.label) : props.label}
           formatValue={formatValue}
         />
       )}
@@ -72,6 +74,7 @@ export function SeriesChart({
   axisValueFormatter,
   xMinTickGap,
   ariaLabel,
+  timeDomain,
 }: {
   type: SeriesChartType;
   points: ChartPoint[];
@@ -83,6 +86,7 @@ export function SeriesChart({
   axisValueFormatter?: (value: number) => string;
   xMinTickGap?: number;
   ariaLabel?: string;
+  timeDomain?: { from: number; to: number };
 }) {
   const formatAxisValue = axisValueFormatter ?? valueFormatter;
   const horizontalBars = type === 'bar' && orientation === 'horizontal';
@@ -121,6 +125,20 @@ export function SeriesChart({
                 <XAxis type="number" {...AXIS_CONFIG} tickFormatter={formatAxisValue} />
                 <YAxis type="category" dataKey="name" width={yLabelWidth} {...AXIS_CONFIG} />
               </>
+            ) : timeDomain ? (
+              <>
+                <XAxis
+                  type="number"
+                  dataKey="t"
+                  domain={[timeDomain.from, timeDomain.to]}
+                  {...AXIS_CONFIG}
+                  tickFormatter={(value: number) => new Date(value).toISOString().slice(0, 7)}
+                  {...(xMinTickGap !== undefined
+                    ? { minTickGap: xMinTickGap }
+                    : { minTickGap: 48 })}
+                />
+                <YAxis {...AXIS_CONFIG} width={44} tickFormatter={formatAxisValue} />
+              </>
             ) : (
               <>
                 <XAxis
@@ -132,7 +150,18 @@ export function SeriesChart({
                 <YAxis {...AXIS_CONFIG} width={44} tickFormatter={formatAxisValue} />
               </>
             )}
-            <ChartTooltipLayer type={type} formatValue={valueFormatter} />
+            <ChartTooltipLayer
+              type={type}
+              formatValue={valueFormatter}
+              formatLabel={
+                timeDomain
+                  ? (label) =>
+                      typeof label === 'number'
+                        ? new Date(label).toISOString().slice(0, 10)
+                        : String(label)
+                  : undefined
+              }
+            />
             {series.map((item, index) => {
               const stroke = item.color ?? seriesStroke(index);
               if (type === 'line') {

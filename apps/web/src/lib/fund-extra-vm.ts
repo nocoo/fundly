@@ -83,6 +83,16 @@ export function scoreChart(scores: ScoreExtra): { points: ChartPoint[]; series: 
   };
 }
 
+export function clipTimePoints(points: ChartPoint[], from: string, to: string): ChartPoint[] {
+  return points.flatMap((point) => {
+    const day = String(point.name);
+    if (day < from || day > to) return [];
+    const t = Date.parse(`${day}T00:00:00Z`);
+    if (!Number.isFinite(t)) return [];
+    return [{ ...point, t }];
+  });
+}
+
 export function hasFundExtras(extras: FundExtras | null | undefined): boolean {
   if (!extras) return false;
   return Boolean(

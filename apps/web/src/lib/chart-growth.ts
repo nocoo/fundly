@@ -39,20 +39,28 @@ export function buildGrowthPoints(
   opts: {
     bench?: NavPoint[];
     refRates?: number[];
+    from?: string;
+    to?: string;
   } = {},
 ): ChartPoint[] {
-  if (primary.length === 0) return [];
+  const inWindow = primary.filter((p) => {
+    if (opts.from && p.date < opts.from) return false;
+    if (opts.to && p.date > opts.to) return false;
+    return true;
+  });
+  if (inWindow.length === 0) return [];
   const benchByDate = new Map((opts.bench ?? []).map((p) => [p.date, p.nav]));
   const start =
-    primary.find((p) => (opts.bench?.length ? benchByDate.has(p.date) : true)) ?? primary[0];
+    inWindow.find((p) => (opts.bench?.length ? benchByDate.has(p.date) : true)) ?? inWindow[0];
   if (!start) return [];
   const benchBase = benchByDate.get(start.date);
   const refs = opts.refRates ?? [];
-  return primary
+  return inWindow
     .filter((p) => p.date >= start.date)
     .map((p) => {
       const point: ChartPoint = {
         name: p.date,
+        t: Date.parse(`${p.date}T00:00:00Z`),
         growth: growthFromBase(p.nav, start.nav),
       };
       if (benchBase !== undefined) {
