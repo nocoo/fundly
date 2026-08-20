@@ -15,7 +15,7 @@ describe('emptyDashboard', () => {
 
 describe('formatCount', () => {
   it('renders a dash for missing values', () => {
-    expect(formatCount(null)).toBe('--');
+    expect(formatCount(null)).toBe('—');
   });
 
   it('formats integers with zh-CN grouping', () => {

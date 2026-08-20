@@ -25,18 +25,7 @@ export function toFiniteNumber(raw: unknown): number | null {
   return null;
 }
 
-export function formatCompact(value: number): string {
-  if (!Number.isFinite(value)) return '—';
-  return new Intl.NumberFormat('zh-CN', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-export function formatNav(value: number): string {
-  if (!Number.isFinite(value)) return '—';
-  return value.toFixed(4);
-}
+export { formatCompact, formatNav } from './format-number';
 
 export function cleanNamedPoints(
   rows: Array<{ name?: unknown; value?: unknown }>,

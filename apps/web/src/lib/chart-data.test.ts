@@ -72,7 +72,7 @@ describe('categoryFromChartClick', () => {
 describe('formatters', () => {
   it('formats compact counts and nav', () => {
     expect(formatCompact(Number.NaN)).toBe('—');
-    expect(formatNav(1.2)).toBe('1.2000');
+    expect(formatNav(1.2)).toBe('1.20');
     expect(formatNav(Number.NaN)).toBe('—');
     expect(formatCompact(15300).replace(/[^\d万kK]/g, '').length).toBeGreaterThan(0);
   });
