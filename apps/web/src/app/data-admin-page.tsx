@@ -1,6 +1,7 @@
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
+import { formatCount } from '@/lib/format-number';
 
 interface Stats {
   counts: Record<string, number>;
@@ -32,7 +33,7 @@ export default function DataAdminPage() {
             {Object.entries(data.counts).map(([table, n]) => (
               <div key={table} className="rounded-card bg-secondary p-4 ring-1 ring-border/40">
                 <p className="text-xs text-muted-foreground">{LABELS[table] ?? table}</p>
-                <p className="text-2xl font-semibold">{n.toLocaleString('zh-CN')}</p>
+                <p className="text-right text-2xl font-semibold tabular-nums">{formatCount(n)}</p>
                 <p className="text-[11px] text-muted-foreground">{table}</p>
               </div>
             ))}

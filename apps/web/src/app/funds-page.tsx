@@ -6,6 +6,7 @@ import { AppShell } from '@/components/layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { Input } from '@/components/ui/input';
+import { Metric } from '@/components/ui/metric';
 import {
   Table,
   TableBody,
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useImeSearch } from '@/hooks/use-ime-search';
+import { formatCount } from '@/lib/format-number';
 
 interface FundRow {
   fund_code: string;
@@ -44,9 +46,7 @@ const SORTS = [
   ['return_6m', '近6月'],
 ] as const;
 
-function num(v: number | null) {
-  return v === null || Number.isNaN(v) ? '—' : v.toFixed(2);
-}
+const RETURN_KEYS = new Set(['return_1y', 'return_1m', 'return_3m', 'return_6m']);
 
 export default function FundsPage() {
   const [params, setParams] = useSearchParams();
@@ -104,7 +104,7 @@ export default function FundsPage() {
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const typeOptions = (types?.items ?? []).map((item) => ({
     value: item.fund_type,
-    label: `${item.fund_type} (${item.n})`,
+    label: `${item.fund_type} (${formatCount(item.n)})`,
   }));
   const filterActive = Boolean(q || fundType || mvpOnly || hasNav);
 
@@ -155,8 +155,8 @@ export default function FundsPage() {
       {data && (
         <div className="rounded-card bg-secondary ring-1 ring-border/40">
           <p className="px-3 pt-3 text-xs text-muted-foreground">
-            共 {data.total.toLocaleString('zh-CN')} 只 · 第 {data.page}/{pages} 页 · 每页{' '}
-            {data.pageSize}
+            共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)} 页 ·
+            每页 {formatCount(data.pageSize)}
             {isValidating ? ' · 更新中…' : ''}
           </p>
           <Table>
@@ -166,6 +166,7 @@ export default function FundsPage() {
                   <TableHead
                     key={key}
                     aria-sort={sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
                   >
                     <button type="button" className="font-medium" onClick={() => toggleSort(key)}>
                       {label}
@@ -185,10 +186,18 @@ export default function FundsPage() {
                   </TableCell>
                   <TableCell>{row.fund_name}</TableCell>
                   <TableCell>{row.fund_type}</TableCell>
-                  <TableCell>{num(row.return_1y)}</TableCell>
-                  <TableCell>{num(row.return_1m)}</TableCell>
-                  <TableCell>{num(row.return_3m)}</TableCell>
-                  <TableCell>{num(row.return_6m)}</TableCell>
+                  <TableCell>
+                    <Metric value={row.return_1y} kind="percent" signed />
+                  </TableCell>
+                  <TableCell>
+                    <Metric value={row.return_1m} kind="percent" signed />
+                  </TableCell>
+                  <TableCell>
+                    <Metric value={row.return_3m} kind="percent" signed />
+                  </TableCell>
+                  <TableCell>
+                    <Metric value={row.return_6m} kind="percent" signed />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

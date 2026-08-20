@@ -4,6 +4,7 @@ import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { CHART_HEIGHTS } from '@/lib/chart-config';
 import { cleanNamedPoints, formatCompact } from '@/lib/chart-data';
+import { formatCount } from '@/lib/format-number';
 
 interface Stats {
   counts: Record<string, number>;
@@ -36,11 +37,8 @@ export default function Dashboard() {
         </p>
       )}
       <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <KpiCard
-          label="基金只数"
-          value={fundCount == null ? '—' : fundCount.toLocaleString('zh-CN')}
-        />
-        <KpiCard label="净值行" value={navCount == null ? '—' : navCount.toLocaleString('zh-CN')} />
+        <KpiCard label="基金只数" value={formatCount(fundCount)} />
+        <KpiCard label="净值行" value={formatCount(navCount)} />
         <KpiCard
           label="净值区间"
           value={stats ? `${stats.navSpan.min ?? '—'} → ${stats.navSpan.max ?? '—'}` : '—'}
@@ -86,8 +84,8 @@ function KpiCard({
       <p
         className={
           compact
-            ? 'mt-2 text-sm font-medium tabular-nums'
-            : 'mt-2 text-2xl font-semibold tracking-tight tabular-nums'
+            ? 'mt-2 text-right text-sm font-medium tabular-nums'
+            : 'mt-2 text-right text-2xl font-semibold tracking-tight tabular-nums'
         }
       >
         {value}

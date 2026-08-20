@@ -5,8 +5,10 @@ import { fetchAPI } from '@/api';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Metric } from '@/components/ui/metric';
 import { CHART_HEIGHTS } from '@/lib/chart-config';
 import { cleanNamedPoints, formatNav } from '@/lib/chart-data';
+import { fieldNumberKind, formatCount, isSignedPercentField } from '@/lib/format-number';
 
 interface FieldView {
   key: string;
@@ -71,7 +73,7 @@ export default function FundDetailPage() {
       {navPoints.length > 1 && (
         <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
           <p className="mb-4 text-sm font-semibold text-foreground">
-            单位净值（最近 {navPoints.length} 点）
+            单位净值（最近 {formatCount(navPoints.length)} 点）
           </p>
           <SeriesChart
             type="line"
@@ -106,16 +108,22 @@ export default function FundDetailPage() {
                     className="rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
                   >
                     <span className="text-muted-foreground">{f.label}</span>
-                    <div className="font-medium">{String(f.value)}</div>
+                    <FieldValue fieldKey={f.key} value={f.value} />
                   </div>
                 ),
               )}
           </div>
         </section>
       ))}
-      <p className="text-xs text-muted-foreground">
-        净值点数 {data.navCount.toLocaleString('zh-CN')}
-      </p>
+      <p className="text-xs text-muted-foreground">净值点数 {formatCount(data.navCount)}</p>
     </AppShell>
   );
+}
+
+function FieldValue({ fieldKey, value }: { fieldKey: string; value: string | number | null }) {
+  const kind = fieldNumberKind(fieldKey);
+  if (kind) {
+    return <Metric value={value} kind={kind} signed={isSignedPercentField(fieldKey)} />;
+  }
+  return <div className="font-medium">{String(value)}</div>;
 }
