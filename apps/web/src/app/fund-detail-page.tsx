@@ -272,6 +272,7 @@ export default function FundDetailPage() {
         </div>
 
         <div className="flex flex-col gap-4">
+          <FieldGroup title="基本信息" fields={fieldsOf(data.fields, '基本信息')} />
           <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
           <p className="text-xs leading-5 text-muted-foreground">
             图中净值 {formatCount(growth.length)} 个交易日
@@ -280,7 +281,6 @@ export default function FundDetailPage() {
               : ''}
             。与左栏净值增长同一窗口，不是单位净值本身。
           </p>
-          <FieldGroup title="基本信息" fields={fieldsOf(data.fields, '基本信息')} />
           <FieldGroup title="排名" fields={fieldsOf(data.fields, '排名')} />
         </div>
       </div>
