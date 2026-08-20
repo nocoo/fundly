@@ -49,6 +49,12 @@ export function chartTickStyle(face: ChartTypeFace = 'axis'): {
   return { fontSize: chartFontSize(face), fill: 'hsl(var(--chart-axis))' };
 }
 
+export const CHART_PLOT_MARGIN = {
+  time: { top: 16, right: 12, left: 0, bottom: 20 },
+  timeDual: { top: 16, right: 0, left: 0, bottom: 20 },
+  bars: { top: 16, right: 12, left: 4, bottom: 0 },
+} as const;
+
 export const AXIS_CONFIG = {
   get tick() {
     return chartTickStyle('axis');

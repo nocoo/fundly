@@ -29,7 +29,7 @@ export function ScoreRadar({
   return (
     <div className="h-full w-full min-w-0" style={{ height }} role="img" aria-label="五维能力">
       <ResponsiveContainer {...RESPONSIVE_CONTAINER_PROPS}>
-        <RechartsRadar data={items} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+        <RechartsRadar data={items} margin={{ top: 16, right: 16, bottom: 8, left: 16 }}>
           <PolarGrid stroke="hsl(var(--chart-axis))" strokeOpacity={0.2} />
           <PolarAngleAxis dataKey="name" tick={chartTickStyle('axis')} />
           <PolarRadiusAxis angle={90} domain={[0, peak]} tick={false} axisLine={false} />

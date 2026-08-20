@@ -19,7 +19,7 @@ export function SharePie({
   return (
     <div className="h-full w-full min-w-0" style={{ height }} role="img" aria-label="持有人结构">
       <ResponsiveContainer {...RESPONSIVE_CONTAINER_PROPS}>
-        <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+        <PieChart margin={{ top: 12, right: 8, bottom: 8, left: 8 }}>
           <Pie
             data={items}
             dataKey="value"

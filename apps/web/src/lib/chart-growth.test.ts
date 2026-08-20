@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { annualizedGrowth, buildGrowthPoints, growthFromBase, parseRefRates } from './chart-growth';
+import {
+  alignedNavGrowthDomains,
+  annualizedGrowth,
+  buildGrowthPoints,
+  growthFromBase,
+  parseRefRates,
+} from './chart-growth';
 
 describe('growth math', () => {
   it('indexes nav against the first print', () => {
@@ -42,5 +48,23 @@ describe('buildGrowthPoints', () => {
     expect(points[0]).toMatchObject({ name: '2024-01-01', nav: 1, bench: 0, ref_0: 0 });
     expect(points[1]?.nav).toBeCloseTo(1.1);
     expect(points[1]?.bench).toBeCloseTo(10);
+  });
+});
+
+describe('alignedNavGrowthDomains', () => {
+  it('maps 0% on the right axis onto the fund start nav', () => {
+    const domain = alignedNavGrowthDomains([
+      { name: '2024-01-01', nav: 1, bench: 0 },
+      { name: '2024-01-02', nav: 1.1, bench: 20 },
+    ]);
+    expect(domain).not.toBeNull();
+    if (!domain) return;
+    const [leftMin, leftMax] = domain.left;
+    const [rightMin, rightMax] = domain.right;
+    const start = 1;
+    const zeroPct = (0 - rightMin) / (rightMax - rightMin);
+    const startNav = (start - leftMin) / (leftMax - leftMin);
+    expect(zeroPct).toBeCloseTo(startNav, 8);
+    expect(leftMax).toBeGreaterThan(1.2);
   });
 });

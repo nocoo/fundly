@@ -16,7 +16,7 @@ import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { resolveBenchmark } from '@/lib/benchmark-defaults';
 import { CHART_HEIGHTS, GROWTH_STROKE, refStroke, seriesStroke } from '@/lib/chart-config';
 import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
-import { buildGrowthPoints } from '@/lib/chart-growth';
+import { alignedNavGrowthDomains, buildGrowthPoints } from '@/lib/chart-growth';
 import {
   fieldCopyText,
   fieldNumberKind,
@@ -88,6 +88,7 @@ export default function FundDetailPage() {
       to: bounds.to,
     });
   }, [nav, benchNav, showBench, prefs.refRates, bounds.from, bounds.to]);
+  const growthDomain = useMemo(() => alignedNavGrowthDomains(growth), [growth]);
 
   if (isLoading) {
     return (
@@ -206,6 +207,8 @@ export default function FundDetailPage() {
             axisFormat={(value) => formatAxisMetric(value, 'nav')}
             rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
             rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+            yDomain={growthDomain?.left}
+            rightYDomain={growthDomain?.right}
           />
           <TimeCard
             title="同类排名"
@@ -329,6 +332,8 @@ function TimeCard({
   rightAxisFormat,
   height = PANEL,
   yReversed = false,
+  yDomain,
+  rightYDomain,
   type = 'line',
 }: {
   title: string;
@@ -343,11 +348,13 @@ function TimeCard({
   rightAxisFormat?: (value: number) => string;
   height?: number;
   yReversed?: boolean;
+  yDomain?: [number, number];
+  rightYDomain?: [number, number];
   type?: 'line' | 'bar';
 }) {
   return (
     <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <p className="mb-2 text-sm font-semibold text-foreground">{title}</p>
+      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
       {empty ? (
         <ChartEmptyMask label={emptyLabel} />
       ) : (
@@ -364,6 +371,8 @@ function TimeCard({
             rightValueFormatter={rightFormat}
             rightAxisValueFormatter={rightAxisFormat}
             yReversed={yReversed}
+            yDomain={yDomain}
+            rightYDomain={rightYDomain}
             ariaLabel={title}
           />
           <SeriesLegend series={series} />

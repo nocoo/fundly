@@ -17,6 +17,7 @@ import {
   AXIS_CONFIG,
   barCornerRadius,
   CHART_HEIGHTS,
+  CHART_PLOT_MARGIN,
   CHART_TOOLTIP_CURSOR_BAR,
   CHART_TOOLTIP_PROPS,
   CHART_TYPE,
@@ -129,6 +130,8 @@ export function SeriesChart({
   ariaLabel,
   timeDomain,
   yReversed = false,
+  yDomain,
+  rightYDomain,
 }: {
   type: SeriesChartType;
   points: ChartPoint[];
@@ -144,6 +147,8 @@ export function SeriesChart({
   ariaLabel?: string;
   timeDomain?: { from: number; to: number };
   yReversed?: boolean;
+  yDomain?: [number, number];
+  rightYDomain?: [number, number];
 }) {
   const formatAxisValue = axisValueFormatter ?? valueFormatter;
   const formatRightValue = rightValueFormatter ?? valueFormatter;
@@ -176,12 +181,13 @@ export function SeriesChart({
             data={points}
             layout={horizontalBars ? 'vertical' : 'horizontal'}
             accessibilityLayer={false}
-            margin={{
-              top: 8,
-              right: hasRight ? 0 : 12,
-              left: horizontalBars ? 4 : 0,
-              bottom: horizontalBars ? 0 : 18,
-            }}
+            margin={
+              horizontalBars
+                ? CHART_PLOT_MARGIN.bars
+                : hasRight
+                  ? CHART_PLOT_MARGIN.timeDual
+                  : CHART_PLOT_MARGIN.time
+            }
           >
             <CartesianGrid {...GRID_PROPS} horizontal={!horizontalBars} vertical={horizontalBars} />
             {horizontalBars ? (
@@ -209,6 +215,7 @@ export function SeriesChart({
                   tickFormatter={formatAxisValue}
                   tickMargin={4}
                   reversed={yReversed}
+                  {...(yDomain ? { domain: yDomain } : {})}
                 />
                 {hasRight ? (
                   <YAxis
@@ -218,6 +225,7 @@ export function SeriesChart({
                     width={rightLabelWidth}
                     tickFormatter={formatRightAxis}
                     tickMargin={4}
+                    {...(rightYDomain ? { domain: rightYDomain } : {})}
                   />
                 ) : null}
               </>

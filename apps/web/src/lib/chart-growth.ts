@@ -74,3 +74,40 @@ export function buildGrowthPoints(
       return point;
     });
 }
+
+const GROWTH_PCT_KEYS = ['bench', 'ref_0', 'ref_1'] as const;
+
+export function alignedNavGrowthDomains(
+  points: ChartPoint[],
+  pctKeys: readonly string[] = GROWTH_PCT_KEYS,
+): { left: [number, number]; right: [number, number] } | null {
+  const start = points.find(
+    (point) => typeof point.nav === 'number' && Number.isFinite(point.nav) && point.nav > 0,
+  );
+  if (!start || typeof start.nav !== 'number') return null;
+  const startNav = start.nav;
+  let minNav = startNav;
+  let maxNav = startNav;
+  for (const point of points) {
+    if (typeof point.nav === 'number' && Number.isFinite(point.nav)) {
+      minNav = Math.min(minNav, point.nav);
+      maxNav = Math.max(maxNav, point.nav);
+    }
+    for (const key of pctKeys) {
+      const pct = point[key];
+      if (typeof pct !== 'number' || !Number.isFinite(pct)) continue;
+      const asNav = startNav * (1 + pct / 100);
+      minNav = Math.min(minNav, asNav);
+      maxNav = Math.max(maxNav, asNav);
+    }
+  }
+  const span = maxNav - minNav;
+  const pad = span > 0 ? span * 0.04 : Math.max(startNav * 0.01, 0.01);
+  const leftMin = minNav - pad;
+  const leftMax = maxNav + pad;
+  if (!(leftMax > leftMin) || !(startNav > 0)) return null;
+  return {
+    left: [leftMin, leftMax],
+    right: [(leftMin / startNav - 1) * 100, (leftMax / startNav - 1) * 100],
+  };
+}
