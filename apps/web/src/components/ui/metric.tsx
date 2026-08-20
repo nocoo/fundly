@@ -24,7 +24,7 @@ export function Metric({
         className,
       )}
     >
-      {formatMetric(value, kind)}
+      {formatMetric(value, kind, { signed })}
     </span>
   );
 }

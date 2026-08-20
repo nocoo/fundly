@@ -12,10 +12,17 @@ export function toDisplayNumber(raw: unknown): number | null {
   return null;
 }
 
-export function formatMetric(value: unknown, kind: NumberKind): string {
+export function formatMetric(
+  value: unknown,
+  kind: NumberKind,
+  opts: { signed?: boolean } = {},
+): string {
   const n = toDisplayNumber(value);
   if (n === null) return EMPTY;
-  if (kind === 'percent') return `${n.toFixed(2)}%`;
+  if (kind === 'percent') {
+    const body = `${n.toFixed(2)}%`;
+    return opts.signed && n > 0 ? `+${body}` : body;
+  }
   if (kind === 'nav' || kind === 'scale') return n.toFixed(2);
   if (kind === 'compact') {
     return new Intl.NumberFormat('zh-CN', {

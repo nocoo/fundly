@@ -14,7 +14,10 @@ describe('formatMetric', () => {
   it('renders percents to two places including zero', () => {
     expect(formatPercent(0)).toBe('0.00%');
     expect(formatPercent(1.2)).toBe('1.20%');
+    expect(formatMetric(1.2, 'percent', { signed: true })).toBe('+1.20%');
+    expect(formatMetric(0, 'percent', { signed: true })).toBe('0.00%');
     expect(formatPercent(-19.784)).toBe('-19.78%');
+    expect(formatMetric(-19.784, 'percent', { signed: true })).toBe('-19.78%');
     expect(formatPercent(null)).toBe('—');
     expect(formatPercent(Number.NaN)).toBe('—');
   });
