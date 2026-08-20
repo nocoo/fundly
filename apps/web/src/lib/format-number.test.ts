@@ -27,8 +27,8 @@ describe('formatMetric', () => {
   it('renders counts and nav without a percent sign', () => {
     expect(formatCount(15300).replace(/[^\d]/g, '')).toBe('15300');
     expect(formatCount(null)).toBe('—');
-    expect(formatNav(1.2)).toBe('1.20');
-    expect(formatNav(1.409)).toBe('1.41');
+    expect(formatNav(1.2)).toBe('1.200');
+    expect(formatNav(1.409)).toBe('1.409');
     expect(formatMetric(12.3, 'scale')).toBe('12.30');
   });
 
@@ -40,6 +40,8 @@ describe('formatMetric', () => {
   it('keeps axis ticks compact without two decimals', () => {
     expect(formatAxisMetric(12.34, 'percent')).toBe('+12%');
     expect(formatAxisMetric(-3.8, 'percent')).toBe('-4%');
+    expect(formatAxisMetric(1.2, 'nav')).toBe('1.200');
+    expect(formatAxisMetric(1.4094, 'nav')).toBe('1.409');
   });
 });
 

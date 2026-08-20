@@ -23,7 +23,8 @@ export function formatMetric(
     const body = `${n.toFixed(2)}%`;
     return opts.signed && n > 0 ? `+${body}` : body;
   }
-  if (kind === 'nav' || kind === 'scale') return n.toFixed(2);
+  if (kind === 'nav') return n.toFixed(3);
+  if (kind === 'scale') return n.toFixed(2);
   if (kind === 'compact') {
     return new Intl.NumberFormat('zh-CN', {
       notation: 'compact',
@@ -56,6 +57,7 @@ export function formatAxisMetric(value: unknown, kind: NumberKind): string {
     const body = `${Math.round(n)}%`;
     return n > 0 ? `+${body}` : body;
   }
+  if (kind === 'nav') return n.toFixed(3);
   return formatCompact(n);
 }
 
