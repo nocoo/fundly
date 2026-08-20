@@ -177,7 +177,7 @@ export default function FundDetailPage() {
         </fieldset>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-3">
+      <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr]">
         <div className="flex flex-col gap-4">
           <TimeCard
             title="净值增长"
