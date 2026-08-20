@@ -21,17 +21,33 @@ export const LIVE_RETURN_FIELDS = [
   'return_since_start',
 ] as const satisfies readonly ReturnField[];
 
-export const RANK_RETURN_FIELDS = [
+export const CRAWLED_RETURN_FIELDS = [
   'return_1m',
   'return_3m',
   'return_6m',
   'return_1y',
+] as const satisfies readonly ReturnField[];
+
+export const NAV_ONLY_RETURN_FIELDS = [
   'return_2y',
   'return_3y',
   'return_5y',
 ] as const satisfies readonly ReturnField[];
 
+export const RANK_RETURN_FIELDS = [
+  ...CRAWLED_RETURN_FIELDS,
+  ...NAV_ONLY_RETURN_FIELDS,
+] as const satisfies readonly ReturnField[];
+
 export type RankReturnField = (typeof RANK_RETURN_FIELDS)[number];
+
+export function isCrawledReturnField(field: ReturnField): boolean {
+  return (CRAWLED_RETURN_FIELDS as readonly ReturnField[]).includes(field);
+}
+
+export function isNavOnlyReturnField(field: ReturnField): boolean {
+  return (NAV_ONLY_RETURN_FIELDS as readonly ReturnField[]).includes(field);
+}
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -77,12 +93,17 @@ export function windowStartDate(endDate: string, field: ReturnField): string | n
 export function navReturn(
   start: { acc: number | null; unit: number | null } | null,
   last: { acc: number | null; unit: number | null } | null,
+  opts: { requireAcc?: boolean } = {},
 ): number | null {
   if (!start || !last) return null;
-  const base = start.acc ?? start.unit;
-  const end = last.acc ?? last.unit;
-  if (base == null || end == null || !(base > 0) || !Number.isFinite(end)) return null;
-  return (end / base - 1) * 100;
+  if (start.acc != null && last.acc != null && start.acc > 0 && Number.isFinite(last.acc)) {
+    return (last.acc / start.acc - 1) * 100;
+  }
+  if (opts.requireAcc) return null;
+  if (start.unit != null && last.unit != null && start.unit > 0 && Number.isFinite(last.unit)) {
+    return (last.unit / start.unit - 1) * 100;
+  }
+  return null;
 }
 
 export function rankPct(betterCount: number, n: number): number | null {

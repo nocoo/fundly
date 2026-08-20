@@ -59,10 +59,10 @@ describe('refreshRanks', () => {
         pinyinFull: 'C',
       },
     ]);
-    upsertPerformance(db, emptyPerf('a', 10));
+    upsertPerformance(db, { ...emptyPerf('a', 10), return2y: 0 });
     upsertPerformance(db, emptyPerf('b', 30));
     upsertPerformance(db, emptyPerf('c', 50));
-    upsertNavPoints(db, 'a', [nav('2024-08-18', 1), nav('2026-08-18', 1.2)]);
+    upsertNavPoints(db, 'a', [nav('2024-08-18', 1), nav('2026-08-18', 2)]);
     upsertNavPoints(db, 'b', [nav('2024-08-18', 1), nav('2026-08-18', 1.5)]);
     upsertNavPoints(db, 'c', [nav('2024-08-18', 1), nav('2026-08-18', 1.1)]);
 
@@ -82,7 +82,7 @@ describe('refreshRanks', () => {
     };
     expect(b.rank_pct_1y).toBeCloseTo(50, 5);
     expect(a.rank_pct_1y).toBeCloseTo(100, 5);
-    expect(a.rank_pct_2y).toBeCloseTo(100, 5);
+    expect(a.rank_pct_2y).toBeCloseTo(50, 5);
     expect(a.pass_4433).toBe(0);
 
     db.close();

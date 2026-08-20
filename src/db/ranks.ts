@@ -1,6 +1,8 @@
 import type { Database } from 'bun:sqlite';
 import {
   assignRanks,
+  isCrawledReturnField,
+  isNavOnlyReturnField,
   navReturn,
   pass4433,
   RANK_RETURN_FIELDS,
@@ -64,10 +66,12 @@ export function refreshRanks(db: Database): RankRefreshResult {
     const lastEnds = last ? { acc: last.acc_nav, unit: last.unit_nav } : null;
     const returns = {} as Record<RankReturnField, number | null>;
     for (const field of RANK_RETURN_FIELDS) {
-      const crawled = crawledReturn(row, field);
-      if (crawled != null) {
-        returns[field] = crawled;
-        continue;
+      if (isCrawledReturnField(field)) {
+        const crawled = crawledReturn(row, field);
+        if (crawled != null) {
+          returns[field] = crawled;
+          continue;
+        }
       }
       if (!last) {
         returns[field] = null;
@@ -82,7 +86,9 @@ export function refreshRanks(db: Database): RankRefreshResult {
         acc_nav: number | null;
         unit_nav: number | null;
       } | null;
-      returns[field] = navReturn(at ? { acc: at.acc_nav, unit: at.unit_nav } : null, lastEnds);
+      returns[field] = navReturn(at ? { acc: at.acc_nav, unit: at.unit_nav } : null, lastEnds, {
+        requireAcc: isNavOnlyReturnField(field),
+      });
     }
     resolved.push({ fundCode: row.fund_code, fundType: row.fund_type, returns });
   }

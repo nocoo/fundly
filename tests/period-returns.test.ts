@@ -26,6 +26,13 @@ describe('navReturn', () => {
     );
     expect(navReturn({ acc: 0, unit: 0 }, { acc: 1.2, unit: 1.2 })).toBeNull();
   });
+
+  it('does not mix acc and unit, and can require acc on both ends', () => {
+    expect(navReturn({ acc: 1.5, unit: 1 }, { acc: null, unit: 1.1 })).toBeCloseTo(10, 5);
+    expect(
+      navReturn({ acc: 1.5, unit: 1 }, { acc: null, unit: 1.1 }, { requireAcc: true }),
+    ).toBeNull();
+  });
 });
 
 describe('assignRanks', () => {
