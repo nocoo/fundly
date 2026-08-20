@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout';
 import { CHART_HEIGHTS } from '@/lib/chart-config';
 import { cleanNamedPoints, formatCompact } from '@/lib/chart-data';
 import { formatCount } from '@/lib/format-number';
+import { formatFundTypeLabel } from '@/lib/fund-type';
 
 interface Stats {
   counts: Record<string, number>;
@@ -18,7 +19,10 @@ export default function Dashboard() {
     fetchAPI,
   );
   const chart = cleanNamedPoints(
-    (types?.items ?? []).slice(0, 12).map((item) => ({ name: item.fund_type, value: item.n })),
+    (types?.items ?? []).slice(0, 12).map((item) => ({
+      name: formatFundTypeLabel(item.fund_type),
+      value: item.n,
+    })),
     'n',
   );
   const fundCount = stats?.counts.fund_basic_info;
