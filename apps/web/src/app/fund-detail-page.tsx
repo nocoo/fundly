@@ -90,7 +90,7 @@ export default function FundDetailPage() {
       {groups.map((group) => (
         <section key={group} className="mb-6">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">{group}</h2>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {data.fields
               .filter((f) => f.group === group)
               .map((f) =>
