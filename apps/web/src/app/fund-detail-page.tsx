@@ -179,7 +179,13 @@ export default function FundDetailPage() {
         </fieldset>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr]">
+      <FieldGroup
+        title="基本信息"
+        fields={fieldsOf(data.fields, '基本信息')}
+        columns="grid-cols-2 md:grid-cols-4"
+      />
+
+      <div className="mt-4 grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr]">
         <div className="flex flex-col gap-4">
           <TimeCard
             title="净值增长"
@@ -272,7 +278,6 @@ export default function FundDetailPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <FieldGroup title="基本信息" fields={fieldsOf(data.fields, '基本信息')} />
           <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
           <p className="text-xs leading-5 text-muted-foreground">
             图中净值 {formatCount(growth.length)} 个交易日
@@ -404,12 +409,20 @@ function SnapshotBar({
   );
 }
 
-function FieldGroup({ title, fields }: { title: string; fields: FieldView[] }) {
+function FieldGroup({
+  title,
+  fields,
+  columns = 'grid-cols-1',
+}: {
+  title: string;
+  fields: FieldView[];
+  columns?: string;
+}) {
   if (fields.length === 0) return null;
   return (
     <section>
       <h2 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h2>
-      <div className="grid gap-2">
+      <div className={cn('grid gap-2', columns)}>
         {fields.map((f) =>
           f.empty ? (
             <div
