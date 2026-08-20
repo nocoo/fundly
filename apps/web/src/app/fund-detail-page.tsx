@@ -256,6 +256,7 @@ export default function FundDetailPage() {
             <p className="mb-3 text-sm font-semibold text-foreground">最新持有人</p>
             {extras.holders && extras.holders.latest.length > 0 ? (
               <>
+                <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
                 <SeriesLegend
                   series={extras.holders.latest.map((item, index) => ({
                     key: item.name,
@@ -263,7 +264,6 @@ export default function FundDetailPage() {
                     color: seriesStroke(index),
                   }))}
                 />
-                <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
               </>
             ) : (
               <ChartEmptyMask label="暂无最新持有人" />
@@ -320,7 +320,6 @@ function TimeCard({
         <ChartEmptyMask label={emptyLabel} />
       ) : (
         <>
-          <SeriesLegend series={series} />
           <SeriesChart
             type={type}
             points={points}
@@ -332,6 +331,7 @@ function TimeCard({
             axisValueFormatter={axisFormat}
             ariaLabel={title}
           />
+          <SeriesLegend series={series} />
         </>
       )}
     </article>
@@ -341,7 +341,7 @@ function TimeCard({
 function SeriesLegend({ series }: { series: ChartSeries[] }) {
   if (series.length === 0) return null;
   return (
-    <ul className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+    <ul className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
       {series.map((item, index) => {
         const color = item.color ?? seriesStroke(index);
         return (
@@ -381,15 +381,24 @@ function SnapshotBar({
       {points.length === 0 ? (
         <ChartEmptyMask label={`暂无${title}`} />
       ) : (
-        <SeriesChart
-          type="bar"
-          orientation="horizontal"
-          points={points}
-          series={[{ key: 'value', label: title }]}
-          height={Math.max(140, points.length * 36)}
-          valueFormatter={(value) => formatMetric(value, kind)}
-          ariaLabel={title}
-        />
+        <>
+          <SeriesChart
+            type="bar"
+            orientation="horizontal"
+            points={points}
+            series={[{ key: 'value', label: title }]}
+            height={Math.max(140, points.length * 36)}
+            valueFormatter={(value) => formatMetric(value, kind)}
+            ariaLabel={title}
+          />
+          <SeriesLegend
+            series={points.map((point, index) => ({
+              key: String(point.name),
+              label: String(point.name),
+              color: seriesStroke(index),
+            }))}
+          />
+        </>
       )}
     </article>
   );
