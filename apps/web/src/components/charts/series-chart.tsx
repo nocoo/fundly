@@ -33,6 +33,40 @@ import { SeriesTooltip } from './chart-tooltip';
 
 export type SeriesChartType = 'line' | 'area' | 'bar';
 
+function formatMonthTick(value: number): string {
+  return new Date(value).toISOString().slice(0, 7);
+}
+
+function TimeXTick({
+  x = 0,
+  y = 0,
+  payload,
+  index = 0,
+  visibleTicksCount = 0,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: number };
+  index?: number;
+  visibleTicksCount?: number;
+}) {
+  if (payload == null || !Number.isFinite(payload.value)) return null;
+  const last = visibleTicksCount > 1 && index === visibleTicksCount - 1;
+  const anchor = index === 0 ? 'start' : last ? 'end' : 'middle';
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={12}
+      textAnchor={anchor}
+      fontSize={CHART_TYPE.axisFontSize}
+      fill="hsl(var(--chart-axis))"
+    >
+      {formatMonthTick(payload.value)}
+    </text>
+  );
+}
+
 function axisWidth(
   points: ChartPoint[],
   series: ChartSeries[],
@@ -132,7 +166,7 @@ export function SeriesChart({
               top: 8,
               right: 12,
               left: horizontalBars ? 4 : 0,
-              bottom: 0,
+              bottom: horizontalBars ? 0 : 18,
             }}
           >
             <CartesianGrid {...GRID_PROPS} horizontal={!horizontalBars} vertical={horizontalBars} />
@@ -148,12 +182,18 @@ export function SeriesChart({
                   dataKey="t"
                   domain={[timeDomain.from, timeDomain.to]}
                   {...AXIS_CONFIG}
-                  tickFormatter={(value: number) => new Date(value).toISOString().slice(0, 7)}
+                  tick={<TimeXTick />}
+                  tickMargin={4}
                   {...(xMinTickGap !== undefined
                     ? { minTickGap: xMinTickGap }
                     : { minTickGap: 48 })}
                 />
-                <YAxis {...AXIS_CONFIG} width={yLabelWidth} tickFormatter={formatAxisValue} />
+                <YAxis
+                  {...AXIS_CONFIG}
+                  width={yLabelWidth}
+                  tickFormatter={formatAxisValue}
+                  tickMargin={4}
+                />
               </>
             ) : (
               <>
