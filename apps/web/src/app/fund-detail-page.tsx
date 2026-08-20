@@ -1,9 +1,10 @@
 import { CircleOff } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
-import { useParams } from 'react-router';
+import { useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { ChartEmptyMask } from '@/components/charts/chart-empty-mask';
+import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -12,7 +13,7 @@ import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { resolveBenchmark } from '@/lib/benchmark-defaults';
 import { CHART_HEIGHTS } from '@/lib/chart-config';
-import type { ChartSeries } from '@/lib/chart-data';
+import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
 import { buildGrowthPoints } from '@/lib/chart-growth';
 import {
   fieldNumberKind,
@@ -21,13 +22,14 @@ import {
   isSignedPercentField,
 } from '@/lib/format-number';
 import {
+  clipTimePoints,
   type FundExtras,
-  hasFundExtras,
   rankingChart,
   scaleChart,
-  scoreChart,
   seriesChartFromCategories,
 } from '@/lib/fund-extra-vm';
+import { parseRangeYears, RANGE_YEARS, rangeBounds, utcTs } from '@/lib/time-window';
+import { cn } from '@/lib/utils';
 
 interface FieldView {
   key: string;
@@ -44,22 +46,28 @@ interface DetailResponse {
 }
 
 const HEADER_FIELD_KEYS = new Set(['fund_type']);
+const PANEL = 176;
 
 export default function FundDetailPage() {
   const { code = '' } = useParams();
+  const [params, setParams] = useSearchParams();
+  const years = parseRangeYears(params.get('years'));
+  const bounds = useMemo(() => rangeBounds(years), [years]);
+  const timeDomain = { from: utcTs(bounds.from), to: utcTs(bounds.to) };
   const { data, error, isLoading } = useSWR<DetailResponse>(
     code ? `/api/funds/${code}` : null,
     fetchAPI,
   );
+  const navKey = code ? `/api/funds/${code}/nav?from=${bounds.from}&limit=3000` : null;
   const { data: nav, error: navError } = useSWR<{
     items: { nav_date: string; unit_nav: number }[];
-  }>(code ? `/api/funds/${code}/nav?limit=400` : null, fetchAPI);
+  }>(navKey, fetchAPI);
   const { prefs } = useChartPrefs();
   const fundType = String(data?.fields.find((f) => f.key === 'fund_type')?.value ?? '');
   const bench = resolveBenchmark(fundType, prefs.benchmarks);
   const showBench = Boolean(bench && bench.code !== code);
   const { data: benchNav } = useSWR<{ items: { nav_date: string; unit_nav: number }[] }>(
-    showBench && bench ? `/api/funds/${bench.code}/nav?limit=400` : null,
+    showBench && bench ? `/api/funds/${bench.code}/nav?from=${bounds.from}&limit=3000` : null,
     fetchAPI,
   );
   const growth = useMemo(() => {
@@ -71,8 +79,10 @@ export default function FundDetailPage() {
     return buildGrowthPoints(primary, {
       ...(showBench ? { bench: benchPoints } : {}),
       refRates: prefs.refRates,
+      from: bounds.from,
+      to: bounds.to,
     });
-  }, [nav, benchNav, showBench, prefs.refRates]);
+  }, [nav, benchNav, showBench, prefs.refRates, bounds.from, bounds.to]);
 
   if (isLoading) {
     return (
@@ -95,8 +105,30 @@ export default function FundDetailPage() {
     );
   }
 
-  const groups = [...new Set(data.fields.map((f) => f.group))];
   const name = data.fields.find((f) => f.key === 'fund_name')?.value ?? code;
+  const extras = data.extras;
+  const allocation = extras.allocation
+    ? clipTimePoints(
+        seriesChartFromCategories(extras.allocation.categories, extras.allocation.series).points,
+        bounds.from,
+        bounds.to,
+      )
+    : [];
+  const holders = extras.holders
+    ? clipTimePoints(
+        seriesChartFromCategories(extras.holders.categories, extras.holders.series).points,
+        bounds.from,
+        bounds.to,
+      )
+    : [];
+  const scale = extras.scale
+    ? clipTimePoints(scaleChart(extras.scale).points, bounds.from, bounds.to)
+    : [];
+  const ranking = clipTimePoints(
+    extras.ranking.length ? rankingChart(extras.ranking).points : [],
+    bounds.from,
+    bounds.to,
+  );
 
   const growthSeries: ChartSeries[] = [
     { key: 'growth', label: String(name) },
@@ -112,66 +144,221 @@ export default function FundDetailPage() {
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: String(name) }]}>
-      <h1 className="mb-2 text-xl font-semibold">
-        {name} <span className="text-muted-foreground text-base">{code}</span>
-      </h1>
-      {fundType ? <FundTypeBadges type={fundType} wrap className="mb-4" /> : null}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">
+            {name} <span className="text-muted-foreground text-base">{code}</span>
+          </h1>
+          {fundType ? <FundTypeBadges type={fundType} wrap className="mt-2" /> : null}
+        </div>
+        <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-muted p-0.5 ring-1 ring-border/70">
+          <legend className="sr-only">时间范围</legend>
+          {RANGE_YEARS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              aria-pressed={years === item}
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                if (item === 5) next.delete('years');
+                else next.set('years', String(item));
+                setParams(next, { replace: true });
+              }}
+              className={cn(
+                'h-7 rounded-full px-2.5 text-xs font-semibold',
+                years === item
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {item}年
+            </button>
+          ))}
+        </fieldset>
+      </div>
 
-      <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-        <p className="mb-4 text-sm font-semibold text-foreground">
-          {growth.length > 1 ? `净值增长（最近 ${formatCount(growth.length)} 点）` : '净值增长'}
-        </p>
-        {growth.length > 1 ? (
-          <SeriesChart
-            type="line"
+      <div className="grid items-start gap-4 xl:grid-cols-3">
+        <div className="flex flex-col gap-4">
+          <TimeCard
+            title="净值增长"
+            empty={growth.length < 2}
+            emptyLabel={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'}
             points={growth}
             series={growthSeries}
-            height={CHART_HEIGHTS.compact}
-            valueFormatter={(value) => formatMetric(value, 'percent', { signed: true })}
-            xMinTickGap={48}
-            ariaLabel="净值增长"
+            timeDomain={timeDomain}
+            format={(value) => formatMetric(value, 'percent', { signed: true })}
           />
-        ) : (
-          <ChartEmptyMask label={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'} />
-        )}
-      </article>
+          <TimeCard
+            title="同类排名"
+            empty={ranking.length < 2}
+            points={ranking}
+            series={[{ key: 'rank', label: '同类排名' }]}
+            timeDomain={timeDomain}
+            format={(value) => formatMetric(value, 'count')}
+          />
+          <TimeCard
+            title="规模变动"
+            empty={scale.length < 1}
+            points={scale}
+            series={[{ key: 'scale', label: '规模（亿元）' }]}
+            timeDomain={timeDomain}
+            type="bar"
+            format={(value) => formatMetric(value, 'scale')}
+          />
+          <TimeCard
+            title="资产配置"
+            empty={allocation.length < 2}
+            points={allocation}
+            series={
+              extras.allocation
+                ? extras.allocation.series.map((item) => ({ key: item.name, label: item.name }))
+                : []
+            }
+            timeDomain={timeDomain}
+            format={(value) => formatMetric(value, 'percent')}
+          />
+          <TimeCard
+            title="持有人结构"
+            empty={holders.length < 2}
+            points={holders}
+            series={
+              extras.holders
+                ? extras.holders.series.map((item) => ({ key: item.name, label: item.name }))
+                : []
+            }
+            timeDomain={timeDomain}
+            format={(value) => formatMetric(value, 'percent')}
+          />
+        </div>
 
-      {hasFundExtras(data.extras) ? <FundExtraSections extras={data.extras} /> : null}
+        <div className="flex flex-col gap-4">
+          <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+            <p className="mb-4 text-sm font-semibold text-foreground">
+              {extras.scores?.avr != null
+                ? `五维能力（均分 ${formatMetric(extras.scores.avr, 'nav')}）`
+                : '五维能力'}
+            </p>
+            {extras.scores && extras.scores.items.length > 0 ? (
+              <ScoreRadar items={extras.scores.items} height={CHART_HEIGHTS.standard} />
+            ) : (
+              <ChartEmptyMask label="暂无五维数据" />
+            )}
+          </article>
+          {extras.allocation ? (
+            <SnapshotCard title="最新配置" items={extras.allocation.latest} kind="percent" />
+          ) : null}
+          {extras.holders ? (
+            <SnapshotCard title="最新持有人" items={extras.holders.latest} kind="percent" />
+          ) : null}
+          <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
+        </div>
 
-      {groups.map((group) => {
-        const fields = data.fields.filter(
-          (f) => f.group === group && !HEADER_FIELD_KEYS.has(f.key),
-        );
-        if (fields.length === 0) return null;
-        return (
-          <section key={group} className="mb-6">
-            <h2 className="mb-2 text-sm font-medium text-muted-foreground">{group}</h2>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {fields.map((f) =>
-                f.empty ? (
-                  <div
-                    key={f.key}
-                    className="flex min-w-0 items-center gap-2 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
-                  >
-                    <CircleOff className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                    <span className="text-muted-foreground">{f.label}：暂无数据</span>
-                  </div>
-                ) : (
-                  <div
-                    key={f.key}
-                    className="min-w-0 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
-                  >
-                    <span className="text-muted-foreground">{f.label}</span>
-                    <FieldValue fieldKey={f.key} value={f.value} />
-                  </div>
-                ),
-              )}
-            </div>
-          </section>
-        );
-      })}
-      <p className="text-xs text-muted-foreground">净值点数 {formatCount(data.navCount)}</p>
+        <div className="flex flex-col gap-4">
+          <FieldGroup title="基本信息" fields={fieldsOf(data.fields, '基本信息')} />
+          <FieldGroup title="排名" fields={fieldsOf(data.fields, '排名')} />
+          <p className="text-xs text-muted-foreground">净值点数 {formatCount(data.navCount)}</p>
+        </div>
+      </div>
     </AppShell>
+  );
+}
+
+function fieldsOf(fields: FieldView[], group: string): FieldView[] {
+  return fields.filter((f) => f.group === group && !HEADER_FIELD_KEYS.has(f.key));
+}
+
+function TimeCard({
+  title,
+  empty,
+  emptyLabel = '暂无数据',
+  points,
+  series,
+  timeDomain,
+  format,
+  type = 'line',
+}: {
+  title: string;
+  empty: boolean;
+  emptyLabel?: string;
+  points: ChartPoint[];
+  series: ChartSeries[];
+  timeDomain: { from: number; to: number };
+  format: (value: number) => string;
+  type?: 'line' | 'bar';
+}) {
+  return (
+    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
+      {empty ? (
+        <ChartEmptyMask label={emptyLabel} />
+      ) : (
+        <SeriesChart
+          type={type}
+          points={points}
+          series={series}
+          height={PANEL}
+          timeDomain={timeDomain}
+          colorByCategory={false}
+          valueFormatter={format}
+          ariaLabel={title}
+        />
+      )}
+    </article>
+  );
+}
+
+function SnapshotCard({
+  title,
+  items,
+  kind,
+}: {
+  title: string;
+  items: { name: string; value: number }[];
+  kind: 'percent' | 'count' | 'scale';
+}) {
+  if (items.length === 0) return null;
+  return (
+    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <div key={item.name} className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">{item.name}</span>
+            <Metric value={item.value} kind={kind} />
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function FieldGroup({ title, fields }: { title: string; fields: FieldView[] }) {
+  if (fields.length === 0) return null;
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h2>
+      <div className="grid gap-2">
+        {fields.map((f) =>
+          f.empty ? (
+            <div
+              key={f.key}
+              className="flex min-w-0 items-center gap-2 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
+            >
+              <CircleOff className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <span className="text-muted-foreground">{f.label}：暂无数据</span>
+            </div>
+          ) : (
+            <div
+              key={f.key}
+              className="min-w-0 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
+            >
+              <span className="text-muted-foreground">{f.label}</span>
+              <FieldValue fieldKey={f.key} value={f.value} />
+            </div>
+          ),
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -181,132 +368,4 @@ function FieldValue({ fieldKey, value }: { fieldKey: string; value: string | num
     return <Metric value={value} kind={kind} signed={isSignedPercentField(fieldKey)} />;
   }
   return <div className="min-w-0 break-words font-medium">{String(value)}</div>;
-}
-
-function FundExtraSections({ extras }: { extras: FundExtras }) {
-  const allocation = extras.allocation
-    ? seriesChartFromCategories(extras.allocation.categories, extras.allocation.series)
-    : null;
-  const holders = extras.holders
-    ? seriesChartFromCategories(extras.holders.categories, extras.holders.series)
-    : null;
-  const scale = extras.scale ? scaleChart(extras.scale) : null;
-  const ranking = extras.ranking.length > 1 ? rankingChart(extras.ranking) : null;
-  const scores = extras.scores ? scoreChart(extras.scores) : null;
-
-  return (
-    <div className="mb-6 space-y-6">
-      {scores ? (
-        <ExtraCard
-          title={
-            extras.scores?.avr != null
-              ? `五维能力（均分 ${formatMetric(extras.scores.avr, 'nav')}）`
-              : '五维能力'
-          }
-        >
-          <LatestPills items={extras.scores?.items ?? []} kind="count" />
-          <SeriesChart
-            type="bar"
-            orientation="horizontal"
-            points={scores.points}
-            series={scores.series}
-            height={CHART_HEIGHTS.compact}
-            colorByCategory={false}
-            valueFormatter={(value) => formatMetric(value, 'count')}
-            ariaLabel="五维能力"
-          />
-        </ExtraCard>
-      ) : null}
-      {allocation && extras.allocation ? (
-        <ExtraCard title="资产配置">
-          <LatestPills items={extras.allocation.latest} kind="percent" />
-          <SeriesChart
-            type="line"
-            points={allocation.points}
-            series={allocation.series}
-            height={CHART_HEIGHTS.compact}
-            valueFormatter={(value) => formatMetric(value, 'percent')}
-            xMinTickGap={48}
-            ariaLabel="资产配置"
-          />
-        </ExtraCard>
-      ) : null}
-      {scale && extras.scale ? (
-        <ExtraCard title="规模变动">
-          <LatestPills
-            items={[{ name: extras.scale.latest.date, value: extras.scale.latest.value }]}
-            kind="scale"
-          />
-          <SeriesChart
-            type="bar"
-            points={scale.points}
-            series={scale.series}
-            height={CHART_HEIGHTS.compact}
-            colorByCategory={false}
-            valueFormatter={(value) => formatMetric(value, 'scale')}
-            ariaLabel="规模变动"
-          />
-        </ExtraCard>
-      ) : null}
-      {holders && extras.holders ? (
-        <ExtraCard title="持有人结构">
-          <LatestPills items={extras.holders.latest} kind="percent" />
-          <SeriesChart
-            type="line"
-            points={holders.points}
-            series={holders.series}
-            height={CHART_HEIGHTS.compact}
-            valueFormatter={(value) => formatMetric(value, 'percent')}
-            xMinTickGap={48}
-            ariaLabel="持有人结构"
-          />
-        </ExtraCard>
-      ) : null}
-      {ranking ? (
-        <ExtraCard title="同类排名走势">
-          <SeriesChart
-            type="line"
-            points={ranking.points}
-            series={ranking.series}
-            height={CHART_HEIGHTS.compact}
-            valueFormatter={(value) => formatMetric(value, 'count')}
-            xMinTickGap={48}
-            ariaLabel="同类排名走势"
-          />
-        </ExtraCard>
-      ) : null}
-    </div>
-  );
-}
-
-function ExtraCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <p className="mb-4 text-sm font-semibold text-foreground">{title}</p>
-      {children}
-    </article>
-  );
-}
-
-function LatestPills({
-  items,
-  kind,
-}: {
-  items: { name: string; value: number }[];
-  kind: 'percent' | 'count' | 'scale';
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div className="mb-4 flex min-w-0 flex-wrap gap-2">
-      {items.map((item) => (
-        <span
-          key={item.name}
-          className="rounded-md bg-background/60 px-2 py-1 text-xs text-muted-foreground ring-1 ring-border/40"
-        >
-          {item.name}{' '}
-          <span className="font-medium text-foreground">{formatMetric(item.value, kind)}</span>
-        </span>
-      ))}
-    </div>
-  );
 }
