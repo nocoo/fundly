@@ -37,6 +37,25 @@ export function listTypeL1(items: Array<{ fund_type: string; n: number }>): Arra
     .sort((a, b) => b.n - a.n);
 }
 
+export function buildTypeTree(rawTypes: string[]): Array<{
+  l1: string;
+  items: Array<{ raw: string; l2: string }>;
+}> {
+  const map = new Map<string, Array<{ raw: string; l2: string }>>();
+  for (const raw of rawTypes) {
+    const { l1, l2 } = splitFundType(raw);
+    const list = map.get(l1) ?? [];
+    list.push({ raw, l2 });
+    map.set(l1, list);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'))
+    .map(([l1, items]) => ({
+      l1,
+      items: [...items].sort((a, b) => a.l2.localeCompare(b.l2, 'zh-CN')),
+    }));
+}
+
 export function listTypeL2(
   items: Array<{ fund_type: string; n: number }>,
   l1: string,

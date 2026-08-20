@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AppShell } from '@/components/layout';
-import { FundTypeBadges } from '@/components/ui/type-badge';
+import { BenchmarkBrowser } from '@/components/settings/benchmark-browser';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { useQuoteColor } from '@/hooks/use-quote-color';
-import { DEFAULT_BENCHMARKS } from '@/lib/benchmark-defaults';
 import { parseRefRates } from '@/lib/chart-growth';
-import { splitFundType } from '@/lib/fund-type';
 import { QUOTE_COLOR_OPTIONS } from '@/lib/quote-color';
 import { cn } from '@/lib/utils';
 
@@ -15,17 +13,6 @@ export default function SettingsPage() {
   const [rateDraft, setRateDraft] = useState(
     [prefs.refRates[0], prefs.refRates[1]].map((n) => (n === undefined ? '' : String(n))),
   );
-
-  const groups = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const type of Object.keys(DEFAULT_BENCHMARKS)) {
-      const { l1 } = splitFundType(type);
-      const list = map.get(l1) ?? [];
-      list.push(type);
-      map.set(l1, list);
-    }
-    return [...map.entries()];
-  }, []);
 
   const commitRates = (next: string[]) => {
     setRateDraft(next);
@@ -98,46 +85,15 @@ export default function SettingsPage() {
         <p className="mt-1 text-xs text-muted-foreground">
           每个类型必须有一只基准，增长图会叠加其虚线。默认选该分类里盘子大、历史长的代表产品。
         </p>
-        <div className="mt-4 flex flex-col gap-4">
-          {groups.map(([l1, types]) => (
-            <div key={l1}>
-              <div className="mb-2">
-                <FundTypeBadges type={l1} />
-              </div>
-              <div className="flex flex-col gap-2">
-                {types.map((type) => {
-                  const fallback = DEFAULT_BENCHMARKS[type];
-                  const code = prefs.benchmarks[type] || fallback?.code || '';
-                  return (
-                    <label
-                      key={type}
-                      className="grid items-center gap-2 text-xs text-muted-foreground md:grid-cols-[minmax(0,1fr)_8rem_minmax(0,1fr)]"
-                    >
-                      <FundTypeBadges type={type} />
-                      <input
-                        key={`${type}-${code}`}
-                        defaultValue={code}
-                        spellCheck={false}
-                        className="h-8 rounded-widget border border-border bg-secondary px-2 font-mono text-sm text-foreground"
-                        onBlur={(e) => {
-                          const next = e.target.value.trim();
-                          setPrefs({
-                            ...prefs,
-                            benchmarks: {
-                              ...prefs.benchmarks,
-                              [type]: next || fallback?.code || code,
-                            },
-                          });
-                        }}
-                      />
-                      <span className="truncate text-[11px]">{fallback?.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        <BenchmarkBrowser
+          benchmarks={prefs.benchmarks}
+          onChange={(type, code) =>
+            setPrefs({
+              ...prefs,
+              benchmarks: { ...prefs.benchmarks, [type]: code },
+            })
+          }
+        />
       </section>
     </AppShell>
   );

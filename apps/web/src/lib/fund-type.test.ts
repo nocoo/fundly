@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  buildTypeTree,
   formatFundTypeLabel,
   joinFundType,
   listTypeL1,
@@ -44,5 +45,13 @@ describe('type lists', () => {
       { value: '灵活', label: '灵活', n: 4 },
     ]);
     expect(listTypeL2(items, '股票型')).toEqual([]);
+  });
+});
+
+describe('buildTypeTree', () => {
+  it('groups leaves under L1 in zh sort', () => {
+    const tree = buildTypeTree(['混合型-偏股', '股票型', '混合型-灵活']);
+    expect(tree.map((g) => g.l1)).toEqual(['股票型', '混合型']);
+    expect(tree[1]?.items.map((i) => i.l2).toSorted()).toEqual(['偏股', '灵活']);
   });
 });
