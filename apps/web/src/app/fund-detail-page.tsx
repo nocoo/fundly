@@ -14,7 +14,7 @@ import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { resolveBenchmark } from '@/lib/benchmark-defaults';
-import { CHART_HEIGHTS, seriesStroke } from '@/lib/chart-config';
+import { CHART_HEIGHTS, GROWTH_STROKE, refStroke, seriesStroke } from '@/lib/chart-config';
 import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
 import { buildGrowthPoints } from '@/lib/chart-growth';
 import {
@@ -135,14 +135,22 @@ export default function FundDetailPage() {
   );
 
   const growthSeries: ChartSeries[] = [
-    { key: 'growth', label: String(name) },
+    { key: 'growth', label: String(name), color: GROWTH_STROKE.fund },
     ...(showBench && bench
-      ? [{ key: 'bench', label: `基准 ${bench.name}`, dashed: true as const }]
+      ? [
+          {
+            key: 'bench',
+            label: `基准 ${bench.name}`,
+            dashed: true as const,
+            color: GROWTH_STROKE.bench,
+          },
+        ]
       : []),
     ...prefs.refRates.map((rate, index) => ({
       key: `ref_${index}`,
       label: `年化 ${rate.toFixed(2)}%`,
       dashed: true as const,
+      color: refStroke(index),
     })),
   ];
 

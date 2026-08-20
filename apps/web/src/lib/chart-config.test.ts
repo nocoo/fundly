@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { barCornerRadius, getChartColor, getChartToken, withAlpha } from './chart-config';
+import {
+  barCornerRadius,
+  GROWTH_STROKE,
+  getChartColor,
+  getChartToken,
+  refStroke,
+  withAlpha,
+} from './chart-config';
 
 describe('chart palette', () => {
   it('wraps past the 14-stop Pew palette', () => {
@@ -16,5 +23,12 @@ describe('chart palette', () => {
   it('caps only the outer bar corners', () => {
     expect(barCornerRadius('vertical')).toEqual([4, 4, 0, 0]);
     expect(barCornerRadius('horizontal')).toEqual([0, 4, 4, 0]);
+  });
+
+  it('keeps growth fund, bench and refs on distinct roles', () => {
+    expect(GROWTH_STROKE.fund).toBe('hsl(var(--chart-1))');
+    expect(GROWTH_STROKE.bench).toBe('hsl(var(--chart-8))');
+    expect(refStroke(0)).toBe('hsl(var(--chart-ref-1))');
+    expect(refStroke(1)).toBe('hsl(var(--chart-ref-2))');
   });
 });

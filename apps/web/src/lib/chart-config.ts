@@ -141,6 +141,15 @@ export function seriesStroke(index: number): string {
   return getChartColor(index);
 }
 
+export const GROWTH_STROKE = {
+  fund: 'hsl(var(--chart-1))',
+  bench: 'hsl(var(--chart-8))',
+} as const;
+
+export function refStroke(index: number): string {
+  return index % 2 === 0 ? 'hsl(var(--chart-ref-1))' : 'hsl(var(--chart-ref-2))';
+}
+
 export function seriesFill(index: number, alpha = CHART_TYPE.areaFillAlpha): string {
   return withAlpha(getChartToken(index), alpha);
 }
