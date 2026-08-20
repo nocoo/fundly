@@ -11,7 +11,7 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
-| `refresh-ranks.ts` | `bun run rank:refresh` | **按同类重算排名百分位 + 4433，写入库** | 手动，抓取后跑 |
+| `refresh-ranks.ts` | `bun run rank:refresh` | **按同类重算排名百分位 + 4433，写入库** | 全市场 27,527 只实测 4 秒 |
 | `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
 | `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
