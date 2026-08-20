@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { defaultChartPrefs, parseChartPrefs } from './chart-prefs';
+import { defaultChartPrefs, parseChartPrefs, readStoredChartPrefs } from './chart-prefs';
 
 describe('parseChartPrefs', () => {
   it('fills missing benchmarks from defaults', () => {
@@ -9,5 +9,11 @@ describe('parseChartPrefs', () => {
     expect(prefs.benchmarks['货币型-普通货币']).toBe(
       defaultChartPrefs().benchmarks['货币型-普通货币'],
     );
+  });
+});
+
+describe('readStoredChartPrefs', () => {
+  it('returns the same snapshot object when storage is unchanged', () => {
+    expect(readStoredChartPrefs()).toBe(readStoredChartPrefs());
   });
 });

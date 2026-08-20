@@ -9,9 +9,17 @@ export type ChartPrefs = {
   benchmarks: Record<string, string>;
 };
 
+export const DEFAULT_CHART_PREFS: ChartPrefs = {
+  refRates: [],
+  benchmarks: mergeBenchmarks({}),
+};
+
 export function defaultChartPrefs(): ChartPrefs {
-  return { refRates: [], benchmarks: mergeBenchmarks({}) };
+  return DEFAULT_CHART_PREFS;
 }
+
+let cachedRaw: string | null = null;
+let cachedPrefs: ChartPrefs = DEFAULT_CHART_PREFS;
 
 export function parseChartPrefs(raw: unknown): ChartPrefs {
   const base = defaultChartPrefs();
@@ -25,18 +33,29 @@ export function parseChartPrefs(raw: unknown): ChartPrefs {
 }
 
 export function readStoredChartPrefs(): ChartPrefs {
-  if (typeof window === 'undefined') return defaultChartPrefs();
+  if (typeof window === 'undefined') return DEFAULT_CHART_PREFS;
   try {
     const raw = window.localStorage.getItem(CHART_PREFS_KEY);
-    return raw ? parseChartPrefs(JSON.parse(raw)) : defaultChartPrefs();
+    if (!raw) {
+      cachedRaw = null;
+      cachedPrefs = DEFAULT_CHART_PREFS;
+      return cachedPrefs;
+    }
+    if (raw === cachedRaw) return cachedPrefs;
+    cachedRaw = raw;
+    cachedPrefs = parseChartPrefs(JSON.parse(raw));
+    return cachedPrefs;
   } catch {
-    return defaultChartPrefs();
+    return DEFAULT_CHART_PREFS;
   }
 }
 
 export function writeStoredChartPrefs(prefs: ChartPrefs): void {
   const next = parseChartPrefs(prefs);
-  window.localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(next));
+  const serialized = JSON.stringify(next);
+  window.localStorage.setItem(CHART_PREFS_KEY, serialized);
+  cachedRaw = serialized;
+  cachedPrefs = next;
   window.dispatchEvent(new Event(CHART_PREFS_EVENT));
 }
 
