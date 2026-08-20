@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
+import { Github } from '@/components/icons/github';
 import {
   Sheet,
   SheetContent,
@@ -76,8 +77,17 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
             )}
             <Breadcrumbs items={[{ label: '首页', href: '/' }, ...breadcrumbs]} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <SourceToggle />
+            <a
+              href="https://github.com/nocoo/fundly"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub repository"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
+            </a>
             <ThemeToggle />
           </div>
         </header>
