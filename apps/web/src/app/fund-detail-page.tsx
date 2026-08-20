@@ -3,6 +3,7 @@ import { type ReactNode, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
+import { ChartEmptyMask } from '@/components/charts/chart-empty-mask';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -116,14 +117,11 @@ export default function FundDetailPage() {
       </h1>
       {fundType ? <FundTypeBadges type={fundType} wrap className="mb-4" /> : null}
 
-      {navError && (
-        <p className="mb-4 text-sm text-destructive-text">净值加载失败：{navError.message}</p>
-      )}
-      {growth.length > 1 && (
-        <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-          <p className="mb-4 text-sm font-semibold text-foreground">
-            净值增长（最近 {formatCount(growth.length)} 点）
-          </p>
+      <article className="mb-6 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+        <p className="mb-4 text-sm font-semibold text-foreground">
+          {growth.length > 1 ? `净值增长（最近 ${formatCount(growth.length)} 点）` : '净值增长'}
+        </p>
+        {growth.length > 1 ? (
           <SeriesChart
             type="line"
             points={growth}
@@ -133,8 +131,10 @@ export default function FundDetailPage() {
             xMinTickGap={48}
             ariaLabel="净值增长"
           />
-        </article>
-      )}
+        ) : (
+          <ChartEmptyMask label={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'} />
+        )}
+      </article>
 
       {hasFundExtras(data.extras) ? <FundExtraSections extras={data.extras} /> : null}
 
