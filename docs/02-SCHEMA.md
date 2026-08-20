@@ -31,12 +31,6 @@ CREATE TABLE fund_basic_info (
   fund_type         TEXT NOT NULL,            -- 基金类型（如 '混合型-偏股'）
   pinyin_abbr       TEXT,                     -- 拼音缩写（搜索用）
   pinyin_full       TEXT,                     -- 拼音全称
-  established_date  TEXT,                     -- 成立日期 YYYY-MM-DD
-  fund_manager      TEXT,                     -- 当前基金经理（可能多人，逗号分隔）
-  fund_company      TEXT,                     -- 基金公司
-  fund_scale        REAL,                     -- 最新规模（亿元）
-  scale_date        TEXT,                     -- 规模统计日期
-  fee_rate          REAL,                     -- 管理费率
   in_mvp_pool       INTEGER NOT NULL DEFAULT 0, -- 是否属于 MVP 分析池
   created_at        INTEGER NOT NULL,         -- 记录创建时间戳(ms)
   updated_at        INTEGER NOT NULL          -- 记录更新时间戳(ms)
@@ -46,6 +40,16 @@ CREATE INDEX idx_fund_type   ON fund_basic_info(fund_type);
 CREATE INDEX idx_mvp_pool    ON fund_basic_info(in_mvp_pool) WHERE in_mvp_pool = 1;
 CREATE INDEX idx_fund_name   ON fund_basic_info(fund_name);
 ```
+
+基本信息里的经理、费率、规模、成立日 **只在各自的表里存一份**，不在本表冗余：
+
+| 页面字段 | 唯一来源 |
+|---|---|
+| 成立日期 | `MIN(fund_nav.nav_date)`（净值首日，读时派生，不落列） |
+| 基金经理 | `fund_manager_link` 中 `end_date IS NULL` |
+| 基金公司 | 暂无来源（`fund_manager.company` 也是空的） |
+| 规模 / 规模日期 | `fund_trend_extra.scale_history_json` 最新一点 |
+| 管理费率 | `fund_fees.mgmt_fee_pct` |
 
 **MVP 池定义**：`fund_type` 属于 `{股票型, 混合型-偏股, 混合型-灵活, 指数型-股票, 指数型-海外股票, QDII-普通股票, QDII-混合偏股}` → 约 14,700 只
 
@@ -162,12 +166,10 @@ CREATE TABLE schema_version (
 );
 ```
 
-## 🎯 MVP 阶段暂不建的表
+## 🎯 已有的卫星表（一份事实）
 
-以下表在 Phase 2/3 加：
-
-- `fund_portfolio` — 持仓明细（重仓股）
-- `fund_manager` — 经理档案
+- `fund_fees` — 费率（管理/托管/销售等）
+- `fund_manager` / `fund_manager_link` — 经理档案与任职
+- `fund_portfolio` — 持仓明细
 - `fund_dividend` — 分红送配
-- `fund_risk_metrics` — 风险指标（本地计算：夏普/卡玛/波动率/最大回撤）
-- `fund_screening_rank` — 多因子打分与筛选榜单快照
+- `fund_risk_metrics` — 风险指标（夏普/卡玛等，与阶段收益不是同一口径）

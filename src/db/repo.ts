@@ -33,12 +33,33 @@ export function ensurePerformanceRankStatsColumn(db: Database): void {
   db.exec('ALTER TABLE fund_performance ADD COLUMN rank_stats_json TEXT');
 }
 
+const BASIC_INFO_DUP_COLS = [
+  'established_date',
+  'fund_manager',
+  'fund_company',
+  'fund_scale',
+  'scale_date',
+  'fee_rate',
+] as const;
+
+export function dropBasicInfoDuplicateColumns(db: Database): void {
+  const cols = new Set(
+    (db.query('PRAGMA table_info(fund_basic_info)').all() as Array<{ name: string }>).map(
+      (col) => col.name,
+    ),
+  );
+  for (const col of BASIC_INFO_DUP_COLS) {
+    if (cols.has(col)) db.exec(`ALTER TABLE fund_basic_info DROP COLUMN ${col}`);
+  }
+}
+
 export function initSchema(db: Database): void {
   db.transaction(() => {
     for (const ddl of SCHEMA_DDL) {
       db.exec(ddl);
     }
     ensurePerformanceRankStatsColumn(db);
+    dropBasicInfoDuplicateColumns(db);
     // 记录版本
     const existing = db
       .query('SELECT version FROM schema_version WHERE version = ?')

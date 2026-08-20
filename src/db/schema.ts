@@ -15,12 +15,6 @@ export const SCHEMA_DDL = [
     fund_type         TEXT NOT NULL,
     pinyin_abbr       TEXT,
     pinyin_full       TEXT,
-    established_date  TEXT,
-    fund_manager      TEXT,
-    fund_company      TEXT,
-    fund_scale        REAL,
-    scale_date        TEXT,
-    fee_rate          REAL,
     in_mvp_pool       INTEGER NOT NULL DEFAULT 0,
     created_at        INTEGER NOT NULL,
     updated_at        INTEGER NOT NULL

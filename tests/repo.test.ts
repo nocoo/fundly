@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   countFunds,
   countNavPoints,
+  dropBasicInfoDuplicateColumns,
   initSchema,
   latestNavDate,
   listMvpFundCodes,
@@ -35,6 +36,33 @@ describe('db repo', () => {
     initSchema(db); // 二次调用不应报错
     const row = db.query('SELECT COUNT(*) as n FROM schema_version').get() as { n: number } | null;
     expect(row?.n).toBe(1);
+    const cols = (
+      db.query('PRAGMA table_info(fund_basic_info)').all() as Array<{ name: string }>
+    ).map((col) => col.name);
+    expect(cols).not.toContain('fee_rate');
+    expect(cols).not.toContain('fund_manager');
+    db.close();
+    unlinkSync(path);
+  });
+
+  test('dropBasicInfoDuplicateColumns strips leftover stub columns', () => {
+    const path = tmpDbPath();
+    const db = openDb(path);
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY,
+        fund_name TEXT NOT NULL,
+        fund_type TEXT NOT NULL,
+        fee_rate REAL,
+        fund_manager TEXT,
+        fund_company TEXT
+      )
+    `);
+    dropBasicInfoDuplicateColumns(db);
+    const cols = (
+      db.query('PRAGMA table_info(fund_basic_info)').all() as Array<{ name: string }>
+    ).map((col) => col.name);
+    expect(cols).toEqual(['fund_code', 'fund_name', 'fund_type']);
     db.close();
     unlinkSync(path);
   });
