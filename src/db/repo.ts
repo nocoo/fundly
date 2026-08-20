@@ -139,13 +139,6 @@ const UPSERT_PERFORMANCE = `
     return_5y = excluded.return_5y,
     return_ytd = excluded.return_ytd,
     return_since_start = excluded.return_since_start,
-    rank_pct_1m = excluded.rank_pct_1m,
-    rank_pct_3m = excluded.rank_pct_3m,
-    rank_pct_6m = excluded.rank_pct_6m,
-    rank_pct_1y = excluded.rank_pct_1y,
-    rank_pct_2y = excluded.rank_pct_2y,
-    rank_pct_3y = excluded.rank_pct_3y,
-    rank_pct_5y = excluded.rank_pct_5y,
     data_date = excluded.data_date,
     updated_at = excluded.updated_at
 `;

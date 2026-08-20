@@ -11,6 +11,7 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
+| `refresh-ranks.ts` | `bun run rank:refresh` | **按同类重算排名百分位 + 4433，写入库** | 手动，抓取后跑 |
 | `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
 | `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
@@ -119,6 +120,27 @@ FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
 | `fetch:daily` | **池内全部基金**（强制刷）| 每日增量、刷阶段业绩 |
 
 技术上 `fetch:nav` 走 `listMvpFundCodesMissingPerformance()`，`fetch:daily` 走 `listMvpFundCodes()` 或全表扫描。
+
+---
+
+## 🏆 刷新排名：`refresh-ranks.ts`
+
+同类排名百分位和 4433 **不随打开详情页计算**，也不被 `fetch:daily` 覆盖。净值/业绩入库后手动跑：
+
+```bash
+bun run rank:refresh
+bun run rank:refresh data/fundly.db
+```
+
+口径：
+
+- 分组：`fund_basic_info.fund_type` 全称（不是一级分类）
+- 1 月 / 3 月 / 6 月 / 1 年：优先用东财爬到的 `return_*`；缺了再用累计净值回补
+- 2 年 / 3 年 / 5 年：东财 `syl_2n/3n/5n` 在本库为 0，一律用净值回补
+- 百分位：`(比自己收益更高的只数 + 1) / 同类有数只数 × 100`，越小越靠前
+- 4433：近 1/2/3/5 年 ≤ 25%，近 3 月和近 6 月 ≤ 1/3；缺任一窗口则不过
+
+详情页「今年以来 / 成立以来 / 缺的阶段收益」仍是打开时按该基金净值现场算，不写回 `fund_performance`。
 
 ---
 

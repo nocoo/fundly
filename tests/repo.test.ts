@@ -220,6 +220,17 @@ describe('db repo', () => {
       .get('000001') as { return_1y: number; data_date: string } | null;
     expect(row?.return_1y).toBe(25);
     expect(row?.data_date).toBe('2026-08-18');
+
+    db.query(
+      'UPDATE fund_performance SET rank_pct_1y = 12.5, pass_4433 = 1 WHERE fund_code = ?',
+    ).run('000001');
+    upsertPerformance(db, { ...perf, return1y: 26, rankPct1y: null });
+    const kept = db
+      .query('SELECT return_1y, rank_pct_1y, pass_4433 FROM fund_performance WHERE fund_code = ?')
+      .get('000001') as { return_1y: number; rank_pct_1y: number; pass_4433: number };
+    expect(kept.return_1y).toBe(26);
+    expect(kept.rank_pct_1y).toBe(12.5);
+    expect(kept.pass_4433).toBe(1);
   });
 
   test('upsertTrendExtra roundtrips json', () => {
