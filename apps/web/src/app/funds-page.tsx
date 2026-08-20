@@ -212,16 +212,16 @@ export default function FundsPage() {
                     <FundTypeBadges type={row.fund_type} />
                   </TableCell>
                   <TableCell>
-                    <Metric value={row.return_1y} kind="percent" signed />
+                    <Metric value={row.return_1y} kind="percent" signed align="end" />
                   </TableCell>
                   <TableCell>
-                    <Metric value={row.return_1m} kind="percent" signed />
+                    <Metric value={row.return_1m} kind="percent" signed align="end" />
                   </TableCell>
                   <TableCell>
-                    <Metric value={row.return_3m} kind="percent" signed />
+                    <Metric value={row.return_3m} kind="percent" signed align="end" />
                   </TableCell>
                   <TableCell>
-                    <Metric value={row.return_6m} kind="percent" signed />
+                    <Metric value={row.return_6m} kind="percent" signed align="end" />
                   </TableCell>
                 </TableRow>
               ))}

@@ -7,11 +7,13 @@ export function Metric({
   value,
   kind,
   signed = false,
+  align = 'start',
   className,
 }: {
   value: unknown;
   kind: NumberKind;
   signed?: boolean;
+  align?: 'start' | 'end';
   className?: string;
 }) {
   const { color } = useQuoteColor();
@@ -19,7 +21,8 @@ export function Metric({
   return (
     <span
       className={cn(
-        'inline-block w-full text-right font-medium tabular-nums',
+        'inline-block font-medium tabular-nums',
+        align === 'end' ? 'w-full text-right' : 'text-left',
         signed ? quoteToneClass(tone, color) : 'text-foreground',
         className,
       )}
