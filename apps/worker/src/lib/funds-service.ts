@@ -2,7 +2,13 @@ import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
 import { type FundListQuery, fundListSql } from './fund-query';
-import { LIVE_RETURN_FIELDS, navReturn, type ReturnField, windowStartDate } from './period-returns';
+import {
+  isNavOnlyReturnField,
+  LIVE_RETURN_FIELDS,
+  navReturn,
+  type ReturnField,
+  windowStartDate,
+} from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
   const built = fundListSql(query);
@@ -90,7 +96,9 @@ async function loadLiveReturns(
           [code, start],
         )
         .then((row) => {
-          out[key] = navReturn(row ? { acc: row.acc_nav, unit: row.unit_nav } : null, lastEnds);
+          out[key] = navReturn(row ? { acc: row.acc_nav, unit: row.unit_nav } : null, lastEnds, {
+            requireAcc: isNavOnlyReturnField(key),
+          });
         }),
     );
   }
