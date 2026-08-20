@@ -111,12 +111,19 @@ describe('listFunds / getFundDetail', () => {
     ).run('000001', '2001-12-18', 1, 1);
     db.prepare(
       'INSERT INTO fund_nav (fund_code, nav_date, unit_nav, acc_nav) VALUES (?, ?, ?, ?)',
+    ).run('000001', '2024-08-18', 1.2, 2);
+    db.prepare(
+      'INSERT INTO fund_nav (fund_code, nav_date, unit_nav, acc_nav) VALUES (?, ?, ?, ?)',
     ).run('000001', '2026-08-18', 1.409, 3.982);
 
     const detail = await getFundDetail(exec(db), '000001');
     const since = detail?.fields.find((f) => f.key === 'return_since_start');
     expect(since?.empty).toBe(false);
     expect(Number(since?.value)).toBeCloseTo(298.2, 1);
+    const twoYear = detail?.fields.find((f) => f.key === 'return_2y');
+    expect(twoYear?.empty).toBe(false);
+    expect(Number(twoYear?.value)).toBeCloseTo(99.1, 1);
+    expect(detail?.fields.find((f) => f.key === 'return_1y')?.value).toBe(44.06);
   });
 });
 

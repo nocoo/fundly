@@ -2,6 +2,7 @@ import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
 import { type FundListQuery, fundListSql } from './fund-query';
+import { LIVE_RETURN_FIELDS, navReturn, type ReturnField, windowStartDate } from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
   const built = fundListSql(query);
@@ -33,53 +34,94 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     [code],
   );
   const extras = parseFundExtras(extra);
-  const [navCount, ends] = await Promise.all([
+  const fields = applyExtraFallbacks(mapFundDetail(full), extras);
+  const [navCount, live] = await Promise.all([
     exec.first<{ n: number }>('SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?', [code]),
-    exec.first<{
-      first_acc: number | null;
-      first_unit: number | null;
-      last_acc: number | null;
-      last_unit: number | null;
-    }>(
-      `SELECT
-         (SELECT acc_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1) AS first_acc,
-         (SELECT unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1) AS first_unit,
-         (SELECT acc_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1) AS last_acc,
-         (SELECT unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1) AS last_unit`,
-      [code, code, code, code],
-    ),
+    loadLiveReturns(exec, code, fields),
   ]);
   return {
-    fields: applySinceInceptionFallback(
-      applyExtraFallbacks(mapFundDetail(full), extras),
-      returnFromNavPair(ends),
-    ),
+    fields: applyReturnFallbacks(fields, live),
     extras,
     navCount: navCount?.n ?? 0,
   };
 }
 
-export function returnFromNavPair(
-  ends:
-    | {
-        first_acc: number | null;
-        first_unit: number | null;
-        last_acc: number | null;
-        last_unit: number | null;
-      }
-    | null,
-): number | null {
-  if (!ends) return null;
-  const start = ends.first_acc ?? ends.first_unit;
-  const last = ends.last_acc ?? ends.last_unit;
-  if (start == null || last == null || !(start > 0) || !Number.isFinite(last)) return null;
-  return (last / start - 1) * 100;
+async function loadLiveReturns(
+  exec: QueryExec,
+  code: string,
+  fields: FieldView[],
+): Promise<Partial<Record<ReturnField, number | null>>> {
+  const empty = new Set(
+    LIVE_RETURN_FIELDS.filter((key) => fields.find((field) => field.key === key)?.empty),
+  );
+  if (empty.size === 0) return {};
+  const last = await exec.first<{ nav_date: string; acc_nav: number | null; unit_nav: number }>(
+    `SELECT nav_date, acc_nav, unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1`,
+    [code],
+  );
+  if (!last) return {};
+  const lastEnds = { acc: last.acc_nav, unit: last.unit_nav };
+  const out: Partial<Record<ReturnField, number | null>> = {};
+  const jobs: Array<Promise<void>> = [];
+  if (empty.has('return_since_start')) {
+    jobs.push(
+      exec
+        .first<{ acc_nav: number | null; unit_nav: number }>(
+          `SELECT acc_nav, unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1`,
+          [code],
+        )
+        .then((first) => {
+          out.return_since_start = navReturn(
+            first ? { acc: first.acc_nav, unit: first.unit_nav } : null,
+            lastEnds,
+          );
+        }),
+    );
+  }
+  for (const key of empty) {
+    if (key === 'return_since_start') continue;
+    const start = windowStartDate(last.nav_date, key);
+    if (!start || start >= last.nav_date) continue;
+    jobs.push(
+      exec
+        .first<{ acc_nav: number | null; unit_nav: number }>(
+          `SELECT acc_nav, unit_nav FROM fund_nav
+           WHERE fund_code = ? AND nav_date <= ? ORDER BY nav_date DESC LIMIT 1`,
+          [code, start],
+        )
+        .then((row) => {
+          out[key] = navReturn(row ? { acc: row.acc_nav, unit: row.unit_nav } : null, lastEnds);
+        }),
+    );
+  }
+  await Promise.all(jobs);
+  return out;
 }
 
-export function applySinceInceptionFallback(fields: FieldView[], value: number | null): FieldView[] {
-  if (value === null) return fields;
+export function returnFromNavPair(
+  ends: {
+    first_acc: number | null;
+    first_unit: number | null;
+    last_acc: number | null;
+    last_unit: number | null;
+  } | null,
+): number | null {
+  if (!ends) return null;
+  return navReturn(
+    { acc: ends.first_acc, unit: ends.first_unit },
+    { acc: ends.last_acc, unit: ends.last_unit },
+  );
+}
+
+export function applyReturnFallbacks(
+  fields: FieldView[],
+  values: Partial<Record<ReturnField, number | null>>,
+): FieldView[] {
   return fields.map((field) => {
-    if (field.key !== 'return_since_start' || !field.empty) return field;
+    if (!field.empty) return field;
+    if (!LIVE_RETURN_FIELDS.includes(field.key as ReturnField)) return field;
+    const value = values[field.key as ReturnField];
+    if (value == null) return field;
     return presentField(field.key, field.label, field.group, value);
   });
 }
