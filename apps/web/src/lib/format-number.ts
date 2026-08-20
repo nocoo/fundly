@@ -49,6 +49,16 @@ export function formatCompact(value: unknown): string {
   return formatMetric(value, 'compact');
 }
 
+export function formatAxisMetric(value: unknown, kind: NumberKind): string {
+  const n = toDisplayNumber(value);
+  if (n === null) return EMPTY;
+  if (kind === 'percent') {
+    const body = `${Math.round(n)}%`;
+    return n > 0 ? `+${body}` : body;
+  }
+  return formatCompact(n);
+}
+
 export function quoteTone(value: unknown): QuoteTone {
   const n = toDisplayNumber(value);
   if (n === null || n === 0) return 'flat';

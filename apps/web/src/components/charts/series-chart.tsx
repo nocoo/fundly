@@ -33,6 +33,22 @@ import { SeriesTooltip } from './chart-tooltip';
 
 export type SeriesChartType = 'line' | 'area' | 'bar';
 
+function axisWidth(
+  points: ChartPoint[],
+  series: ChartSeries[],
+  format: (value: number) => string,
+): number {
+  let max = 3;
+  for (const point of points) {
+    for (const item of series) {
+      const raw = point[item.key];
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) continue;
+      max = Math.max(max, format(raw).length);
+    }
+  }
+  return Math.min(84, Math.max(52, max * 8 + 10));
+}
+
 function ChartTooltipLayer({
   type,
   formatValue,
@@ -95,7 +111,7 @@ export function SeriesChart({
   const Chart = type === 'line' ? LineChart : type === 'area' ? AreaChart : BarChart;
   const yLabelWidth = horizontalBars
     ? Math.min(220, Math.max(72, ...points.map((point) => String(point.name).length * 12)))
-    : 44;
+    : axisWidth(points, series, formatAxisValue);
 
   return (
     <div
@@ -137,7 +153,7 @@ export function SeriesChart({
                     ? { minTickGap: xMinTickGap }
                     : { minTickGap: 48 })}
                 />
-                <YAxis {...AXIS_CONFIG} width={44} tickFormatter={formatAxisValue} />
+                <YAxis {...AXIS_CONFIG} width={yLabelWidth} tickFormatter={formatAxisValue} />
               </>
             ) : (
               <>
@@ -147,7 +163,7 @@ export function SeriesChart({
                   interval={points.length <= 6 ? 0 : 'preserveStartEnd'}
                   {...(xMinTickGap !== undefined ? { minTickGap: xMinTickGap } : {})}
                 />
-                <YAxis {...AXIS_CONFIG} width={44} tickFormatter={formatAxisValue} />
+                <YAxis {...AXIS_CONFIG} width={yLabelWidth} tickFormatter={formatAxisValue} />
               </>
             )}
             <ChartTooltipLayer

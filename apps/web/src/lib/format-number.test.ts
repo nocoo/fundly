@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   fieldNumberKind,
+  formatAxisMetric,
   formatCompact,
   formatCount,
   formatMetric,
@@ -33,6 +34,11 @@ describe('formatMetric', () => {
   it('keeps compact counts for charts', () => {
     expect(formatCompact(Number.NaN)).toBe('—');
     expect(formatCompact(15300).replace(/[^\d万kK]/g, '').length).toBeGreaterThan(0);
+  });
+
+  it('keeps axis ticks compact without two decimals', () => {
+    expect(formatAxisMetric(12.34, 'percent')).toBe('+12%');
+    expect(formatAxisMetric(-3.8, 'percent')).toBe('-4%');
   });
 });
 

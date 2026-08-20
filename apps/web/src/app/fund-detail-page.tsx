@@ -6,17 +6,19 @@ import { fetchAPI } from '@/api';
 import { ChartEmptyMask } from '@/components/charts/chart-empty-mask';
 import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
+import { SharePie } from '@/components/charts/share-pie';
 import { AppShell } from '@/components/layout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { resolveBenchmark } from '@/lib/benchmark-defaults';
-import { CHART_HEIGHTS } from '@/lib/chart-config';
+import { CHART_HEIGHTS, seriesStroke } from '@/lib/chart-config';
 import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
 import { buildGrowthPoints } from '@/lib/chart-growth';
 import {
   fieldNumberKind,
+  formatAxisMetric,
   formatCount,
   formatMetric,
   isSignedPercentField,
@@ -187,6 +189,7 @@ export default function FundDetailPage() {
             series={growthSeries}
             timeDomain={timeDomain}
             format={(value) => formatMetric(value, 'percent', { signed: true })}
+            axisFormat={(value) => formatAxisMetric(value, 'percent')}
           />
           <TimeCard
             title="同类排名"
@@ -195,6 +198,7 @@ export default function FundDetailPage() {
             series={[{ key: 'rank', label: '同类排名' }]}
             timeDomain={timeDomain}
             format={(value) => formatMetric(value, 'count')}
+            axisFormat={(value) => formatAxisMetric(value, 'count')}
           />
           <TimeCard
             title="规模变动"
@@ -204,6 +208,7 @@ export default function FundDetailPage() {
             timeDomain={timeDomain}
             type="bar"
             format={(value) => formatMetric(value, 'scale')}
+            axisFormat={(value) => formatAxisMetric(value, 'scale')}
           />
           <TimeCard
             title="资产配置"
@@ -216,6 +221,7 @@ export default function FundDetailPage() {
             }
             timeDomain={timeDomain}
             format={(value) => formatMetric(value, 'percent')}
+            axisFormat={(value) => formatAxisMetric(value, 'percent')}
           />
           <TimeCard
             title="持有人结构"
@@ -228,6 +234,7 @@ export default function FundDetailPage() {
             }
             timeDomain={timeDomain}
             format={(value) => formatMetric(value, 'percent')}
+            axisFormat={(value) => formatAxisMetric(value, 'percent')}
           />
         </div>
 
@@ -245,14 +252,36 @@ export default function FundDetailPage() {
             )}
           </article>
           <SnapshotBar title="最新配置" items={extras.allocation?.latest ?? []} kind="percent" />
-          <SnapshotBar title="最新持有人" items={extras.holders?.latest ?? []} kind="percent" />
-          <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
+          <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+            <p className="mb-3 text-sm font-semibold text-foreground">最新持有人</p>
+            {extras.holders && extras.holders.latest.length > 0 ? (
+              <>
+                <SeriesLegend
+                  series={extras.holders.latest.map((item, index) => ({
+                    key: item.name,
+                    label: `${item.name} ${formatMetric(item.value, 'percent')}`,
+                    color: seriesStroke(index),
+                  }))}
+                />
+                <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
+              </>
+            ) : (
+              <ChartEmptyMask label="暂无最新持有人" />
+            )}
+          </article>
         </div>
 
         <div className="flex flex-col gap-4">
+          <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
+          <p className="text-xs leading-5 text-muted-foreground">
+            图中净值 {formatCount(growth.length)} 个交易日
+            {growth.length > 0
+              ? ` · ${String(growth[0]?.name)} → ${String(growth[growth.length - 1]?.name)}`
+              : ''}
+            。与左栏净值增长同一窗口，不是单位净值本身。
+          </p>
           <FieldGroup title="基本信息" fields={fieldsOf(data.fields, '基本信息')} />
           <FieldGroup title="排名" fields={fieldsOf(data.fields, '排名')} />
-          <p className="text-xs text-muted-foreground">净值点数 {formatCount(data.navCount)}</p>
         </div>
       </div>
     </AppShell>
@@ -271,6 +300,7 @@ function TimeCard({
   series,
   timeDomain,
   format,
+  axisFormat,
   type = 'line',
 }: {
   title: string;
@@ -280,26 +310,58 @@ function TimeCard({
   series: ChartSeries[];
   timeDomain: { from: number; to: number };
   format: (value: number) => string;
+  axisFormat: (value: number) => string;
   type?: 'line' | 'bar';
 }) {
   return (
     <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
+      <p className="mb-2 text-sm font-semibold text-foreground">{title}</p>
       {empty ? (
         <ChartEmptyMask label={emptyLabel} />
       ) : (
-        <SeriesChart
-          type={type}
-          points={points}
-          series={series}
-          height={PANEL}
-          timeDomain={timeDomain}
-          colorByCategory={false}
-          valueFormatter={format}
-          ariaLabel={title}
-        />
+        <>
+          <SeriesLegend series={series} />
+          <SeriesChart
+            type={type}
+            points={points}
+            series={series}
+            height={PANEL}
+            timeDomain={timeDomain}
+            colorByCategory={false}
+            valueFormatter={format}
+            axisValueFormatter={axisFormat}
+            ariaLabel={title}
+          />
+        </>
       )}
     </article>
+  );
+}
+
+function SeriesLegend({ series }: { series: ChartSeries[] }) {
+  if (series.length === 0) return null;
+  return (
+    <ul className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+      {series.map((item, index) => {
+        const color = item.color ?? seriesStroke(index);
+        return (
+          <li
+            key={item.key}
+            className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"
+          >
+            <span
+              className="h-0.5 w-3.5 shrink-0 rounded-full"
+              style={
+                item.dashed
+                  ? { borderTop: `2px dashed ${color}`, height: 0, background: 'transparent' }
+                  : { background: color }
+              }
+            />
+            <span className="truncate">{item.label}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
