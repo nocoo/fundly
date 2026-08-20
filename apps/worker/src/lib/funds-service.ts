@@ -3,9 +3,11 @@ import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
 import { type FundListQuery, fundListSql } from './fund-query';
 import {
+  formatRankTriple,
   isLiveReturnField,
   LIVE_RETURN_FIELDS,
   navReturn,
+  parseRankStats,
   planReturnLookups,
   type ReturnField,
   resolveFundReturns,
@@ -29,7 +31,7 @@ export async function getFundDetail(exec: QueryExec, code: string) {
   const full = await exec.first<Record<string, unknown>>(
     `SELECT b.*, p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.return_2y, p.return_3y, p.return_5y,
             p.return_ytd, p.return_since_start, p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y,
-            p.rank_pct_2y, p.rank_pct_3y, p.rank_pct_5y, p.pass_4433, p.data_date
+            p.rank_pct_2y, p.rank_pct_3y, p.rank_pct_5y, p.pass_4433, p.rank_stats_json, p.data_date
      FROM fund_basic_info b
      LEFT JOIN fund_performance p ON p.fund_code = b.fund_code
      WHERE b.fund_code = ?`,
@@ -41,7 +43,10 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     [code],
   );
   const extras = parseFundExtras(extra);
-  const fields = applyExtraFallbacks(mapFundDetail(full), extras);
+  const fields = applyRankTriples(
+    applyExtraFallbacks(mapFundDetail(full), extras),
+    full.rank_stats_json,
+  );
   const [navCount, live] = await Promise.all([
     exec.first<{ n: number }>('SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?', [code]),
     loadLiveReturns(exec, code, fields),
@@ -108,6 +113,17 @@ export function returnFromNavPair(
     { acc: ends.first_acc, unit: ends.first_unit },
     { acc: ends.last_acc, unit: ends.last_unit },
   );
+}
+
+export function applyRankTriples(fields: FieldView[], raw: unknown): FieldView[] {
+  const stats = parseRankStats(raw);
+  if (!stats) return fields;
+  return fields.map((field) => {
+    if (!field.key.startsWith('rank_pct_')) return field;
+    const triple = formatRankTriple(stats[field.key as keyof typeof stats]);
+    if (!triple) return field;
+    return presentField(field.key, field.label, field.group, triple);
+  });
 }
 
 export function applyReturnFallbacks(

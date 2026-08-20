@@ -56,6 +56,7 @@ export const IMPORT_TABLES = [
       'rank_pct_3y',
       'rank_pct_5y',
       'pass_4433',
+      'rank_stats_json',
       'data_date',
       'updated_at',
     ],

@@ -1,8 +1,15 @@
 import { Database } from 'bun:sqlite';
 import { describe, expect, it } from 'bun:test';
 import type { QueryExec } from './executor';
+import { presentField } from './fund-detail';
 import { parseFundListQuery } from './fund-query';
-import { getFundDetail, getFundNav, listFunds, returnFromNavPair } from './funds-service';
+import {
+  applyRankTriples,
+  getFundDetail,
+  getFundNav,
+  listFunds,
+  returnFromNavPair,
+} from './funds-service';
 
 function exec(db: Database): QueryExec {
   return {
@@ -30,6 +37,7 @@ describe('listFunds / getFundDetail', () => {
         return_2y REAL, return_3y REAL, return_5y REAL, return_ytd REAL, return_since_start REAL,
         rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, rank_pct_2y REAL,
         rank_pct_3y REAL, rank_pct_5y REAL, pass_4433 INTEGER NOT NULL DEFAULT 0,
+        rank_stats_json TEXT,
         data_date TEXT, updated_at INTEGER NOT NULL
       );
       CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL, acc_nav REAL, daily_return REAL);
@@ -90,6 +98,7 @@ describe('listFunds / getFundDetail', () => {
         return_2y REAL, return_3y REAL, return_5y REAL, return_ytd REAL, return_since_start REAL,
         rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, rank_pct_2y REAL,
         rank_pct_3y REAL, rank_pct_5y REAL, pass_4433 INTEGER NOT NULL DEFAULT 0,
+        rank_stats_json TEXT,
         data_date TEXT, updated_at INTEGER NOT NULL
       );
       CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL, acc_nav REAL, daily_return REAL);
@@ -124,6 +133,20 @@ describe('listFunds / getFundDetail', () => {
     expect(twoYear?.empty).toBe(false);
     expect(Number(twoYear?.value)).toBeCloseTo(99.1, 1);
     expect(detail?.fields.find((f) => f.key === 'return_1y')?.value).toBe(44.06);
+  });
+});
+
+describe('applyRankTriples', () => {
+  it('replaces percentile fields with rank / peers / percent', () => {
+    const fields = [
+      presentField('rank_pct_1y', '近1年同类排名', '排名', 9.52),
+      presentField('pass_4433', '4433', '排名', 0),
+    ];
+    const out = applyRankTriples(fields, {
+      rank_pct_1y: { rank: 83, n: 872, pct: 9.518 },
+    });
+    expect(out[0]?.value).toBe('83 / 872 / 9.52%');
+    expect(out[1]?.value).toBe(0);
   });
 });
 

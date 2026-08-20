@@ -80,6 +80,7 @@ export function fieldNumberKind(key: string): NumberKind | null {
 
 export function fieldCopyText(key: string, value: string | number | null): string | null {
   if (value === null || value === '') return null;
+  if (typeof value === 'string') return value;
   const kind = fieldNumberKind(key);
   if (!kind) return String(value);
   const text = formatMetric(value, kind, { signed: isSignedPercentField(key) });

@@ -68,6 +68,7 @@ describe('field kinds', () => {
     expect(fieldCopyText('fund_code', '000001')).toBe('000001');
     expect(fieldCopyText('return_1y', 1.2)).toBe('+1.20%');
     expect(fieldCopyText('fund_scale', 12.3)).toBe('12.30');
+    expect(fieldCopyText('rank_pct_1y', '1 / 5000 / 0.02%')).toBe('1 / 5000 / 0.02%');
     expect(fieldCopyText('fund_name', null)).toBeNull();
     expect(fieldCopyText('fund_name', '')).toBeNull();
   });

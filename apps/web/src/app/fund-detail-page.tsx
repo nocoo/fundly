@@ -51,6 +51,7 @@ interface DetailResponse {
 
 const HEADER_FIELD_KEYS = new Set(['fund_type']);
 const PANEL = 176;
+const NAV_PANEL = PANEL * 2;
 
 export default function FundDetailPage() {
   const { code = '' } = useParams();
@@ -206,6 +207,7 @@ export default function FundDetailPage() {
             points={growth}
             series={growthSeries}
             timeDomain={timeDomain}
+            height={NAV_PANEL}
             format={(value) => formatMetric(value, 'nav')}
             axisFormat={(value) => formatAxisMetric(value, 'nav')}
             rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
@@ -322,6 +324,7 @@ function TimeCard({
   axisFormat,
   rightFormat,
   rightAxisFormat,
+  height = PANEL,
   type = 'line',
 }: {
   title: string;
@@ -334,6 +337,7 @@ function TimeCard({
   axisFormat: (value: number) => string;
   rightFormat?: (value: number) => string;
   rightAxisFormat?: (value: number) => string;
+  height?: number;
   type?: 'line' | 'bar';
 }) {
   return (
@@ -347,7 +351,7 @@ function TimeCard({
             type={type}
             points={points}
             series={series}
-            height={PANEL}
+            height={height}
             timeDomain={timeDomain}
             colorByCategory={false}
             valueFormatter={format}
@@ -458,6 +462,9 @@ function FieldGroup({
 }
 
 function FieldValue({ fieldKey, value }: { fieldKey: string; value: string | number | null }) {
+  if (typeof value === 'string') {
+    return <div className="w-full min-w-0 whitespace-normal break-words font-medium">{value}</div>;
+  }
   const kind = fieldNumberKind(fieldKey);
   if (kind) {
     return <Metric value={value} kind={kind} signed={isSignedPercentField(fieldKey)} />;
