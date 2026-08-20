@@ -192,14 +192,8 @@ export default function FundDetailPage() {
         </fieldset>
       </div>
 
-      <FieldGroup
-        title="基本信息"
-        fields={fieldsOf(data.fields, '基本信息')}
-        columns="grid-cols-2 md:grid-cols-4"
-      />
-
-      <div className="mt-4 grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr]">
-        <div className="flex flex-col gap-4">
+      <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr] xl:grid-rows-[auto_1fr]">
+        <div className="flex flex-col gap-4 xl:row-span-2">
           <TimeCard
             title="净值增长"
             empty={growth.length < 2}
@@ -219,6 +213,7 @@ export default function FundDetailPage() {
             points={ranking}
             series={[{ key: 'rank', label: '同类排名' }]}
             timeDomain={timeDomain}
+            yReversed
             format={(value) => formatMetric(value, 'count')}
             axisFormat={(value) => formatAxisMetric(value, 'count')}
           />
@@ -257,6 +252,14 @@ export default function FundDetailPage() {
             timeDomain={timeDomain}
             format={(value) => formatMetric(value, 'percent')}
             axisFormat={(value) => formatAxisMetric(value, 'percent')}
+          />
+        </div>
+
+        <div className="xl:col-span-2">
+          <FieldGroup
+            title="基本信息"
+            fields={fieldsOf(data.fields, '基本信息')}
+            columns="grid-cols-2 md:grid-cols-4"
           />
         </div>
 
@@ -325,6 +328,7 @@ function TimeCard({
   rightFormat,
   rightAxisFormat,
   height = PANEL,
+  yReversed = false,
   type = 'line',
 }: {
   title: string;
@@ -338,6 +342,7 @@ function TimeCard({
   rightFormat?: (value: number) => string;
   rightAxisFormat?: (value: number) => string;
   height?: number;
+  yReversed?: boolean;
   type?: 'line' | 'bar';
 }) {
   return (
@@ -358,6 +363,7 @@ function TimeCard({
             axisValueFormatter={axisFormat}
             rightValueFormatter={rightFormat}
             rightAxisValueFormatter={rightAxisFormat}
+            yReversed={yReversed}
             ariaLabel={title}
           />
           <SeriesLegend series={series} />

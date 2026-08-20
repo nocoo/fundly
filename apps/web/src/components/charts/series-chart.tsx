@@ -128,6 +128,7 @@ export function SeriesChart({
   xMinTickGap,
   ariaLabel,
   timeDomain,
+  yReversed = false,
 }: {
   type: SeriesChartType;
   points: ChartPoint[];
@@ -142,6 +143,7 @@ export function SeriesChart({
   xMinTickGap?: number;
   ariaLabel?: string;
   timeDomain?: { from: number; to: number };
+  yReversed?: boolean;
 }) {
   const formatAxisValue = axisValueFormatter ?? valueFormatter;
   const formatRightValue = rightValueFormatter ?? valueFormatter;
@@ -206,6 +208,7 @@ export function SeriesChart({
                   width={yLabelWidth}
                   tickFormatter={formatAxisValue}
                   tickMargin={4}
+                  reversed={yReversed}
                 />
                 {hasRight ? (
                   <YAxis
