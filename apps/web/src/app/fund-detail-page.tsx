@@ -244,12 +244,8 @@ export default function FundDetailPage() {
               <ChartEmptyMask label="暂无五维数据" />
             )}
           </article>
-          {extras.allocation ? (
-            <SnapshotCard title="最新配置" items={extras.allocation.latest} kind="percent" />
-          ) : null}
-          {extras.holders ? (
-            <SnapshotCard title="最新持有人" items={extras.holders.latest} kind="percent" />
-          ) : null}
+          <SnapshotBar title="最新配置" items={extras.allocation?.latest ?? []} kind="percent" />
+          <SnapshotBar title="最新持有人" items={extras.holders?.latest ?? []} kind="percent" />
           <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
         </div>
 
@@ -307,7 +303,7 @@ function TimeCard({
   );
 }
 
-function SnapshotCard({
+function SnapshotBar({
   title,
   items,
   kind,
@@ -316,18 +312,23 @@ function SnapshotCard({
   items: { name: string; value: number }[];
   kind: 'percent' | 'count' | 'scale';
 }) {
-  if (items.length === 0) return null;
+  const points = items.map((item) => ({ name: item.name, value: item.value }));
   return (
     <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
       <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
-      <div className="flex flex-col gap-2">
-        {items.map((item) => (
-          <div key={item.name} className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">{item.name}</span>
-            <Metric value={item.value} kind={kind} />
-          </div>
-        ))}
-      </div>
+      {points.length === 0 ? (
+        <ChartEmptyMask label={`暂无${title}`} />
+      ) : (
+        <SeriesChart
+          type="bar"
+          orientation="horizontal"
+          points={points}
+          series={[{ key: 'value', label: title }]}
+          height={Math.max(140, points.length * 36)}
+          valueFormatter={(value) => formatMetric(value, kind)}
+          ariaLabel={title}
+        />
+      )}
     </article>
   );
 }
