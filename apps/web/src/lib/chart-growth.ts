@@ -61,7 +61,7 @@ export function buildGrowthPoints(
       const point: ChartPoint = {
         name: p.date,
         t: Date.parse(`${p.date}T00:00:00Z`),
-        growth: growthFromBase(p.nav, start.nav),
+        nav: p.nav,
       };
       if (benchBase !== undefined) {
         const b = benchByDate.get(p.date);

@@ -135,7 +135,7 @@ export default function FundDetailPage() {
   );
 
   const growthSeries: ChartSeries[] = [
-    { key: 'growth', label: String(name), color: GROWTH_STROKE.fund },
+    { key: 'nav', label: String(name), color: GROWTH_STROKE.fund },
     ...(showBench && bench
       ? [
           {
@@ -143,6 +143,7 @@ export default function FundDetailPage() {
             label: `基准 ${bench.name}`,
             dashed: true as const,
             color: GROWTH_STROKE.bench,
+            yAxis: 'right' as const,
           },
         ]
       : []),
@@ -151,6 +152,7 @@ export default function FundDetailPage() {
       label: `年化 ${rate.toFixed(2)}%`,
       dashed: true as const,
       color: refStroke(index),
+      yAxis: 'right' as const,
     })),
   ];
 
@@ -204,8 +206,10 @@ export default function FundDetailPage() {
             points={growth}
             series={growthSeries}
             timeDomain={timeDomain}
-            format={(value) => formatMetric(value, 'percent', { signed: true })}
-            axisFormat={(value) => formatAxisMetric(value, 'percent')}
+            format={(value) => formatMetric(value, 'nav')}
+            axisFormat={(value) => formatAxisMetric(value, 'nav')}
+            rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
+            rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
           />
           <TimeCard
             title="同类排名"
@@ -316,6 +320,8 @@ function TimeCard({
   timeDomain,
   format,
   axisFormat,
+  rightFormat,
+  rightAxisFormat,
   type = 'line',
 }: {
   title: string;
@@ -326,6 +332,8 @@ function TimeCard({
   timeDomain: { from: number; to: number };
   format: (value: number) => string;
   axisFormat: (value: number) => string;
+  rightFormat?: (value: number) => string;
+  rightAxisFormat?: (value: number) => string;
   type?: 'line' | 'bar';
 }) {
   return (
@@ -344,6 +352,8 @@ function TimeCard({
             colorByCategory={false}
             valueFormatter={format}
             axisValueFormatter={axisFormat}
+            rightValueFormatter={rightFormat}
+            rightAxisValueFormatter={rightAxisFormat}
             ariaLabel={title}
           />
           <SeriesLegend series={series} />

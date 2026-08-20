@@ -8,12 +8,14 @@ export type ChartSeries = {
   label: string;
   color?: string;
   dashed?: boolean;
+  yAxis?: 'left' | 'right';
 };
 
 export type TooltipRow = {
   label: string;
   value: number;
   color?: string;
+  key?: string;
 };
 
 export function toFiniteNumber(raw: unknown): number | null {
@@ -49,7 +51,14 @@ export function categoryFromChartClick(
 }
 
 export function tooltipRowsFromPayload(
-  payload: ReadonlyArray<{ name?: string | number; value?: unknown; color?: string }> | undefined,
+  payload:
+    | ReadonlyArray<{
+        name?: string | number;
+        value?: unknown;
+        color?: string;
+        dataKey?: string | number;
+      }>
+    | undefined,
 ): TooltipRow[] {
   if (!payload?.length) return [];
   const rows: TooltipRow[] = [];
@@ -57,10 +66,12 @@ export function tooltipRowsFromPayload(
     const value = toFiniteNumber(item.value);
     if (value === null) return;
     const label = String(item.name ?? '').trim() || `series-${String(index)}`;
+    const key = typeof item.dataKey === 'string' ? item.dataKey : undefined;
     rows.push({
       label,
       value,
       ...(item.color ? { color: item.color } : {}),
+      ...(key ? { key } : {}),
     });
   });
   return rows;

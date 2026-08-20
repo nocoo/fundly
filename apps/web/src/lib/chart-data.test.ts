@@ -52,10 +52,10 @@ describe('tooltipRowsFromPayload', () => {
   it('skips non-finite payload values', () => {
     expect(
       tooltipRowsFromPayload([
-        { name: '单位净值', value: 1.2345, color: '#abc' },
+        { name: '单位净值', value: 1.2345, color: '#abc', dataKey: 'nav' },
         { name: '空', value: 'x' },
       ]),
-    ).toEqual([{ label: '单位净值', value: 1.2345, color: '#abc' }]);
+    ).toEqual([{ label: '单位净值', value: 1.2345, color: '#abc', key: 'nav' }]);
   });
 });
 

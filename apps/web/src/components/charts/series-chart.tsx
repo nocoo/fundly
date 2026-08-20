@@ -89,7 +89,7 @@ function ChartTooltipLayer({
   formatLabel,
 }: {
   type: SeriesChartType;
-  formatValue: (value: number) => string;
+  formatValue: (value: number, row: { key?: string; label: string }) => string;
   formatLabel?: (label: string | number) => string;
 }) {
   const cursor = type === 'bar' ? CHART_TOOLTIP_CURSOR_BAR : CHART_TOOLTIP_PROPS.cursor;
@@ -104,6 +104,7 @@ function ChartTooltipLayer({
             name: item.name,
             value: item.value,
             color: item.color,
+            dataKey: typeof item.dataKey === 'function' ? undefined : item.dataKey,
           }))}
           label={formatLabel && props.label !== undefined ? formatLabel(props.label) : props.label}
           formatValue={formatValue}
@@ -122,6 +123,8 @@ export function SeriesChart({
   colorByCategory,
   valueFormatter = formatCompact,
   axisValueFormatter,
+  rightValueFormatter,
+  rightAxisValueFormatter,
   xMinTickGap,
   ariaLabel,
   timeDomain,
@@ -134,18 +137,27 @@ export function SeriesChart({
   colorByCategory?: boolean;
   valueFormatter?: (value: number) => string;
   axisValueFormatter?: (value: number) => string;
+  rightValueFormatter?: (value: number) => string;
+  rightAxisValueFormatter?: (value: number) => string;
   xMinTickGap?: number;
   ariaLabel?: string;
   timeDomain?: { from: number; to: number };
 }) {
   const formatAxisValue = axisValueFormatter ?? valueFormatter;
+  const formatRightValue = rightValueFormatter ?? valueFormatter;
+  const formatRightAxis = rightAxisValueFormatter ?? formatRightValue;
   const horizontalBars = type === 'bar' && orientation === 'horizontal';
   const categoryColors =
     type === 'bar' && series.length === 1 && (colorByCategory ?? true) && points.length > 1;
   const Chart = type === 'line' ? LineChart : type === 'area' ? AreaChart : BarChart;
+  const leftSeries = series.filter((item) => item.yAxis !== 'right');
+  const rightSeries = series.filter((item) => item.yAxis === 'right');
+  const hasRight = !horizontalBars && rightSeries.length > 0;
   const yLabelWidth = horizontalBars
     ? Math.min(220, Math.max(72, ...points.map((point) => String(point.name).length * 12)))
-    : axisWidth(points, series, formatAxisValue);
+    : axisWidth(points, leftSeries.length > 0 ? leftSeries : series, formatAxisValue);
+  const rightLabelWidth = hasRight ? axisWidth(points, rightSeries, formatRightAxis) : 0;
+  const rightKeys = new Set(rightSeries.map((item) => item.key));
 
   return (
     <div
@@ -164,7 +176,7 @@ export function SeriesChart({
             accessibilityLayer={false}
             margin={{
               top: 8,
-              right: 12,
+              right: hasRight ? 0 : 12,
               left: horizontalBars ? 4 : 0,
               bottom: horizontalBars ? 0 : 18,
             }}
@@ -190,10 +202,21 @@ export function SeriesChart({
                 />
                 <YAxis
                   {...AXIS_CONFIG}
+                  yAxisId="left"
                   width={yLabelWidth}
                   tickFormatter={formatAxisValue}
                   tickMargin={4}
                 />
+                {hasRight ? (
+                  <YAxis
+                    {...AXIS_CONFIG}
+                    yAxisId="right"
+                    orientation="right"
+                    width={rightLabelWidth}
+                    tickFormatter={formatRightAxis}
+                    tickMargin={4}
+                  />
+                ) : null}
               </>
             ) : (
               <>
@@ -208,7 +231,9 @@ export function SeriesChart({
             )}
             <ChartTooltipLayer
               type={type}
-              formatValue={valueFormatter}
+              formatValue={(value, row) =>
+                row.key && rightKeys.has(row.key) ? formatRightValue(value) : valueFormatter(value)
+              }
               formatLabel={
                 timeDomain
                   ? (label) =>
@@ -220,6 +245,7 @@ export function SeriesChart({
             />
             {series.map((item, index) => {
               const stroke = item.color ?? seriesStroke(index);
+              const axisId = timeDomain ? (item.yAxis === 'right' ? 'right' : 'left') : undefined;
               if (type === 'line') {
                 const dash = item.dashed ? seriesStrokeDash(1) : undefined;
                 return (
@@ -231,6 +257,7 @@ export function SeriesChart({
                     stroke={stroke}
                     dot={false}
                     strokeWidth={CHART_TYPE.strokeWidth}
+                    {...(axisId ? { yAxisId: axisId } : {})}
                     {...(dash ? { strokeDasharray: dash } : {})}
                     {...ANIMATION_PROPS}
                   />
@@ -246,6 +273,7 @@ export function SeriesChart({
                     stroke={stroke}
                     fill={seriesFill(index)}
                     strokeWidth={CHART_TYPE.strokeWidth}
+                    {...(axisId ? { yAxisId: axisId } : {})}
                     {...ANIMATION_PROPS}
                   />
                 );
@@ -257,6 +285,7 @@ export function SeriesChart({
                   name={item.label}
                   fill={stroke}
                   radius={barCornerRadius(horizontalBars ? 'horizontal' : 'vertical')}
+                  {...(axisId ? { yAxisId: axisId } : {})}
                   {...ANIMATION_PROPS}
                 >
                   {categoryColors

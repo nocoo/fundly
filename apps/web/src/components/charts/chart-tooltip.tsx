@@ -57,9 +57,14 @@ export function SeriesTooltip({
   rows,
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<{ name?: string | number; value?: unknown; color?: string }>;
+  payload?: ReadonlyArray<{
+    name?: string | number;
+    value?: unknown;
+    color?: string;
+    dataKey?: string | number;
+  }>;
   label?: string | number;
-  formatValue?: (value: number) => string;
+  formatValue?: (value: number, row: TooltipRow) => string;
   rows?: TooltipRow[];
 }) {
   const list = rows && rows.length > 0 ? rows : tooltipRowsFromPayload(payload);
@@ -71,7 +76,7 @@ export function SeriesTooltip({
           key={`${item.label}-${String(index)}`}
           color={item.color ?? getChartColor(index)}
           label={item.label}
-          value={formatValue(item.value)}
+          value={formatValue(item.value, item)}
         />
       ))}
     </ChartTooltip>

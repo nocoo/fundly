@@ -39,8 +39,8 @@ describe('buildGrowthPoints', () => {
       },
     );
     expect(points).toHaveLength(2);
-    expect(points[0]).toMatchObject({ name: '2024-01-01', growth: 0, bench: 0, ref_0: 0 });
-    expect(points[1]?.growth).toBeCloseTo(10);
+    expect(points[0]).toMatchObject({ name: '2024-01-01', nav: 1, bench: 0, ref_0: 0 });
+    expect(points[1]?.nav).toBeCloseTo(1.1);
     expect(points[1]?.bench).toBeCloseTo(10);
   });
 });
