@@ -105,11 +105,17 @@ function latestOf(series: ExtraSeries[], last: number): { name: string; value: n
   return series.map((item) => ({ name: item.name, value: item.values[last] as number }));
 }
 
+function isShareSeries(name: string): boolean {
+  return /占净|占比|比例|%/.test(name) && !/净资产|总资产|规模/.test(name);
+}
+
 function parseAllocation(raw: unknown): AllocationExtra | null {
   const rec = asRecord(parseJson(raw));
   if (!rec) return null;
   const categories = stringList(rec.categories);
-  const series = namedSeries(rec.series, categories.length);
+  const series = namedSeries(rec.series, categories.length).filter((item) =>
+    isShareSeries(item.name),
+  );
   if (categories.length === 0 || series.length === 0) return null;
   return {
     categories,

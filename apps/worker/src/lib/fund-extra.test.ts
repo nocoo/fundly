@@ -57,6 +57,16 @@ describe('parseFundExtras', () => {
       { name: '股票占净比', value: 86.78 },
       { name: '债券占净比', value: 4.42 },
     ]);
+    const mixed = parseFundExtras({
+      asset_allocation_json: JSON.stringify({
+        categories: ['2026-06-30'],
+        series: [
+          { name: '股票占净比', data: [80] },
+          { name: '净资产', type: 'line', data: [237.75], yAxis: 1 },
+        ],
+      }),
+    });
+    expect(mixed.allocation?.latest).toEqual([{ name: '股票占净比', value: 80 }]);
     expect(extras.scale?.latest).toEqual({ date: '2026-06-30', value: 49.59 });
     expect(extras.holders?.latest[0]).toEqual({ name: '机构持有比例', value: 1.34 });
     expect(extras.ranking).toEqual([
