@@ -58,4 +58,13 @@ describe('fundListSql', () => {
     expect(built.countSql).toContain('COUNT(*)');
     expect(built.countParams).toHaveLength(4);
   });
+
+  it('filters L1 as prefix and L2 as exact joined type', () => {
+    const l1 = fundListSql(parseFundListQuery({ typeL1: '混合型' }));
+    expect(l1.listSql).toContain('b.fund_type = ? OR b.fund_type LIKE ?');
+    expect(l1.countParams).toEqual(['混合型', '混合型-%']);
+    const both = fundListSql(parseFundListQuery({ typeL1: '混合型', typeL2: '偏股' }));
+    expect(both.listSql).toContain('b.fund_type = ?');
+    expect(both.countParams).toEqual(['混合型-偏股']);
+  });
 });

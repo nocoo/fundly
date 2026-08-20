@@ -15,8 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
+import { listTypeL1, listTypeL2 } from '@/lib/fund-type';
 
 interface FundRow {
   fund_code: string;
@@ -51,7 +53,8 @@ const RETURN_KEYS = new Set(['return_1y', 'return_1m', 'return_3m', 'return_6m']
 export default function FundsPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
-  const fundType = params.get('fundType') ?? '';
+  const typeL1 = params.get('typeL1') ?? '';
+  const typeL2 = params.get('typeL2') ?? '';
   const mvpOnly = params.get('mvpOnly') === '1';
   const hasNav = params.get('hasNav') === '1';
   const sort = params.get('sort') ?? 'fund_code';
@@ -63,7 +66,8 @@ export default function FundsPage() {
   const query = useMemo(() => {
     const p = new URLSearchParams();
     if (q) p.set('q', q);
-    if (fundType) p.set('fundType', fundType);
+    if (typeL1) p.set('typeL1', typeL1);
+    if (typeL2) p.set('typeL2', typeL2);
     if (mvpOnly) p.set('mvpOnly', '1');
     if (hasNav) p.set('hasNav', '1');
     p.set('sort', sort);
@@ -71,7 +75,7 @@ export default function FundsPage() {
     p.set('page', String(page));
     p.set('pageSize', '200');
     return `/api/funds?${p}`;
-  }, [q, fundType, mvpOnly, hasNav, sort, dir, page]);
+  }, [q, typeL1, typeL2, mvpOnly, hasNav, sort, dir, page]);
 
   const { data, error, isLoading, isValidating } = useSWR<ListResponse>(query, fetchAPI, {
     keepPreviousData: true,
@@ -102,11 +106,15 @@ export default function FundsPage() {
   };
 
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const typeOptions = (types?.items ?? []).map((item) => ({
-    value: item.fund_type,
-    label: `${item.fund_type} (${formatCount(item.n)})`,
+  const l1Options = listTypeL1(types?.items ?? []).map((item) => ({
+    value: item.value,
+    label: `${item.label} (${formatCount(item.n)})`,
   }));
-  const filterActive = Boolean(q || fundType || mvpOnly || hasNav);
+  const l2Options = listTypeL2(types?.items ?? [], typeL1).map((item) => ({
+    value: item.value,
+    label: `${item.label} (${formatCount(item.n)})`,
+  }));
+  const filterActive = Boolean(q || typeL1 || typeL2 || mvpOnly || hasNav);
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览' }]}>
@@ -123,11 +131,19 @@ export default function FundsPage() {
             onCompositionEnd={search.onCompositionEnd}
           />
           <FilterDropdown
-            label="类型"
-            value={fundType || 'all'}
-            options={typeOptions}
-            onChange={(value) => set({ fundType: value === 'all' ? null : value })}
+            label="大类"
+            value={typeL1 || 'all'}
+            options={l1Options}
+            onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
           />
+          {l2Options.length > 0 ? (
+            <FilterDropdown
+              label="细类"
+              value={typeL2 || 'all'}
+              options={l2Options}
+              onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
+            />
+          ) : null}
           <FilterCheck
             label="MVP 池"
             checked={mvpOnly}
@@ -141,7 +157,9 @@ export default function FundsPage() {
           <button
             type="button"
             disabled={!filterActive && !search.value}
-            onClick={() => set({ q: null, fundType: null, mvpOnly: null, hasNav: null })}
+            onClick={() =>
+              set({ q: null, typeL1: null, typeL2: null, mvpOnly: null, hasNav: null })
+            }
             className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:invisible"
           >
             重置
@@ -185,7 +203,9 @@ export default function FundsPage() {
                     </Link>
                   </TableCell>
                   <TableCell>{row.fund_name}</TableCell>
-                  <TableCell>{row.fund_type}</TableCell>
+                  <TableCell>
+                    <FundTypeBadges type={row.fund_type} />
+                  </TableCell>
                   <TableCell>
                     <Metric value={row.return_1y} kind="percent" signed />
                   </TableCell>

@@ -15,6 +15,8 @@ export type SortDir = 'asc' | 'desc';
 export interface FundListQuery {
   q?: string;
   fundType?: string;
+  typeL1?: string;
+  typeL2?: string;
   mvpOnly?: boolean;
   hasNav?: boolean;
   sort: FundSortKey;
@@ -39,6 +41,8 @@ export const DEFAULT_PAGE_SIZE = 200;
 export function parseFundListQuery(input: {
   q?: string | null;
   fundType?: string | null;
+  typeL1?: string | null;
+  typeL2?: string | null;
   mvpOnly?: string | boolean | null;
   hasNav?: string | boolean | null;
   sort?: string | null;
@@ -59,6 +63,8 @@ export function parseFundListQuery(input: {
   return {
     q: input.q?.trim() || undefined,
     fundType: input.fundType?.trim() || undefined,
+    typeL1: input.typeL1?.trim() || undefined,
+    typeL2: input.typeL2?.trim() || undefined,
     mvpOnly: input.mvpOnly === true || input.mvpOnly === '1' || input.mvpOnly === 'true',
     hasNav: input.hasNav === true || input.hasNav === '1' || input.hasNav === 'true',
     sort,
@@ -82,7 +88,13 @@ export function buildFundListClauses(query: FundListQuery): {
     const like = `%${query.q}%`;
     filterParams.push(like, like, like);
   }
-  if (query.fundType) {
+  if (query.typeL1 && query.typeL2) {
+    where.push('b.fund_type = ?');
+    filterParams.push(`${query.typeL1}-${query.typeL2}`);
+  } else if (query.typeL1) {
+    where.push('(b.fund_type = ? OR b.fund_type LIKE ?)');
+    filterParams.push(query.typeL1, `${query.typeL1}-%`);
+  } else if (query.fundType) {
     where.push('b.fund_type = ?');
     filterParams.push(query.fundType);
   }

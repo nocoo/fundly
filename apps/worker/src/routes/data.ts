@@ -27,6 +27,8 @@ app.get('/api/funds', async (c) => {
   const query = parseFundListQuery({
     q: c.req.query('q'),
     fundType: c.req.query('fundType'),
+    typeL1: c.req.query('typeL1'),
+    typeL2: c.req.query('typeL2'),
     mvpOnly: c.req.query('mvpOnly'),
     hasNav: c.req.query('hasNav'),
     sort: c.req.query('sort'),
