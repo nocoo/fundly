@@ -3,11 +3,12 @@ import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
 import { type FundListQuery, fundListSql } from './fund-query';
 import {
-  isNavOnlyReturnField,
+  isLiveReturnField,
   LIVE_RETURN_FIELDS,
   navReturn,
+  planReturnLookups,
   type ReturnField,
-  windowStartDate,
+  resolveFundReturns,
 } from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
@@ -57,53 +58,41 @@ async function loadLiveReturns(
   code: string,
   fields: FieldView[],
 ): Promise<Partial<Record<ReturnField, number | null>>> {
-  const empty = new Set(
-    LIVE_RETURN_FIELDS.filter((key) => fields.find((field) => field.key === key)?.empty),
+  const empty = LIVE_RETURN_FIELDS.filter(
+    (key) => fields.find((field) => field.key === key)?.empty,
   );
-  if (empty.size === 0) return {};
+  if (empty.length === 0) return {};
   const last = await exec.first<{ nav_date: string; acc_nav: number | null; unit_nav: number }>(
     `SELECT nav_date, acc_nav, unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1`,
     [code],
   );
-  if (!last) return {};
-  const lastEnds = { acc: last.acc_nav, unit: last.unit_nav };
-  const out: Partial<Record<ReturnField, number | null>> = {};
-  const jobs: Array<Promise<void>> = [];
-  if (empty.has('return_since_start')) {
-    jobs.push(
-      exec
-        .first<{ acc_nav: number | null; unit_nav: number }>(
+  const plan = planReturnLookups(empty, last?.nav_date ?? null);
+  const [first, ...asOfRows] = await Promise.all([
+    plan.needFirst
+      ? exec.first<{ acc_nav: number | null; unit_nav: number }>(
           `SELECT acc_nav, unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1`,
           [code],
         )
-        .then((first) => {
-          out.return_since_start = navReturn(
-            first ? { acc: first.acc_nav, unit: first.unit_nav } : null,
-            lastEnds,
-          );
-        }),
-    );
-  }
-  for (const key of empty) {
-    if (key === 'return_since_start') continue;
-    const start = windowStartDate(last.nav_date, key);
-    if (!start || start >= last.nav_date) continue;
-    jobs.push(
-      exec
-        .first<{ acc_nav: number | null; unit_nav: number }>(
-          `SELECT acc_nav, unit_nav FROM fund_nav
-           WHERE fund_code = ? AND nav_date <= ? ORDER BY nav_date DESC LIMIT 1`,
-          [code, start],
-        )
-        .then((row) => {
-          out[key] = navReturn(row ? { acc: row.acc_nav, unit: row.unit_nav } : null, lastEnds, {
-            requireAcc: isNavOnlyReturnField(key),
-          });
-        }),
-    );
-  }
-  await Promise.all(jobs);
-  return out;
+      : Promise.resolve(null),
+    ...plan.windows.map((window) =>
+      exec.first<{ acc_nav: number | null; unit_nav: number }>(
+        `SELECT acc_nav, unit_nav FROM fund_nav
+         WHERE fund_code = ? AND nav_date <= ? ORDER BY nav_date DESC LIMIT 1`,
+        [code, window.start],
+      ),
+    ),
+  ]);
+  const asOf: Partial<Record<ReturnField, { acc: number | null; unit: number | null } | null>> = {};
+  plan.windows.forEach((window, index) => {
+    const row = asOfRows[index];
+    asOf[window.field] = row ? { acc: row.acc_nav, unit: row.unit_nav } : null;
+  });
+  return resolveFundReturns({
+    fields: empty,
+    last: last ? { date: last.nav_date, acc: last.acc_nav, unit: last.unit_nav } : null,
+    first: first ? { acc: first.acc_nav, unit: first.unit_nav } : null,
+    asOf,
+  });
 }
 
 export function returnFromNavPair(
@@ -127,7 +116,7 @@ export function applyReturnFallbacks(
 ): FieldView[] {
   return fields.map((field) => {
     if (!field.empty) return field;
-    if (!LIVE_RETURN_FIELDS.includes(field.key as ReturnField)) return field;
+    if (!isLiveReturnField(field.key)) return field;
     const value = values[field.key as ReturnField];
     if (value == null) return field;
     return presentField(field.key, field.label, field.group, value);

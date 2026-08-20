@@ -1,7 +1,10 @@
 export {
+  isLiveReturnField,
   isNavOnlyReturnField,
   LIVE_RETURN_FIELDS,
   navReturn,
+  planReturnLookups,
   type ReturnField,
+  resolveFundReturns,
   windowStartDate,
-} from '../../../../src/utils/period-returns';
+} from '../../../../src/metrics/index';
