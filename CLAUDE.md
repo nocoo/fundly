@@ -26,6 +26,7 @@ fundly/
 ├── src/
 │   ├── db/              # 数据访问层
 │   ├── fetchers/        # 抓取器（按数据源分文件）
+│   ├── metrics/         # 收益 / 排名 / 4433 纯计算（无 I/O、无 View）
 │   └── utils/           # 通用工具
 ├── tests/               # 单元测试（覆盖率 ≥ 95%）
 ├── README.md

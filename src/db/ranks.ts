@@ -1,14 +1,13 @@
 import type { Database } from 'bun:sqlite';
 import {
-  assignRanks,
   isCrawledReturnField,
-  isNavOnlyReturnField,
-  navReturn,
   pass4433,
+  planReturnLookups,
   RANK_RETURN_FIELDS,
   type RankReturnField,
-  windowStartDate,
-} from '../utils/period-returns.ts';
+  rankPeerGroups,
+  resolveFundReturns,
+} from '../metrics/index.ts';
 
 type PerfRow = {
   fund_code: string;
@@ -30,9 +29,13 @@ export type RankRefreshResult = {
   pass4433: number;
 };
 
-function crawledReturn(row: PerfRow, field: RankReturnField): number | null {
-  const value = row[field];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+function crawledOf(row: PerfRow): Partial<Record<RankReturnField, number | null>> {
+  return {
+    return_1m: row.return_1m,
+    return_3m: row.return_3m,
+    return_6m: row.return_6m,
+    return_1y: row.return_1y,
+  };
 }
 
 export function refreshRanks(db: Database): RankRefreshResult {
@@ -55,101 +58,34 @@ export function refreshRanks(db: Database): RankRefreshResult {
      WHERE fund_code = ? AND nav_date <= ? ORDER BY nav_date DESC LIMIT 1`,
   );
 
-  const resolved: Array<{
-    fundCode: string;
-    fundType: string;
-    returns: Record<RankReturnField, number | null>;
-  }> = [];
-
-  for (const row of funds) {
+  const resolved = funds.map((row) => {
     const last = lastStmt.get(row.fund_code) as NavRow | null;
-    const lastEnds = last ? { acc: last.acc_nav, unit: last.unit_nav } : null;
-    const returns = {} as Record<RankReturnField, number | null>;
-    for (const field of RANK_RETURN_FIELDS) {
-      if (isCrawledReturnField(field)) {
-        const crawled = crawledReturn(row, field);
-        if (crawled != null) {
-          returns[field] = crawled;
-          continue;
-        }
-      }
-      if (!last) {
-        returns[field] = null;
-        continue;
-      }
-      const start = windowStartDate(last.nav_date, field);
-      if (!start || start >= last.nav_date) {
-        returns[field] = null;
-        continue;
-      }
-      const at = asOfStmt.get(row.fund_code, start) as {
+    const crawled = crawledOf(row);
+    const needNav = RANK_RETURN_FIELDS.filter(
+      (field) => !(isCrawledReturnField(field) && crawled[field] != null),
+    );
+    const plan = planReturnLookups(needNav, last?.nav_date ?? null);
+    const asOf: Partial<
+      Record<RankReturnField, { acc: number | null; unit: number | null } | null>
+    > = {};
+    for (const window of plan.windows) {
+      const at = asOfStmt.get(row.fund_code, window.start) as {
         acc_nav: number | null;
         unit_nav: number | null;
       } | null;
-      returns[field] = navReturn(at ? { acc: at.acc_nav, unit: at.unit_nav } : null, lastEnds, {
-        requireAcc: isNavOnlyReturnField(field),
-      });
+      asOf[window.field as RankReturnField] = at ? { acc: at.acc_nav, unit: at.unit_nav } : null;
     }
-    resolved.push({ fundCode: row.fund_code, fundType: row.fund_type, returns });
-  }
+    const returns = resolveFundReturns({
+      fields: RANK_RETURN_FIELDS,
+      crawled,
+      last: last ? { date: last.nav_date, acc: last.acc_nav, unit: last.unit_nav } : null,
+      asOf,
+    }) as Record<RankReturnField, number | null>;
+    return { fundCode: row.fund_code, fundType: row.fund_type, returns };
+  });
 
-  const byType = new Map<string, typeof resolved>();
-  for (const item of resolved) {
-    const list = byType.get(item.fundType) ?? [];
-    list.push(item);
-    byType.set(item.fundType, list);
-  }
-
-  const ranks = new Map<
-    string,
-    {
-      rank_pct_1m: number | null;
-      rank_pct_3m: number | null;
-      rank_pct_6m: number | null;
-      rank_pct_1y: number | null;
-      rank_pct_2y: number | null;
-      rank_pct_3y: number | null;
-      rank_pct_5y: number | null;
-    }
-  >();
-
-  for (const group of byType.values()) {
-    const assigned = {
-      rank_pct_1m: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_1m })),
-      ),
-      rank_pct_3m: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_3m })),
-      ),
-      rank_pct_6m: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_6m })),
-      ),
-      rank_pct_1y: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_1y })),
-      ),
-      rank_pct_2y: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_2y })),
-      ),
-      rank_pct_3y: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_3y })),
-      ),
-      rank_pct_5y: assignRanks(
-        group.map((item) => ({ fundCode: item.fundCode, value: item.returns.return_5y })),
-      ),
-    };
-    for (const item of group) {
-      ranks.set(item.fundCode, {
-        rank_pct_1m: assigned.rank_pct_1m.get(item.fundCode) ?? null,
-        rank_pct_3m: assigned.rank_pct_3m.get(item.fundCode) ?? null,
-        rank_pct_6m: assigned.rank_pct_6m.get(item.fundCode) ?? null,
-        rank_pct_1y: assigned.rank_pct_1y.get(item.fundCode) ?? null,
-        rank_pct_2y: assigned.rank_pct_2y.get(item.fundCode) ?? null,
-        rank_pct_3y: assigned.rank_pct_3y.get(item.fundCode) ?? null,
-        rank_pct_5y: assigned.rank_pct_5y.get(item.fundCode) ?? null,
-      });
-    }
-  }
-
+  const types = new Set(resolved.map((item) => item.fundType)).size;
+  const ranks = rankPeerGroups(resolved);
   const upd = db.prepare(
     `UPDATE fund_performance SET
        rank_pct_1m = ?, rank_pct_3m = ?, rank_pct_6m = ?, rank_pct_1y = ?,
@@ -179,5 +115,5 @@ export function refreshRanks(db: Database): RankRefreshResult {
     }
   })();
 
-  return { funds: resolved.length, types: byType.size, pass4433: pass };
+  return { funds: resolved.length, types, pass4433: pass };
 }
