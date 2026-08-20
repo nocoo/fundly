@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
@@ -51,6 +51,7 @@ const SORTS = [
 const RETURN_KEYS = new Set(['return_1y', 'return_1m', 'return_3m', 'return_6m']);
 
 export default function FundsPage() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const typeL1 = params.get('typeL1') ?? '';
@@ -196,7 +197,11 @@ export default function FundsPage() {
             </TableHeader>
             <TableBody>
               {data.items.map((row) => (
-                <TableRow key={row.fund_code}>
+                <TableRow
+                  key={row.fund_code}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/funds/${row.fund_code}`)}
+                >
                   <TableCell>
                     <Link className="text-foreground" to={`/funds/${row.fund_code}`}>
                       {row.fund_code}
