@@ -8,6 +8,7 @@ import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { SharePie } from '@/components/charts/share-pie';
 import { AppShell } from '@/components/layout';
+import { CopyField } from '@/components/ui/copy-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
@@ -17,6 +18,7 @@ import { CHART_HEIGHTS, seriesStroke } from '@/lib/chart-config';
 import type { ChartPoint, ChartSeries } from '@/lib/chart-data';
 import { buildGrowthPoints } from '@/lib/chart-growth';
 import {
+  fieldCopyText,
   fieldNumberKind,
   formatAxisMetric,
   formatCount,
@@ -423,25 +425,15 @@ function FieldGroup({
     <section>
       <h2 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h2>
       <div className={cn('grid gap-2', columns)}>
-        {fields.map((f) =>
-          f.empty ? (
-            <div
-              key={f.key}
-              className="flex min-w-0 items-center gap-2 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
-            >
-              <CircleOff className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-              <span className="text-muted-foreground">{f.label}：暂无数据</span>
-            </div>
-          ) : (
-            <div
-              key={f.key}
-              className="flex min-w-0 flex-col items-start gap-0.5 rounded-widget bg-secondary px-3 py-2 text-sm ring-1 ring-border/40"
-            >
-              <span className="text-muted-foreground">{f.label}</span>
-              <FieldValue fieldKey={f.key} value={f.value} />
-            </div>
-          ),
-        )}
+        {fields.map((f) => (
+          <CopyField
+            key={f.key}
+            label={f.label}
+            text={f.empty ? null : fieldCopyText(f.key, f.value)}
+          >
+            {f.empty ? null : <FieldValue fieldKey={f.key} value={f.value} />}
+          </CopyField>
+        ))}
       </div>
     </section>
   );

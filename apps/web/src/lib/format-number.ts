@@ -77,3 +77,11 @@ export function fieldNumberKind(key: string): NumberKind | null {
   if (key === 'pass_4433') return 'count';
   return null;
 }
+
+export function fieldCopyText(key: string, value: string | number | null): string | null {
+  if (value === null || value === '') return null;
+  const kind = fieldNumberKind(key);
+  if (!kind) return String(value);
+  const text = formatMetric(value, kind, { signed: isSignedPercentField(key) });
+  return text === EMPTY ? null : text;
+}

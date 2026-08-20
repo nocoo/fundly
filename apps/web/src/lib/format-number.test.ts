@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  fieldCopyText,
   fieldNumberKind,
   formatAxisMetric,
   formatCompact,
@@ -61,5 +62,13 @@ describe('field kinds', () => {
     expect(fieldNumberKind('fund_name')).toBeNull();
     expect(isSignedPercentField('return_1m')).toBe(true);
     expect(isSignedPercentField('rank_pct_1y')).toBe(false);
+  });
+
+  it('fieldCopyText copies the displayed value', () => {
+    expect(fieldCopyText('fund_code', '000001')).toBe('000001');
+    expect(fieldCopyText('return_1y', 1.2)).toBe('+1.20%');
+    expect(fieldCopyText('fund_scale', 12.3)).toBe('12.30');
+    expect(fieldCopyText('fund_name', null)).toBeNull();
+    expect(fieldCopyText('fund_name', '')).toBeNull();
   });
 });
