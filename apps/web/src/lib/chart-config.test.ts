@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test';
 import { barCornerRadius, getChartColor, getChartToken, withAlpha } from './chart-config';
 
 describe('chart palette', () => {
-  it('wraps past the 24-stop palette', () => {
+  it('wraps past the 14-stop Pew palette', () => {
     expect(getChartColor(0)).toBe('hsl(var(--chart-1))');
-    expect(getChartColor(24)).toBe('hsl(var(--chart-1))');
-    expect(getChartColor(-1)).toBe('hsl(var(--chart-24))');
+    expect(getChartColor(14)).toBe('hsl(var(--chart-1))');
+    expect(getChartColor(-1)).toBe('hsl(var(--chart-14))');
     expect(getChartToken(1)).toBe('chart-2');
   });
 

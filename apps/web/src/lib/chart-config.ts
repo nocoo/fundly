@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-const PALETTE_SIZE = 24;
+const PALETTE_SIZE = 14;
 
 export function getChartColor(index: number): string {
   const safe = ((index % PALETTE_SIZE) + PALETTE_SIZE) % PALETTE_SIZE;
