@@ -198,7 +198,7 @@ export default function FundsPage() {
               {data.items.map((row) => (
                 <TableRow key={row.fund_code}>
                   <TableCell>
-                    <Link className="text-primary hover:underline" to={`/funds/${row.fund_code}`}>
+                    <Link className="text-foreground" to={`/funds/${row.fund_code}`}>
                       {row.fund_code}
                     </Link>
                   </TableCell>
