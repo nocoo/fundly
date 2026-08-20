@@ -48,8 +48,12 @@ app.get('/api/stats', async (c) => {
 });
 
 app.get('/api/funds/:code/nav', async (c) => {
-  const limit = Number(c.req.query('limit') ?? 400);
-  return c.json({ items: await getFundNav(d1Exec(c.env.DB), c.req.param('code'), limit) });
+  return c.json({
+    items: await getFundNav(d1Exec(c.env.DB), c.req.param('code'), {
+      from: c.req.query('from'),
+      limit: c.req.query('limit'),
+    }),
+  });
 });
 
 app.get('/api/funds/:code', async (c) => {

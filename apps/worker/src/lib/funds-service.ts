@@ -58,7 +58,38 @@ export function applyExtraFallbacks(fields: FieldView[], extras: FundExtras): Fi
   });
 }
 
-export async function getFundNav(exec: QueryExec, code: string, limit = 400) {
+export function parseNavQuery(input: { from?: string | null; limit?: string | number | null }): {
+  from?: string;
+  limit: number;
+} {
+  const from =
+    typeof input.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.from)
+      ? input.from
+      : undefined;
+  const raw = Number(input.limit);
+  const fallback = from ? 3000 : 400;
+  const limit = Number.isFinite(raw) && raw >= 1 ? Math.min(3000, Math.floor(raw)) : fallback;
+  return from ? { from, limit } : { limit };
+}
+
+export async function getFundNav(
+  exec: QueryExec,
+  code: string,
+  opts: number | { from?: string | null; limit?: string | number | null } = 400,
+) {
+  const parsed = typeof opts === 'number' ? parseNavQuery({ limit: opts }) : parseNavQuery(opts);
+  if (parsed.from) {
+    return exec.all<{
+      nav_date: string;
+      unit_nav: number;
+      acc_nav: number | null;
+      daily_return: number | null;
+    }>(
+      `SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
+       WHERE fund_code = ? AND nav_date >= ? ORDER BY nav_date ASC LIMIT ?`,
+      [code, parsed.from, parsed.limit],
+    );
+  }
   return exec.all<{
     nav_date: string;
     unit_nav: number;
@@ -69,7 +100,7 @@ export async function getFundNav(exec: QueryExec, code: string, limit = 400) {
         SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
         WHERE fund_code = ? ORDER BY nav_date DESC LIMIT ?
       ) newest ORDER BY nav_date ASC`,
-    [code, Number.isFinite(limit) && limit >= 1 ? Math.min(2000, Math.floor(limit)) : 400],
+    [code, parsed.limit],
   );
 }
 

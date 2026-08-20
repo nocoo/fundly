@@ -139,8 +139,12 @@ app.get('/api/funds/:code/nav', async (c) => {
     requested: c.req.header('x-fundly-source'),
     environment: 'development',
   }).source;
-  const limit = Number(c.req.query('limit') ?? 400);
-  return c.json({ items: await getFundNav(execFor(source), c.req.param('code'), limit) });
+  return c.json({
+    items: await getFundNav(execFor(source), c.req.param('code'), {
+      from: c.req.query('from'),
+      limit: c.req.query('limit'),
+    }),
+  });
 });
 
 app.get('/api/funds/:code', async (c) => {
