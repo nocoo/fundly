@@ -30,8 +30,6 @@ export function mapFundDetail(row: Record<string, unknown> | null): FieldView[] 
     presentField('fund_code', '基金代码', '基本信息', str('fund_code')),
     presentField('fund_name', '基金名称', '基本信息', str('fund_name')),
     presentField('fund_type', '基金类型', '基本信息', str('fund_type')),
-    presentField('pinyin_abbr', '拼音缩写', '基本信息', str('pinyin_abbr')),
-    presentField('pinyin_full', '拼音全称', '基本信息', str('pinyin_full')),
     presentField('established_date', '成立日期', '基本信息', str('established_date')),
     presentField('fund_manager', '基金经理', '基本信息', str('fund_manager')),
     presentField('fund_company', '基金公司', '基本信息', str('fund_company')),

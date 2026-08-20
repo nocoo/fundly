@@ -19,5 +19,6 @@ describe('mapFundDetail', () => {
     expect(rank?.empty).toBe(true);
     expect(ret?.empty).toBe(false);
     expect(ret?.value).toBe(44.06);
+    expect(fields.some((f) => f.key === 'pinyin_abbr' || f.key === 'pinyin_full')).toBe(false);
   });
 });
