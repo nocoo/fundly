@@ -33,7 +33,15 @@ describe('listFunds / getFundDetail', () => {
         data_date TEXT, updated_at INTEGER NOT NULL
       );
       CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL, acc_nav REAL, daily_return REAL);
-      CREATE TABLE fund_trend_extra (fund_code TEXT PRIMARY KEY);
+      CREATE TABLE fund_trend_extra (
+        fund_code TEXT PRIMARY KEY,
+        asset_allocation_json TEXT,
+        scale_history_json TEXT,
+        holder_structure_json TEXT,
+        ranking_trend_json TEXT,
+        performance_5d_json TEXT,
+        updated_at INTEGER
+      );
     `);
     db.prepare(
       `INSERT INTO fund_basic_info (fund_code, fund_name, fund_type, pinyin_abbr, in_mvp_pool, created_at, updated_at)
@@ -41,6 +49,10 @@ describe('listFunds / getFundDetail', () => {
     ).run();
     db.prepare(
       `INSERT INTO fund_performance (fund_code, return_1y, pass_4433, updated_at) VALUES ('000001', 12.5, 0, 1)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO fund_trend_extra (fund_code, scale_history_json, updated_at)
+       VALUES ('000001', '{"categories":["2026-06-30"],"series":[{"y":12.3,"mom":"1%"}]}', 1)`,
     ).run();
 
     const q = parseFundListQuery({
@@ -58,6 +70,9 @@ describe('listFunds / getFundDetail', () => {
     const manager = detail?.fields.find((f) => f.key === 'fund_manager');
     expect(manager?.empty).toBe(true);
     expect(detail?.fields.find((f) => f.key === 'return_1y')?.empty).toBe(false);
+    expect(detail?.fields.find((f) => f.key === 'fund_scale')?.value).toBe(12.3);
+    expect(detail?.fields.find((f) => f.key === 'scale_date')?.value).toBe('2026-06-30');
+    expect(detail?.extras.scale?.latest.value).toBe(12.3);
   });
 
   it('returns the newest nav points in ascending date order', async () => {

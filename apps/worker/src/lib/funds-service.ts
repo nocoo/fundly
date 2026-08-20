@@ -1,5 +1,6 @@
 import type { QueryExec } from './executor';
-import { mapFundDetail } from './fund-detail';
+import { type FieldView, mapFundDetail, presentField } from './fund-detail';
+import { type FundExtras, parseFundExtras } from './fund-extra';
 import { type FundListQuery, fundListSql } from './fund-query';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
@@ -31,15 +32,30 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     'SELECT * FROM fund_trend_extra WHERE fund_code = ?',
     [code],
   );
+  const extras = parseFundExtras(extra);
   const navCount = await exec.first<{ n: number }>(
     'SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?',
     [code],
   );
   return {
-    fields: mapFundDetail(full),
-    extra: extra ?? null,
+    fields: applyExtraFallbacks(mapFundDetail(full), extras),
+    extras,
     navCount: navCount?.n ?? 0,
   };
+}
+
+export function applyExtraFallbacks(fields: FieldView[], extras: FundExtras): FieldView[] {
+  const latest = extras.scale?.latest;
+  if (!latest) return fields;
+  return fields.map((field) => {
+    if (field.key === 'fund_scale' && field.empty) {
+      return presentField(field.key, field.label, field.group, latest.value);
+    }
+    if (field.key === 'scale_date' && field.empty) {
+      return presentField(field.key, field.label, field.group, latest.date);
+    }
+    return field;
+  });
 }
 
 export async function getFundNav(exec: QueryExec, code: string, limit = 400) {
