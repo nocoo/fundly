@@ -8,6 +8,7 @@ import {
   rankPeerGroups,
   resolveFundReturns,
 } from '../metrics/index.ts';
+import { ensurePerformanceRankStatsColumn } from './repo.ts';
 
 type PerfRow = {
   fund_code: string;
@@ -39,6 +40,7 @@ function crawledOf(row: PerfRow): Partial<Record<RankReturnField, number | null>
 }
 
 export function refreshRanks(db: Database): RankRefreshResult {
+  ensurePerformanceRankStatsColumn(db);
   const funds = db
     .query(
       `SELECT b.fund_code, b.fund_type,
@@ -89,7 +91,8 @@ export function refreshRanks(db: Database): RankRefreshResult {
   const upd = db.prepare(
     `UPDATE fund_performance SET
        rank_pct_1m = ?, rank_pct_3m = ?, rank_pct_6m = ?, rank_pct_1y = ?,
-       rank_pct_2y = ?, rank_pct_3y = ?, rank_pct_5y = ?, pass_4433 = ?, updated_at = ?
+       rank_pct_2y = ?, rank_pct_3y = ?, rank_pct_5y = ?, pass_4433 = ?,
+       rank_stats_json = ?, updated_at = ?
      WHERE fund_code = ?`,
   );
   const now = Date.now();
@@ -98,17 +101,18 @@ export function refreshRanks(db: Database): RankRefreshResult {
     for (const item of resolved) {
       const row = ranks.get(item.fundCode);
       if (!row) continue;
-      const flag = pass4433(row);
+      const flag = pass4433(row.percents);
       if (flag === 1) pass += 1;
       upd.run(
-        row.rank_pct_1m,
-        row.rank_pct_3m,
-        row.rank_pct_6m,
-        row.rank_pct_1y,
-        row.rank_pct_2y,
-        row.rank_pct_3y,
-        row.rank_pct_5y,
+        row.percents.rank_pct_1m,
+        row.percents.rank_pct_3m,
+        row.percents.rank_pct_6m,
+        row.percents.rank_pct_1y,
+        row.percents.rank_pct_2y,
+        row.percents.rank_pct_3y,
+        row.percents.rank_pct_5y,
         flag,
+        JSON.stringify(row.stats),
         now,
         item.fundCode,
       );

@@ -27,11 +27,18 @@ export function openDb(path: string = DEFAULT_DB_PATH): Database {
 }
 
 /** 初始化 schema（幂等） */
+export function ensurePerformanceRankStatsColumn(db: Database): void {
+  const cols = db.query('PRAGMA table_info(fund_performance)').all() as Array<{ name: string }>;
+  if (cols.some((col) => col.name === 'rank_stats_json')) return;
+  db.exec('ALTER TABLE fund_performance ADD COLUMN rank_stats_json TEXT');
+}
+
 export function initSchema(db: Database): void {
   db.transaction(() => {
     for (const ddl of SCHEMA_DDL) {
       db.exec(ddl);
     }
+    ensurePerformanceRankStatsColumn(db);
     // 记录版本
     const existing = db
       .query('SELECT version FROM schema_version WHERE version = ?')

@@ -17,8 +17,14 @@ export { type NavEnds, navReturn } from './nav-return';
 export {
   assignRanks,
   emptyRankPercents,
+  emptyRankStats,
+  formatRankTriple,
+  parseRankStats,
+  type RankBundle,
   type RankedFund,
   type RankPercents,
+  type RankStat,
+  type RankStats,
   rankPct,
   rankPeerGroups,
 } from './ranks';

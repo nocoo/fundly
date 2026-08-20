@@ -51,6 +51,7 @@ export const SCHEMA_DDL = [
     rank_pct_3y         REAL,
     rank_pct_5y         REAL,
     pass_4433           INTEGER NOT NULL DEFAULT 0,
+    rank_stats_json     TEXT,
     data_date           TEXT,
     updated_at          INTEGER NOT NULL,
     FOREIGN KEY (fund_code) REFERENCES fund_basic_info(fund_code)

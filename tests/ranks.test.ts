@@ -84,6 +84,14 @@ describe('refreshRanks', () => {
     expect(a.rank_pct_1y).toBeCloseTo(100, 5);
     expect(a.rank_pct_2y).toBeCloseTo(50, 5);
     expect(a.pass_4433).toBe(0);
+    const stats = JSON.parse(
+      (
+        db.query('SELECT rank_stats_json FROM fund_performance WHERE fund_code = ?').get('a') as {
+          rank_stats_json: string;
+        }
+      ).rank_stats_json,
+    );
+    expect(stats.rank_pct_1y).toEqual({ rank: 2, n: 2, pct: 100 });
 
     db.close();
     unlinkSync(path);
