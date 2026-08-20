@@ -33,15 +33,55 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     [code],
   );
   const extras = parseFundExtras(extra);
-  const navCount = await exec.first<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?',
-    [code],
-  );
+  const [navCount, ends] = await Promise.all([
+    exec.first<{ n: number }>('SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?', [code]),
+    exec.first<{
+      first_acc: number | null;
+      first_unit: number | null;
+      last_acc: number | null;
+      last_unit: number | null;
+    }>(
+      `SELECT
+         (SELECT acc_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1) AS first_acc,
+         (SELECT unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC LIMIT 1) AS first_unit,
+         (SELECT acc_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1) AS last_acc,
+         (SELECT unit_nav FROM fund_nav WHERE fund_code = ? ORDER BY nav_date DESC LIMIT 1) AS last_unit`,
+      [code, code, code, code],
+    ),
+  ]);
   return {
-    fields: applyExtraFallbacks(mapFundDetail(full), extras),
+    fields: applySinceInceptionFallback(
+      applyExtraFallbacks(mapFundDetail(full), extras),
+      returnFromNavPair(ends),
+    ),
     extras,
     navCount: navCount?.n ?? 0,
   };
+}
+
+export function returnFromNavPair(
+  ends:
+    | {
+        first_acc: number | null;
+        first_unit: number | null;
+        last_acc: number | null;
+        last_unit: number | null;
+      }
+    | null,
+): number | null {
+  if (!ends) return null;
+  const start = ends.first_acc ?? ends.first_unit;
+  const last = ends.last_acc ?? ends.last_unit;
+  if (start == null || last == null || !(start > 0) || !Number.isFinite(last)) return null;
+  return (last / start - 1) * 100;
+}
+
+export function applySinceInceptionFallback(fields: FieldView[], value: number | null): FieldView[] {
+  if (value === null) return fields;
+  return fields.map((field) => {
+    if (field.key !== 'return_since_start' || !field.empty) return field;
+    return presentField(field.key, field.label, field.group, value);
+  });
 }
 
 export function applyExtraFallbacks(fields: FieldView[], extras: FundExtras): FieldView[] {
