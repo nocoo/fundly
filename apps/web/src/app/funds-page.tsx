@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useImeSearch } from '@/hooks/use-ime-search';
 
 interface FundRow {
   fund_code: string;
@@ -72,21 +73,28 @@ export default function FundsPage() {
     return `/api/funds?${p}`;
   }, [q, fundType, mvpOnly, hasNav, sort, dir, page]);
 
-  const { data, error, isLoading } = useSWR<ListResponse>(query, fetchAPI);
+  const { data, error, isLoading, isValidating } = useSWR<ListResponse>(query, fetchAPI, {
+    keepPreviousData: true,
+  });
   const { data: types } = useSWR<{ items: { fund_type: string; n: number }[] }>(
     '/api/fund-types',
     fetchAPI,
   );
 
-  const set = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === null || v === '') next.delete(k);
-      else next.set(k, v);
-    }
-    if (!('page' in patch)) next.set('page', '1');
-    setParams(next);
-  };
+  const set = useCallback(
+    (patch: Record<string, string | null>) => {
+      const next = new URLSearchParams(params);
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null || v === '') next.delete(k);
+        else next.set(k, v);
+      }
+      if (!('page' in patch)) next.set('page', '1');
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
+
+  const search = useImeSearch(q, (value) => set({ q: value || null }));
 
   const toggleSort = (key: string) => {
     if (sort === key) set({ dir: dir === 'asc' ? 'desc' : 'asc', page: '1' });
@@ -106,11 +114,13 @@ export default function FundsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Input
             id="fund-q"
-            value={q}
+            value={search.value}
             placeholder="代码 / 名称 / 拼音"
             aria-label="关键词"
             className="h-[38px] w-52 shadow-xs"
-            onChange={(e) => set({ q: e.target.value || null })}
+            onChange={search.onChange}
+            onCompositionStart={search.onCompositionStart}
+            onCompositionEnd={search.onCompositionEnd}
           />
           <FilterDropdown
             label="类型"
@@ -128,26 +138,26 @@ export default function FundsPage() {
             checked={hasNav}
             onChange={(checked) => set({ hasNav: checked ? '1' : null })}
           />
-          {filterActive ? (
-            <button
-              type="button"
-              onClick={() => set({ q: null, fundType: null, mvpOnly: null, hasNav: null })}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              重置
-            </button>
-          ) : null}
+          <button
+            type="button"
+            disabled={!filterActive && !search.value}
+            onClick={() => set({ q: null, fundType: null, mvpOnly: null, hasNav: null })}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:invisible"
+          >
+            重置
+          </button>
         </div>
       </div>
 
       {error && <p className="text-sm text-destructive-text">{error.message}</p>}
-      {isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
+      {isLoading && !data && <p className="text-sm text-muted-foreground">加载中…</p>}
 
       {data && (
         <div className="rounded-card bg-secondary ring-1 ring-border/40">
           <p className="px-3 pt-3 text-xs text-muted-foreground">
             共 {data.total.toLocaleString('zh-CN')} 只 · 第 {data.page}/{pages} 页 · 每页{' '}
             {data.pageSize}
+            {isValidating ? ' · 更新中…' : ''}
           </p>
           <Table>
             <TableHeader>
