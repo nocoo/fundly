@@ -27,9 +27,38 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   };
 }
 
+async function hasTable(exec: QueryExec, name: string): Promise<boolean> {
+  const row = await exec.first<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?`,
+    [name],
+  );
+  return (row?.n ?? 0) > 0;
+}
+
+async function satelliteColumns(exec: QueryExec): Promise<string> {
+  const [fees, managers] = await Promise.all([
+    hasTable(exec, 'fund_fees'),
+    hasTable(exec, 'fund_manager_link'),
+  ]);
+  const established = `(SELECT MIN(nav_date) FROM fund_nav n WHERE n.fund_code = b.fund_code)`;
+  const manager = managers
+    ? `(SELECT GROUP_CONCAT(x, '、') FROM (
+         SELECT DISTINCT manager_id AS x FROM fund_manager_link l
+         WHERE l.fund_code = b.fund_code AND l.end_date IS NULL
+       ))`
+    : 'NULL';
+  const fee = fees
+    ? `(SELECT mgmt_fee_pct FROM fund_fees fe WHERE fe.fund_code = b.fund_code)`
+    : 'NULL';
+  return `${established} AS established_date, ${manager} AS fund_manager, ${fee} AS fee_rate`;
+}
+
 export async function getFundDetail(exec: QueryExec, code: string) {
+  const extraCols = await satelliteColumns(exec);
   const full = await exec.first<Record<string, unknown>>(
-    `SELECT b.*, p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.return_2y, p.return_3y, p.return_5y,
+    `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
+            ${extraCols},
+            p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.return_2y, p.return_3y, p.return_5y,
             p.return_ytd, p.return_since_start, p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y,
             p.rank_pct_2y, p.rank_pct_3y, p.rank_pct_5y, p.pass_4433, p.rank_stats_json, p.data_date
      FROM fund_basic_info b
