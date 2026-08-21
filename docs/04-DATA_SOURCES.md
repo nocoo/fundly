@@ -28,6 +28,9 @@ Referer: http://fund.eastmoney.com/{fund_code}.html
 |---|---|
 | `Data_netWorthTrend` | 单位净值走势（日频，含日增长率） |
 | `Data_ACWorthTrend` | 累计净值走势 |
+| `Data_millionCopiesIncome` | 货币基金每万份收益 `[[ts, 元], ...]` |
+| `Data_sevenDaysYearIncome` | 货币基金七日年化 `[[ts, %], ...]` |
+| `ishb` | `true` 时为本接口的货币基金（无单位净值曲线） |
 | `Data_grandTotal` | 累计收益率走势（vs 沪深300 / 同类平均） |
 | `Data_rateInSimilarType` | 同类排名走势（百分位） |
 | `Data_rateInSimilarPersent` | 同类排名百分位 |
@@ -98,6 +101,7 @@ Fundly 默认配置：**全局 5 QPS**，可通过 `FUNDLY_QPS` 环境变量调�
 1. **`pingzhongdata` 偶发返回空**：需按 code 重试 1 次
 2. **周末数据不更新**：净值日期停留在最近交易日
 3. **新基金（成立<3个月）无同类排名**：字段为 `null`
+4. **普通货币基金无 `Data_netWorthTrend`**：同文件有万份收益 / 七日年化，写入 `fund_money_yield`，不要塞进 `unit_nav`
 
 ## 🔒 合规
 

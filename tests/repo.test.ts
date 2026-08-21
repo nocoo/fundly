@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   countFunds,
+  countMoneyYield,
   countNavPoints,
   dropBasicInfoDuplicateColumns,
   initSchema,
@@ -12,6 +13,7 @@ import {
   listMvpFundCodesMissingPerformance,
   openDb,
   upsertFundList,
+  upsertMoneyYield,
   upsertNavPoints,
   upsertPerformance,
   upsertTrendExtra,
@@ -203,6 +205,25 @@ describe('db repo', () => {
       .get('000001', '2026-01-01') as { unit_nav: number } | null;
     expect(row?.unit_nav).toBe(1.5);
 
+    expect(
+      upsertMoneyYield(db, '000001', [
+        { navDate: '2026-01-01', millionIncome: 0.22, sevenDayYield: 0.81 },
+        { navDate: '2026-01-02', millionIncome: 0.21, sevenDayYield: 0.8 },
+      ]),
+    ).toBe(2);
+    expect(countMoneyYield(db, '000001')).toBe(2);
+    upsertMoneyYield(db, '000001', [
+      { navDate: '2026-01-01', millionIncome: 0.3, sevenDayYield: 1.1 },
+    ]);
+    expect(countMoneyYield(db, '000001')).toBe(2);
+    const yieldRow = db
+      .query(
+        'SELECT million_income, seven_day_yield FROM fund_money_yield WHERE fund_code = ? AND nav_date = ?',
+      )
+      .get('000001', '2026-01-01') as { million_income: number; seven_day_yield: number } | null;
+    expect(yieldRow?.million_income).toBe(0.3);
+    expect(yieldRow?.seven_day_yield).toBe(1.1);
+
     db.close();
     unlinkSync(path);
   });
@@ -279,6 +300,7 @@ describe('db repo', () => {
     const data: PingzhongData = {
       fundCode: '000001',
       navPoints: [],
+      moneyYield: [],
       performance: {
         fundCode: '000001',
         return1m: null,

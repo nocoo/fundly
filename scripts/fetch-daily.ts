@@ -10,9 +10,10 @@
  *   bun run scripts/fetch-daily.ts                 # 默认 MVP 权益池 15,337 只
  *   bun run scripts/fetch-daily.ts data/fundly.db  # 指定 db
  *   FUNDLY_DAILY_POOL=all bun run fetch:daily      # 全市场 27,527 只
+ *   FUNDLY_DAILY_POOL=money bun run fetch:daily    # 货币型（万份收益 / 七日年化）
  *
  * 环境变量：
- *   FUNDLY_DAILY_POOL   = 'mvp' | 'all'  (默认 'mvp')
+ *   FUNDLY_DAILY_POOL   = 'mvp' | 'all' | 'money'  (默认 'mvp')
  *   FUNDLY_CONCURRENCY  = 5
  *   FUNDLY_QPS          = 5
  */
@@ -24,8 +25,10 @@ import {
   DEFAULT_DB_PATH,
   initSchema,
   latestNavDate,
+  listMoneyFundCodes,
   listMvpFundCodes,
   openDb,
+  upsertMoneyYield,
   upsertNavPoints,
   upsertPerformance,
   upsertTrendExtra,
@@ -53,6 +56,8 @@ async function main(): Promise<void> {
       fund_code: string;
     }[];
     codes = rows.map((r) => r.fund_code);
+  } else if (POOL_MODE === 'money') {
+    codes = listMoneyFundCodes(db);
   } else {
     codes = listMvpFundCodes(db);
   }
@@ -79,6 +84,7 @@ async function main(): Promise<void> {
   let ok = 0;
   let failed = 0;
   let navRowsWritten = 0;
+  let moneyRowsWritten = 0;
 
   await pool.run(
     codes,
@@ -88,6 +94,7 @@ async function main(): Promise<void> {
       try {
         const data = await fetchPingzhongData(code);
         const wrote = upsertNavPoints(db, code, data.navPoints);
+        moneyRowsWritten += upsertMoneyYield(db, code, data.moneyYield);
         upsertPerformance(db, data.performance);
         upsertTrendExtra(db, data);
         writeFetchLog(db, {
@@ -141,6 +148,7 @@ async function main(): Promise<void> {
     ok,
     failed,
     navRowsWritten,
+    moneyRowsWritten,
     dateAdvanced: afterLatest !== beforeLatest,
     beforeLatest,
     newLatestDate: afterLatest,

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   extractJsVars,
   parseFundList,
+  parseMoneyYield,
   parseNavPoints,
   parsePerformance,
   parsePingzhongData,
@@ -136,11 +137,7 @@ describe('parsePerformance', () => {
       syl_3n: '"60.0"',
       syl_5n: '"120.0"',
     };
-    const nav = [
-      { navDate: '2026-01-01', unitNav: 1, accNav: 1, dailyReturn: 0 },
-      { navDate: '2026-08-18', unitNav: 1.2, accNav: 1.2, dailyReturn: 0 },
-    ];
-    const perf = parsePerformance('123456', vars, nav);
+    const perf = parsePerformance('123456', vars, '2026-08-18');
     expect(perf.fundCode).toBe('123456');
     expect(perf.return1y).toBe(25.5);
     expect(perf.return6m).toBe(10.2);
@@ -152,15 +149,41 @@ describe('parsePerformance', () => {
   });
 
   test('null when vars absent', () => {
-    const perf = parsePerformance('999999', {}, []);
+    const perf = parsePerformance('999999', {}, null);
     expect(perf.return1y).toBeNull();
     expect(perf.return3y).toBeNull();
     expect(perf.dataDate).toBeNull();
   });
 
   test('handles "null" string literal', () => {
-    const perf = parsePerformance('123', { syl_1n: 'null' }, []);
+    const perf = parsePerformance('123', { syl_1n: 'null' }, null);
     expect(perf.return1y).toBeNull();
+  });
+});
+
+describe('parseMoneyYield', () => {
+  test('joins 万份收益 with 七日年化 by date', () => {
+    const million = JSON.stringify([
+      [1577808000000, 1.1349],
+      [1577894400000, 0.82],
+    ]);
+    const seven = JSON.stringify([
+      [1577808000000, 2.093],
+      [1577894400000, 1.9],
+    ]);
+    const points = parseMoneyYield(million, seven);
+    expect(points).toEqual([
+      { navDate: '2020-01-01', millionIncome: 1.1349, sevenDayYield: 2.093 },
+      { navDate: '2020-01-02', millionIncome: 0.82, sevenDayYield: 1.9 },
+    ]);
+  });
+
+  test('keeps million-income rows when seven-day yield is missing', () => {
+    const million = JSON.stringify([[1577808000000, 0.22]]);
+    expect(parseMoneyYield(million, undefined)).toEqual([
+      { navDate: '2020-01-01', millionIncome: 0.22, sevenDayYield: null },
+    ]);
+    expect(parseMoneyYield(undefined, million)).toEqual([]);
   });
 });
 
@@ -176,11 +199,16 @@ describe('parsePingzhongData', () => {
       var Data_holderStructure = {};
       var Data_rateInSimilarType = [];
       var Data_performanceEvaluation = {"score":5};
+      var Data_millionCopiesIncome = [[1577808000000,0.22]];
+      var Data_sevenDaysYearIncome = [[1577808000000,0.81]];
     `;
     const data = parsePingzhongData('000001', js);
     expect(data.fundCode).toBe('000001');
     expect(data.navPoints).toHaveLength(1);
     expect(data.navPoints[0]?.unitNav).toBe(1.5);
+    expect(data.moneyYield).toEqual([
+      { navDate: '2020-01-01', millionIncome: 0.22, sevenDayYield: 0.81 },
+    ]);
     expect(data.performance.return1y).toBe(20);
     expect(data.extra.assetAllocationJson).toContain('bar');
     expect(data.extra.scaleHistoryJson).toContain('100');

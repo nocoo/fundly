@@ -32,6 +32,13 @@ export interface NavPoint {
   dailyReturn: number | null;
 }
 
+/** 货币基金每万份收益 / 七日年化（不是单位净值） */
+export interface MoneyYieldPoint {
+  navDate: string;
+  millionIncome: number;
+  sevenDayYield: number | null;
+}
+
 /** 阶段业绩 + 排名 */
 export interface FundPerformance {
   fundCode: string;
@@ -58,6 +65,7 @@ export interface FundPerformance {
 export interface PingzhongData {
   fundCode: string;
   navPoints: NavPoint[];
+  moneyYield: MoneyYieldPoint[];
   performance: FundPerformance;
   extra: {
     assetAllocationJson: string | null;

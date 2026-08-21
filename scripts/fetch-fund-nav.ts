@@ -13,6 +13,7 @@ import {
   listMvpFundCodes,
   listMvpFundCodesMissingPerformance,
   openDb,
+  upsertMoneyYield,
   upsertNavPoints,
   upsertPerformance,
   upsertTrendExtra,
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
       try {
         const data = await fetchPingzhongData(code);
         const wrote = upsertNavPoints(db, code, data.navPoints);
+        upsertMoneyYield(db, code, data.moneyYield);
         upsertPerformance(db, data.performance);
         upsertTrendExtra(db, data);
         writeFetchLog(db, {

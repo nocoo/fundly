@@ -110,6 +110,27 @@ CREATE INDEX idx_nav_date ON fund_nav(nav_date DESC);
 
 **为什么长表**：便于时间序列查询、区间检索、跨基金对比。GoFundBot 用 JSON 存所有净值，SQL 查不了。
 
+---
+
+## `fund_money_yield` — 货币基金万份收益 / 七日年化
+
+普通货币基金在 pingzhong 里**没有** `Data_netWorthTrend`，单位净值不能写进 `fund_nav.unit_nav`。同接口另有：
+
+```sql
+CREATE TABLE fund_money_yield (
+  fund_code        TEXT NOT NULL,
+  nav_date         TEXT NOT NULL,
+  million_income   REAL NOT NULL,   -- 每万份收益（元）
+  seven_day_yield  REAL,            -- 七日年化（%）
+  PRIMARY KEY (fund_code, nav_date),
+  FOREIGN KEY (fund_code) REFERENCES fund_basic_info(fund_code)
+) WITHOUT ROWID;
+
+CREATE INDEX idx_money_yield_date ON fund_money_yield(nav_date DESC);
+```
+
+浮动净值货基仍走 `fund_nav`。增量与净值相同：按 `(fund_code, nav_date)` upsert。
+
 **估算**：14,700 只 × 平均 1,500 条 ≈ **2200 万行**，SQLite 单表可轻松承载。
 
 ---

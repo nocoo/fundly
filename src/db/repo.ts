@@ -7,6 +7,7 @@ import { logger } from '../utils/logger.ts';
 import type {
   FetchLogEntry,
   FundPerformance,
+  MoneyYieldPoint,
   NavPoint,
   PingzhongData,
   RawFundListRow,
@@ -224,6 +225,54 @@ export function upsertNavPoints(
     return count;
   });
   return tx(points);
+}
+
+const UPSERT_MONEY_YIELD = `
+  INSERT INTO fund_money_yield (fund_code, nav_date, million_income, seven_day_yield)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(fund_code, nav_date) DO UPDATE SET
+    million_income = excluded.million_income,
+    seven_day_yield = excluded.seven_day_yield
+`;
+
+export function upsertMoneyYield(
+  db: Database,
+  fundCode: string,
+  points: readonly MoneyYieldPoint[],
+): number {
+  if (points.length === 0) return 0;
+  const stmt = db.prepare(UPSERT_MONEY_YIELD);
+  const tx = db.transaction((batch: readonly MoneyYieldPoint[]) => {
+    let count = 0;
+    for (const p of batch) {
+      stmt.run(fundCode, p.navDate, p.millionIncome, p.sevenDayYield);
+      count += 1;
+    }
+    return count;
+  });
+  return tx(points);
+}
+
+export function countMoneyYield(db: Database, fundCode?: string): number {
+  if (fundCode) {
+    const row = db
+      .query('SELECT COUNT(*) as n FROM fund_money_yield WHERE fund_code = ?')
+      .get(fundCode) as { n: number } | null;
+    return row?.n ?? 0;
+  }
+  const row = db.query('SELECT COUNT(*) as n FROM fund_money_yield').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+export function listMoneyFundCodes(db: Database): string[] {
+  const rows = db
+    .query(
+      `SELECT fund_code FROM fund_basic_info
+       WHERE fund_type LIKE '货币型%'
+       ORDER BY fund_code`,
+    )
+    .all() as Array<{ fund_code: string }>;
+  return rows.map((row) => row.fund_code);
 }
 
 export function countNavPoints(db: Database, fundCode?: string): number {

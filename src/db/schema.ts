@@ -66,6 +66,16 @@ export const SCHEMA_DDL = [
   ) WITHOUT ROWID`,
   `CREATE INDEX IF NOT EXISTS idx_nav_date ON fund_nav(nav_date DESC)`,
 
+  `CREATE TABLE IF NOT EXISTS fund_money_yield (
+    fund_code        TEXT NOT NULL,
+    nav_date         TEXT NOT NULL,
+    million_income   REAL NOT NULL,
+    seven_day_yield  REAL,
+    PRIMARY KEY (fund_code, nav_date),
+    FOREIGN KEY (fund_code) REFERENCES fund_basic_info(fund_code)
+  ) WITHOUT ROWID`,
+  `CREATE INDEX IF NOT EXISTS idx_money_yield_date ON fund_money_yield(nav_date DESC)`,
+
   // ============================================================
   // fund_trend_extra — 非核心走势 JSON
   // ============================================================

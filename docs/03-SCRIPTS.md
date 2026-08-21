@@ -80,6 +80,9 @@ bun run fetch:daily data/fundly.db
 # 刷全市场 27,527 只（约 95 分钟，含债券/货币/FOF/Reits）
 FUNDLY_DAILY_POOL=all bun run fetch:daily
 
+# 只刷货币型（补万份收益 / 七日年化）
+FUNDLY_DAILY_POOL=money bun run fetch:daily
+
 # 调整并发和速率（默认 5/5）
 FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
 ```
@@ -237,6 +240,6 @@ SELECT b.fund_name, p.return_1y
 ## ⚠ 已知边界
 
 1. **周末/节假日跑没意义**：净值不更新，只会消耗配额
-2. **货币基金无历史净值序列**：日刷时会写 performance 但 nav 无新增（正常现象）
+2. **普通货币基金无单位净值曲线**：pingzhong 提供万份收益 / 七日年化，写入 `fund_money_yield`；`fetch:nav` 断点续跑只看 performance，补序列用 `FUNDLY_DAILY_POOL=money`
 3. **Reits 业绩多为空**：这类产品走 ETF 接口，不是 pingzhongdata（Phase 2 补 fetcher）
 4. **风控**：默认 5 QPS 极其保守，历史累计 55,054 次请求 0 失败，无需担心

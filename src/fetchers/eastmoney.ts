@@ -3,7 +3,13 @@
  */
 
 import { fetchText } from '../utils/http.ts';
-import type { FundPerformance, NavPoint, PingzhongData, RawFundListRow } from '../utils/types.ts';
+import type {
+  FundPerformance,
+  MoneyYieldPoint,
+  NavPoint,
+  PingzhongData,
+  RawFundListRow,
+} from '../utils/types.ts';
 
 const FUNDCODE_SEARCH_URL = 'http://fund.eastmoney.com/js/fundcode_search.js';
 const PINGZHONG_URL = (code: string) =>
@@ -65,11 +71,15 @@ export function parsePingzhongData(fundCode: string, jsText: string): PingzhongD
   const vars = extractJsVars(jsText);
 
   const navPoints = parseNavPoints(vars.Data_netWorthTrend, vars.Data_ACWorthTrend);
-  const performance = parsePerformance(fundCode, vars, navPoints);
+  const moneyYield = parseMoneyYield(vars.Data_millionCopiesIncome, vars.Data_sevenDaysYearIncome);
+  const lastDate =
+    navPoints[navPoints.length - 1]?.navDate ?? moneyYield[moneyYield.length - 1]?.navDate ?? null;
+  const performance = parsePerformance(fundCode, vars, lastDate);
 
   return {
     fundCode,
     navPoints,
+    moneyYield,
     performance,
     extra: {
       assetAllocationJson: vars.Data_assetAllocation ?? null,
@@ -189,11 +199,52 @@ export function parseNavPoints(
   return points;
 }
 
+/** Data_millionCopiesIncome / Data_sevenDaysYearIncome = [[timestamp_ms, value], ...] */
+export function parseMoneyYield(
+  millionRaw: string | undefined,
+  sevenRaw: string | undefined,
+): MoneyYieldPoint[] {
+  const million = parseTsValuePairs(millionRaw);
+  if (million.size === 0) return [];
+  const seven = parseTsValuePairs(sevenRaw);
+  const dates = [...million.keys()].sort();
+  const points: MoneyYieldPoint[] = [];
+  for (const navDate of dates) {
+    const millionIncome = million.get(navDate);
+    if (millionIncome == null) continue;
+    points.push({
+      navDate,
+      millionIncome,
+      sevenDayYield: seven.get(navDate) ?? null,
+    });
+  }
+  return points;
+}
+
+function parseTsValuePairs(raw: string | undefined): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!raw) return out;
+  try {
+    const arr = JSON.parse(jsToJson(raw)) as unknown;
+    if (!Array.isArray(arr)) return out;
+    for (const item of arr) {
+      if (!Array.isArray(item) || item.length < 2) continue;
+      const date = tsToDate(typeof item[0] === 'number' ? item[0] : Number(item[0]));
+      const value = typeof item[1] === 'number' ? item[1] : Number(item[1]);
+      if (!date || !Number.isFinite(value)) continue;
+      out.set(date, value);
+    }
+  } catch {
+    return out;
+  }
+  return out;
+}
+
 /** 从 pingzhongdata 的字段拼出阶段业绩 */
 export function parsePerformance(
   fundCode: string,
   vars: Record<string, string>,
-  navPoints: readonly NavPoint[],
+  lastDate: string | null,
 ): FundPerformance {
   const num = (key: string): number | null => {
     const v = vars[key];
@@ -207,7 +258,7 @@ export function parsePerformance(
 
   // 东方财富 pingzhongdata 里的收益率变量名（观察实测得来）
   // syl_1n 近1年, syl_6y 近6月, syl_3y 近3月, syl_1y 近1月, syl_3n 近3年, syl_5n 近5年
-  const dataDate = navPoints.length > 0 ? (navPoints[navPoints.length - 1]?.navDate ?? null) : null;
+  const dataDate = lastDate;
 
   return {
     fundCode,
