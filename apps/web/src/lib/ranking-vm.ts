@@ -1,5 +1,5 @@
 import type { NumberKind } from './format-number';
-import { listTypeL2 } from './fund-type';
+import { listTypeL1, listTypeL2 } from './fund-type';
 
 export const RANKING_PAGE_SIZE = 50;
 export const DEFAULT_TYPE_L1 = '混合型';
@@ -118,8 +118,21 @@ export function dimByKey(key: string | null | undefined): RankDim {
   return (key ? DIM_BY_KEY.get(key) : undefined) ?? FALLBACK_DIM;
 }
 
-export function visibleDims(risk: boolean): RankDim[] {
-  return RANK_DIMS.filter((dim) => dim.group === 'return' || risk);
+export function visibleDims(riskKeys: Iterable<string> = []): RankDim[] {
+  const extra = new Set(riskKeys);
+  return RANK_DIMS.filter((dim) => dim.group === 'return' || extra.has(dim.key));
+}
+
+export function riskKeysFromCaps(
+  caps: { risk?: boolean; riskDims?: Record<string, boolean> } | undefined,
+): string[] | 'unknown' {
+  if (!caps) return 'unknown';
+  if (caps.riskDims) {
+    return Object.entries(caps.riskDims)
+      .filter(([, on]) => on)
+      .map(([key]) => key);
+  }
+  return caps.risk ? RANK_DIMS.filter((dim) => dim.group === 'risk').map((dim) => dim.key) : [];
 }
 
 export type RankingState = {
@@ -148,19 +161,24 @@ export function parseRankingSearch(params: URLSearchParams): RankingState {
 export function normalizeRankingState(
   state: RankingState,
   types: Array<{ fund_type: string; n: number }>,
-  risk: boolean,
+  riskKeys: Iterable<string> | 'unknown' = 'unknown',
 ): RankingState {
-  const dim = state.dim.group === 'risk' && !risk ? dimByKey(DEFAULT_DIM_KEY) : state.dim;
+  const extra = riskKeys === 'unknown' ? null : new Set(riskKeys);
+  const dim =
+    state.dim.group === 'risk' && extra && !extra.has(state.dim.key)
+      ? dimByKey(DEFAULT_DIM_KEY)
+      : state.dim;
+  let typeL1 = state.typeL1;
+  if (typeL1 !== TYPE_L1_ALL && types.length > 0) {
+    if (!listTypeL1(types).some((item) => item.value === typeL1)) typeL1 = DEFAULT_TYPE_L1;
+  }
   let typeL2 = state.typeL2;
-  if (state.typeL1 === TYPE_L1_ALL || !typeL2) {
+  if (typeL1 === TYPE_L1_ALL || !typeL2) {
     typeL2 = '';
-  } else if (
-    types.length > 0 &&
-    !listTypeL2(types, state.typeL1).some((item) => item.value === typeL2)
-  ) {
+  } else if (types.length > 0 && !listTypeL2(types, typeL1).some((item) => item.value === typeL2)) {
     typeL2 = '';
   }
-  return { ...state, dim, typeL2 };
+  return { ...state, typeL1, dim, typeL2 };
 }
 
 export function rankingStatesEqual(a: RankingState, b: RankingState): boolean {
@@ -181,6 +199,17 @@ export function rankingUrlState(state: RankingState): Record<string, string | nu
     pass4433: state.pass4433 ? '1' : null,
     page: state.page <= 1 ? null : String(state.page),
   };
+}
+
+export function rankingSearchDirty(params: URLSearchParams, state: RankingState): boolean {
+  const want = rankingUrlState(state);
+  for (const [key, expected] of Object.entries(want)) {
+    const actual = params.get(key);
+    if (expected == null) {
+      if (actual != null) return true;
+    } else if (actual !== expected) return true;
+  }
+  return false;
 }
 
 export function rankingApiPath(state: RankingState): string {

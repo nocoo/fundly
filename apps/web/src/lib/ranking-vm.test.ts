@@ -9,6 +9,7 @@ import {
   RANKING_PAGE_SIZE,
   RISK_MIN_SAMPLES,
   rankingApiPath,
+  rankingSearchDirty,
   rankingStatesEqual,
   rankingUrlState,
   TYPE_L1_ALL,
@@ -49,16 +50,23 @@ describe('normalizeRankingState', () => {
     const parsed = parseRankingSearch(
       new URLSearchParams('typeL1=混合型&typeL2=不存在&dim=sharpe_1y'),
     );
-    const got = normalizeRankingState(parsed, types, false);
+    const got = normalizeRankingState(parsed, types, []);
     expect(got.typeL2).toBe('');
     expect(got.dim.key).toBe('return_1y');
     expect(got.typeL1).toBe('混合型');
   });
 
+  it('resets unknown L1 and keeps risk dims until capabilities are known', () => {
+    const parsed = parseRankingSearch(new URLSearchParams('typeL1=不存在&dim=sharpe_1y'));
+    expect(normalizeRankingState(parsed, types, 'unknown').typeL1).toBe(DEFAULT_TYPE_L1);
+    expect(normalizeRankingState(parsed, types, 'unknown').dim.key).toBe('sharpe_1y');
+    expect(normalizeRankingState(parsed, types, ['sharpe_1y']).dim.key).toBe('sharpe_1y');
+  });
+
   it('keeps a valid L2 when the parent matches', () => {
     const parsed = parseRankingSearch(new URLSearchParams('typeL1=混合型&typeL2=偏股'));
-    expect(normalizeRankingState(parsed, types, true).typeL2).toBe('偏股');
-    expect(normalizeRankingState(parsed, [], true).typeL2).toBe('偏股');
+    expect(normalizeRankingState(parsed, types, ['sharpe_1y']).typeL2).toBe('偏股');
+    expect(normalizeRankingState(parsed, [], 'unknown').typeL2).toBe('偏股');
   });
 });
 
@@ -95,8 +103,15 @@ describe('ranking urls', () => {
 describe('helpers', () => {
   it('computes list rank and visible dims', () => {
     expect(listRank(2, 50, 0)).toBe(51);
-    expect(visibleDims(false).every((dim) => dim.group === 'return')).toBe(true);
-    expect(visibleDims(true).some((dim) => dim.key === 'sharpe_1y')).toBe(true);
+    expect(visibleDims([]).every((dim) => dim.group === 'return')).toBe(true);
+    expect(visibleDims(['sharpe_1y']).map((dim) => dim.key)).toContain('sharpe_1y');
+    expect(visibleDims(['sharpe_1y']).map((dim) => dim.key)).not.toContain('calmar_1y');
+    expect(
+      rankingSearchDirty(
+        new URLSearchParams('dim=garbage'),
+        parseRankingSearch(new URLSearchParams()),
+      ),
+    ).toBe(true);
     expect(contextReturnKeys(dimByKey('return_1y'))).toEqual(['return_1m']);
     expect(contextReturnKeys(dimByKey('sharpe_1y'))).toEqual(['return_1y', 'return_1m']);
     const a = parseRankingSearch(new URLSearchParams());

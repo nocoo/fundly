@@ -27,8 +27,9 @@ import {
   parseRankingSearch,
   RISK_MIN_SAMPLES,
   rankingApiPath,
-  rankingStatesEqual,
+  rankingSearchDirty,
   rankingUrlState,
+  riskKeysFromCaps,
   TYPE_L1_ALL,
   visibleDims,
 } from '@/lib/ranking-vm';
@@ -58,7 +59,7 @@ interface ListResponse {
   page: number;
   pageSize: number;
   sort: string;
-  capabilities: { risk: boolean };
+  capabilities: { risk: boolean; riskDims?: Record<string, boolean> };
 }
 
 const CONTEXT_LABEL: Record<'return_1y' | 'return_1m', string> = {
@@ -79,21 +80,21 @@ export default function RankingPage() {
     fetchAPI,
     { keepPreviousData: true },
   );
-  const risk = data?.capabilities.risk !== false;
+  const riskKeys = useMemo(() => riskKeysFromCaps(data?.capabilities), [data?.capabilities]);
   const normalized = useMemo(
-    () => normalizeRankingState(parsed, types?.items ?? [], risk),
-    [parsed, types, risk],
+    () => normalizeRankingState(parsed, types?.items ?? [], riskKeys),
+    [parsed, types, riskKeys],
   );
 
   useEffect(() => {
-    if (rankingStatesEqual(parsed, normalized)) return;
+    if (!rankingSearchDirty(params, normalized)) return;
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(rankingUrlState(normalized))) {
       if (value == null) next.delete(key);
       else next.set(key, value);
     }
     setParams(next, { replace: true });
-  }, [normalized, params, parsed, setParams]);
+  }, [normalized, params, setParams]);
 
   const set = useCallback(
     (patch: Record<string, string | null>) => {
@@ -118,7 +119,7 @@ export default function RankingPage() {
     value: item.value,
     label: `${item.label} (${formatCount(item.n)})`,
   }));
-  const dimOptions = visibleDims(Boolean(data?.capabilities.risk)).map((item) => ({
+  const dimOptions = visibleDims(riskKeys === 'unknown' ? [] : riskKeys).map((item) => ({
     value: item.key,
     label: item.label,
   }));
@@ -126,6 +127,7 @@ export default function RankingPage() {
   const contextKeys = contextReturnKeys(dim);
   const rankPctKey = dim.rankPct;
   const showSamples = dim.group === 'risk';
+  const colSpan = 5 + contextKeys.length + (rankPctKey ? 1 : 0) + (showSamples ? 1 : 0);
 
   return (
     <AppShell breadcrumbs={[{ label: '基金排名' }]}>
@@ -211,7 +213,7 @@ export default function RankingPage() {
             <TableBody>
               {data.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-muted-foreground">
+                  <TableCell colSpan={colSpan} className="text-muted-foreground">
                     这一页没有基金。
                   </TableCell>
                 </TableRow>
@@ -220,7 +222,10 @@ export default function RankingPage() {
                   <TableRow
                     key={row.fund_code}
                     className="cursor-pointer"
-                    onClick={() => navigate(`/funds/${row.fund_code}`)}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('a')) return;
+                      navigate(`/funds/${row.fund_code}`);
+                    }}
                   >
                     <TableCell className="text-right tabular-nums">
                       {formatCount(listRank(data.page, data.pageSize, index))}
