@@ -190,6 +190,74 @@ describe('listFunds / getFundDetail', () => {
   });
 });
 
+describe('listFunds ranking capabilities', () => {
+  it('hides risk and remaps sharpe when the table is missing', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY, fund_name TEXT NOT NULL, fund_type TEXT NOT NULL,
+        pinyin_abbr TEXT, pinyin_full TEXT,
+        in_mvp_pool INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_performance (
+        fund_code TEXT PRIMARY KEY, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL,
+        pass_4433 INTEGER NOT NULL DEFAULT 0, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL,
+        rank_pct_1y REAL, data_date TEXT, updated_at INTEGER NOT NULL
+      );
+    `);
+    db.prepare(
+      `INSERT INTO fund_basic_info (fund_code, fund_name, fund_type, in_mvp_pool, created_at, updated_at)
+       VALUES ('000001', '华夏成长混合', '混合型-灵活', 1, 1, 1)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO fund_performance (fund_code, return_1y, pass_4433, updated_at) VALUES ('000001', 12.5, 0, 1)`,
+    ).run();
+    const list = await listFunds(exec(db), parseFundListQuery({ sort: 'sharpe_1y' }));
+    expect(list.capabilities.risk).toBe(false);
+    expect(list.sort).toBe('return_1y');
+    expect(list.items[0]?.sharpe_1y).toBeNull();
+  });
+
+  it('exposes risk when sharpe rows exist', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY, fund_name TEXT NOT NULL, fund_type TEXT NOT NULL,
+        pinyin_abbr TEXT, pinyin_full TEXT,
+        in_mvp_pool INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_performance (
+        fund_code TEXT PRIMARY KEY, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL,
+        pass_4433 INTEGER NOT NULL DEFAULT 0, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL,
+        rank_pct_1y REAL, data_date TEXT, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_risk_metrics (
+        fund_code TEXT PRIMARY KEY, sharpe_1y REAL, max_drawdown_1y REAL, volatility_1y REAL,
+        calmar_1y REAL, nav_samples_1y INTEGER
+      );
+    `);
+    db.prepare(
+      `INSERT INTO fund_basic_info (fund_code, fund_name, fund_type, in_mvp_pool, created_at, updated_at)
+       VALUES ('000001', '华夏成长混合', '混合型-灵活', 1, 1, 1)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO fund_performance (fund_code, return_1y, pass_4433, updated_at) VALUES ('000001', 12.5, 0, 1)`,
+    ).run();
+    db.prepare(
+      `INSERT INTO fund_risk_metrics (fund_code, sharpe_1y, max_drawdown_1y, volatility_1y, calmar_1y, nav_samples_1y)
+       VALUES ('000001', 1.5, 12.3, 20.1, 2.2, 240)`,
+    ).run();
+    const list = await listFunds(
+      exec(db),
+      parseFundListQuery({ sort: 'sharpe_1y', dir: 'desc', metricNotNull: '1' }),
+    );
+    expect(list.capabilities.risk).toBe(true);
+    expect(list.sort).toBe('sharpe_1y');
+    expect(list.items[0]?.sharpe_1y).toBe(1.5);
+    expect(list.total).toBe(1);
+  });
+});
+
 describe('applyRankTriples', () => {
   it('replaces percentile fields with rank / peers / percent', () => {
     const fields = [

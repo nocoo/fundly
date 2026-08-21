@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { DEFAULT_PAGE_SIZE, fundListSql, parseFundListQuery } from './fund-query';
+import {
+  DEFAULT_PAGE_SIZE,
+  fundListSql,
+  parseFundListQuery,
+  resolveFundListQuery,
+} from './fund-query';
 
 describe('parseFundListQuery', () => {
   it('defaults to page size 200, fund_code asc, page 1', () => {
@@ -35,6 +40,30 @@ describe('parseFundListQuery', () => {
       pageSize: DEFAULT_PAGE_SIZE,
     });
   });
+
+  it('rejects prototype sort keys and treats typeL1=all as no filter', () => {
+    expect(parseFundListQuery({ sort: 'toString' }).sort).toBe('fund_code');
+    expect(parseFundListQuery({ sort: 'constructor' }).sort).toBe('fund_code');
+    expect(parseFundListQuery({ sort: '__proto__' }).sort).toBe('fund_code');
+    expect(parseFundListQuery({ sort: 'sharpe_1y' }).sort).toBe('sharpe_1y');
+    expect(parseFundListQuery({ typeL1: 'all' }).typeL1).toBeUndefined();
+    expect(parseFundListQuery({ typeL1: '混合型' }).typeL1).toBe('混合型');
+  });
+
+  it('parses ranking flags', () => {
+    const q = parseFundListQuery({
+      pass4433: '1',
+      metricNotNull: 'true',
+      minSamples: '200',
+      sort: 'max_drawdown_1y',
+      dir: 'asc',
+    });
+    expect(q.pass4433).toBe(true);
+    expect(q.metricNotNull).toBe(true);
+    expect(q.minSamples).toBe(200);
+    expect(q.sort).toBe('max_drawdown_1y');
+    expect(q.dir).toBe('asc');
+  });
 });
 
 describe('fundListSql', () => {
@@ -51,11 +80,12 @@ describe('fundListSql', () => {
     expect(built.listSql).toContain('b.fund_code LIKE ?');
     expect(built.listSql).toContain('b.fund_type = ?');
     expect(built.listSql).toContain('b.in_mvp_pool = 1');
-    expect(built.listSql).toContain('ORDER BY p.return_1y DESC');
+    expect(built.listSql).toContain('ORDER BY p.return_1y DESC, b.fund_code ASC');
     expect(built.listSql).toContain('LIMIT ? OFFSET ?');
     expect(built.listParams.at(-2)).toBe(200);
     expect(built.listParams.at(-1)).toBe(400);
     expect(built.countSql).toContain('COUNT(*)');
+    expect(built.countSql).toContain('LEFT JOIN fund_performance p ON p.fund_code = b.fund_code');
     expect(built.countParams).toHaveLength(4);
   });
 
@@ -66,5 +96,37 @@ describe('fundListSql', () => {
     const both = fundListSql(parseFundListQuery({ typeL1: '混合型', typeL2: '偏股' }));
     expect(both.listSql).toContain('b.fund_type = ?');
     expect(both.countParams).toEqual(['混合型-偏股']);
+  });
+
+  it('keeps list and count on the same join and ranking filters', () => {
+    const q = parseFundListQuery({
+      typeL1: '混合型',
+      sort: 'sharpe_1y',
+      dir: 'desc',
+      pass4433: '1',
+      metricNotNull: '1',
+      minSamples: '200',
+    });
+    const built = fundListSql(q, { risk: true });
+    expect(built.listSql).toContain('LEFT JOIN fund_risk_metrics r ON r.fund_code = b.fund_code');
+    expect(built.countSql).toContain('LEFT JOIN fund_risk_metrics r ON r.fund_code = b.fund_code');
+    expect(built.listSql).toContain('p.pass_4433 = 1');
+    expect(built.countSql).toContain('p.pass_4433 = 1');
+    expect(built.listSql).toContain('r.sharpe_1y IS NOT NULL');
+    expect(built.countSql).toContain('r.sharpe_1y IS NOT NULL');
+    expect(built.listSql).toContain('r.nav_samples_1y >= ?');
+    expect(built.countParams).toEqual(['混合型', '混合型-%', 200]);
+    expect(built.listParams.slice(0, 3)).toEqual(built.countParams);
+  });
+
+  it('falls back risk sorts when the table is unavailable', () => {
+    const q = parseFundListQuery({ sort: 'sharpe_1y', dir: 'asc', minSamples: '200' });
+    const resolved = resolveFundListQuery(q, false);
+    expect(resolved.sort).toBe('return_1y');
+    expect(resolved.dir).toBe('desc');
+    expect(resolved.minSamples).toBeUndefined();
+    const built = fundListSql(resolved, { risk: false });
+    expect(built.listSql).not.toContain('fund_risk_metrics');
+    expect(built.listSql).toContain('NULL AS sharpe_1y');
   });
 });

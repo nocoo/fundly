@@ -1,7 +1,7 @@
 import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
-import { type FundListQuery, fundListSql } from './fund-query';
+import { type FundListQuery, fundListSql, resolveFundListQuery } from './fund-query';
 import {
   formatRankTriple,
   isLiveReturnField,
@@ -14,7 +14,9 @@ import {
 } from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
-  const built = fundListSql(query);
+  const risk = await hasRiskMetrics(exec);
+  const resolved = resolveFundListQuery(query, risk);
+  const built = fundListSql(resolved, { risk });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),
     exec.first<{ n: number }>(built.countSql, built.countParams),
@@ -22,8 +24,10 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   return {
     items: rows,
     total: countRow?.n ?? 0,
-    page: query.page,
-    pageSize: query.pageSize,
+    page: resolved.page,
+    pageSize: resolved.pageSize,
+    sort: resolved.sort,
+    capabilities: { risk },
   };
 }
 
@@ -33,6 +37,14 @@ async function hasTable(exec: QueryExec, name: string): Promise<boolean> {
     [name],
   );
   return (row?.n ?? 0) > 0;
+}
+
+async function hasRiskMetrics(exec: QueryExec): Promise<boolean> {
+  if (!(await hasTable(exec, 'fund_risk_metrics'))) return false;
+  const row = await exec.first<{ n: number }>(
+    'SELECT 1 AS n FROM fund_risk_metrics WHERE sharpe_1y IS NOT NULL LIMIT 1',
+  );
+  return row != null;
 }
 
 async function satelliteColumns(exec: QueryExec): Promise<string> {
