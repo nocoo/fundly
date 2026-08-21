@@ -7,6 +7,7 @@ const Funds = lazy(() => import('@/app/funds-page'));
 const Settings = lazy(() => import('@/app/settings-page'));
 const DataAdmin = lazy(() => import('@/app/data-admin-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
+const Ranking = lazy(() => import('@/app/ranking-page'));
 const NotFound = lazy(() => import('@/app/not-found-page'));
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/funds" element={<Funds />} />
         <Route path="/funds/:code" element={<FundDetail />} />
+        <Route path="/ranking" element={<Ranking />} />
         <Route path="/data" element={<DataAdmin />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />

@@ -30,6 +30,7 @@ describe('formatMetric', () => {
     expect(formatNav(1.2)).toBe('1.200');
     expect(formatNav(1.409)).toBe('1.409');
     expect(formatMetric(12.3, 'scale')).toBe('12.30');
+    expect(formatMetric(1.5915, 'ratio')).toBe('1.59');
   });
 
   it('keeps compact counts for charts', () => {
@@ -61,6 +62,8 @@ describe('field kinds', () => {
     expect(fieldNumberKind('fee_rate')).toBe('percent');
     expect(fieldNumberKind('fund_scale')).toBe('scale');
     expect(fieldNumberKind('pass_4433')).toBe('count');
+    expect(fieldNumberKind('sharpe_1y')).toBe('ratio');
+    expect(fieldNumberKind('max_drawdown_1y')).toBe('percent');
     expect(fieldNumberKind('fund_name')).toBeNull();
     expect(isSignedPercentField('return_1m')).toBe(true);
     expect(isSignedPercentField('rank_pct_1y')).toBe(false);

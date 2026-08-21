@@ -6,6 +6,7 @@ import {
   PanelLeft,
   Search,
   Settings,
+  Trophy,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -30,6 +31,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Search,
   Database,
   Settings,
+  Trophy,
 };
 
 interface NavItem {

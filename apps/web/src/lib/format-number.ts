@@ -1,4 +1,4 @@
-export type NumberKind = 'percent' | 'count' | 'nav' | 'scale' | 'compact';
+export type NumberKind = 'percent' | 'count' | 'nav' | 'scale' | 'compact' | 'ratio';
 export type QuoteTone = 'up' | 'down' | 'flat';
 
 const EMPTY = '—';
@@ -24,7 +24,7 @@ export function formatMetric(
     return opts.signed && n > 0 ? `+${body}` : body;
   }
   if (kind === 'nav') return n.toFixed(3);
-  if (kind === 'scale') return n.toFixed(2);
+  if (kind === 'scale' || kind === 'ratio') return n.toFixed(2);
   if (kind === 'compact') {
     return new Intl.NumberFormat('zh-CN', {
       notation: 'compact',
@@ -58,6 +58,7 @@ export function formatAxisMetric(value: unknown, kind: NumberKind): string {
     return n > 0 ? `+${body}` : body;
   }
   if (kind === 'nav') return n.toFixed(3);
+  if (kind === 'ratio' || kind === 'scale') return n.toFixed(2);
   return formatCompact(n);
 }
 
@@ -75,6 +76,8 @@ export function fieldNumberKind(key: string): NumberKind | null {
   if (key.startsWith('return_') || key.startsWith('rank_pct_') || key === 'fee_rate') {
     return 'percent';
   }
+  if (key === 'sharpe_1y' || key === 'calmar_1y') return 'ratio';
+  if (key === 'max_drawdown_1y' || key === 'volatility_1y') return 'percent';
   if (key === 'fund_scale') return 'scale';
   if (key === 'pass_4433') return 'count';
   return null;

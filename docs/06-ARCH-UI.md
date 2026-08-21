@@ -119,7 +119,7 @@ fundly/
 | `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排 |
 | `/funds/:code` | 基金详情 | `/api/funds/:code` + 最近 400 点净值 |
 | `/data` | 数据管理 | 表行数、净值区间、覆盖率 |
-| `/ranking` | 排名 | 仍是入口页 |
+| `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度 |
 | `/settings` | 设置 | 本机可切 sqlite / D1 |
 
 导航数据在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。
