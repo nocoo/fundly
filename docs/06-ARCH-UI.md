@@ -120,7 +120,7 @@ fundly/
 | `/funds/:code` | 基金详情 | `/api/funds/:code` + 最近 400 点净值 |
 | `/data` | 数据管理 | 表行数、净值区间、覆盖率 |
 | `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度 |
-| `/settings` | 设置 | 本机可切 sqlite / D1 |
+| `/settings` | 设置 | 涨跌色、基准、本机 Backy 备份列表 |
 
 导航数据在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。
 
