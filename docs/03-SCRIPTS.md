@@ -7,6 +7,8 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | 脚本 | 命令 | 用途 | 耗时 |
 |---|---|---|---|
 | `init-db.ts` | `bun run db:init` | 初始化 SQLite schema（幂等） | < 1 秒 |
+| `backup.ts` | `bun run backup` | `VACUUM INTO` + gzip 后直传 Backy | 实测压缩 43 秒，上传视上行 |
+| `restore.ts` | `bun run restore` | 从 Backy 拉最新 prod 快照换机 | 视下行，约 705 MiB |
 | `fetch-fund-list.ts` | `bun run fetch:list` | 拉取全市场基金列表 → `fund_basic_info` | ~3 秒 |
 | `fetch-fund-nav.ts` | `bun run fetch:nav` | 首次全量抓详情+净值（断点续跑） | ~95 分钟 |
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
@@ -146,6 +148,24 @@ bun run rank:refresh data/fundly.db
 - 4433：近 1/2/3/5 年 ≤ 25%，近 3 月和近 6 月 ≤ 1/3；缺任一窗口则不过
 
 详情页「今年以来 / 成立以来 / 缺的阶段收益」仍是打开时按该基金净值现场算，不写回 `fund_performance`。
+
+---
+
+## ☁ Backy 备份
+
+本机写库换机走 Backy，不分片。细节见 [08-BACKY.md](./08-BACKY.md)。
+
+```bash
+export BACKY_WEBHOOK_URL='https://backy.hexly.ai/api/webhook/<projectId>'
+export BACKY_TOKEN='…'
+bun run backup
+bun run restore                 # 最新 prod
+bun run restore --id <id>       # 指定
+bun run restore --force         # 覆盖已有库（先停 dev:all / 采集）
+bun run restore --to /tmp/x.db
+```
+
+设置页「远程备份」只在本机 API 上可用：列表、测试连接、推送、按 id 恢复。
 
 ---
 

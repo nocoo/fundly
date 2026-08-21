@@ -8,7 +8,7 @@
 > - [03-SCRIPTS.md](./03-SCRIPTS.md) — CLI 入口（实现后补 `backup` / `restore`）
 > - [06-ARCH-UI.md](./06-ARCH-UI.md) — 浏览层；本文件不改 Worker / D1
 
-本文是实现前的设计。未实现前不要加 `package.json` 脚本。
+已实现：`bun run backup` / `bun run restore`，设置页只读本机 API。
 
 ---
 
@@ -174,7 +174,9 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 | `.gitignore` | 补 `data/*.db.gz`、`data/*.restored`、`data/*.prev-*`、`data/*.backy.lock`、`data/*.backy-dl.gz` |
 | `package.json` | `backup` / `restore` |
 | `tsconfig.scripts.json` | include 两个脚本 |
-| `docs/03-SCRIPTS.md` | 实现后补命令表 |
+| `docs/03-SCRIPTS.md` | 命令表 |
+| `apps/web/src/components/settings/backy-settings.tsx` | 设置页：Cloud 图标、推送、历史卡片 |
+| `apps/worker/scripts/dev-api.ts` | `/api/backy*` 本机入口 |
 
 `DEFAULT_DB_PATH` 仍是默认路径。现有 `data/fundly.db.prev-20260819` 已被 ignore 漏掉，实现 `.gitignore` 时一并收口。
 
