@@ -3,8 +3,14 @@ import { unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  abortDirectUpload,
   type BackyHistory,
+  completeDirectUpload,
   downloadRestore,
+  fetchRestoreLink,
+  headWebhook,
+  initDirectUpload,
+  listBackups,
   loadBackyCredentials,
   pickLatestProd,
   putDirectFile,
@@ -67,6 +73,82 @@ describe('pickLatestProd', () => {
       ]),
     );
     expect(picked?.id).toBe('new');
+  });
+});
+
+const creds = {
+  webhookUrl: 'https://backy.hexly.ai/api/webhook/x',
+  token: 't',
+};
+
+describe('backy http helpers', () => {
+  test('head, list, init, complete, abort, restore link', async () => {
+    const seen: string[] = [];
+    const fetchImpl = async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      seen.push(`${init?.method ?? 'GET'} ${url}`);
+      if (url.endsWith('/x') && (init?.method ?? 'GET') === 'HEAD') {
+        return new Response(null, { status: 200 });
+      }
+      if (url.endsWith('/x') && (init?.method ?? 'GET') === 'GET') {
+        return Response.json({
+          project_name: 'fundly',
+          environment: null,
+          total_backups: 0,
+          recent_backups: [],
+        });
+      }
+      if (url.endsWith('/uploads')) {
+        return Response.json({
+          upload_id: 'u1',
+          put_url: 'https://r2.example/put',
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/gzip' },
+          file_key: 'k',
+          expires_in: 3600,
+          max_bytes: 5000000000,
+        });
+      }
+      if (url.endsWith('/complete'))
+        return Response.json({ id: 'b1', project_id: 'p', file_size: 1, created_at: 't' });
+      if (url.endsWith('/u1') && init?.method === 'DELETE') return Response.json({ ok: true });
+      if (url.includes('/api/restore/b1')) {
+        return Response.json({
+          url: 'https://r2.example/obj',
+          backup_id: 'b1',
+          project_id: 'p',
+          file_size: 1,
+          expires_in: 900,
+        });
+      }
+      return new Response('no', { status: 404 });
+    };
+    expect(await headWebhook(creds, fetchImpl)).toBe(200);
+    expect((await listBackups(creds, fetchImpl)).project_name).toBe('fundly');
+    expect(
+      (
+        await initDirectUpload(
+          creds,
+          {
+            file_name: 'fundly.db.gz',
+            content_type: 'application/gzip',
+            file_size: 1,
+            environment: 'prod',
+            tag: 'fundly-db',
+          },
+          fetchImpl,
+        )
+      ).upload_id,
+    ).toBe('u1');
+    expect((await completeDirectUpload(creds, 'u1', fetchImpl)).id).toBe('b1');
+    await abortDirectUpload(creds, 'u1', fetchImpl);
+    expect((await fetchRestoreLink(creds, 'b1', fetchImpl)).url).toBe('https://r2.example/obj');
+    expect(seen.some((row) => row.startsWith('DELETE'))).toBe(true);
+  });
+
+  test('surfaces json error bodies', async () => {
+    const fetchImpl = async () => Response.json({ error: 'nope' }, { status: 403 });
+    await expect(headWebhook(creds, fetchImpl)).rejects.toThrow('nope');
   });
 });
 
