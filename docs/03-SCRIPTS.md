@@ -152,7 +152,20 @@ bun run import:d1 path/to/db      # 指定 sqlite
 - `fetch_log`：按主键追加
 - Token：`CLOUDFLARE_API_TOKEN`，没有再跑 `wrangler auth token`
 
-发布探活需要 GitHub secrets `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`，校验 `/api/live` 的 `status=ok` 和版本号。Access 302 不算成功。
+### GitHub Actions · Release secrets
+
+`Release` workflow（tag `v*.*.*` 或 `workflow_dispatch`）需要 **repo secrets**（Settings → Secrets and variables → Actions）。缺任一枚会在 `Require deploy secrets` 步直接失败，不再落到 wrangler 的模糊报错。
+
+| Secret | 用途 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | wrangler D1 migrate + Worker deploy |
+| `CLOUDFLARE_ACCOUNT_ID` | wrangler account 作用域 |
+| `CF_ACCESS_CLIENT_ID` | 探活 `/api/live` 的 Access service token |
+| `CF_ACCESS_CLIENT_SECRET` | 同上 |
+
+参考：同组织下 `dove` / `ellie` 已配前两项。Token 权限至少覆盖 Account → Workers Scripts Edit、D1 Edit。
+
+发布探活校验 `/api/live` 的 `status=ok` 和版本号；Access 302 不算成功。
 
 首次全量净值仍会走很长时间；重跑只补水位之后的行。
 
