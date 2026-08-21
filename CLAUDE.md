@@ -51,6 +51,7 @@ fundly/
 | **05** | `05-CREDITS.md` | 致敬与参考项目（GoFundBot、AKShare 等） |
 | **06** | `06-ARCH-UI.md` | UI / Worker 架构、Access、本地域名 |
 | **07** | `07-DASHBOARD.md` | 仪表盘 `/api/stats` 与空态 |
+| **08** | `08-BACKY.md` | 本机 SQLite → Backy / R2 备份与换机恢复 |
 
 **新增文档规则**：
 - 数字**顺延**（下一份文档用 `08-`）
