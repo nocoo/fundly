@@ -76,52 +76,76 @@ restore 不在 webhook 路径下。实现从 `BACKY_WEBHOOK_URL` 取 origin，�
 
 ```
 bun run backup
-# 可选
 FUNDLY_SQLITE=data/fundly.db BACKY_ENV=prod bun run backup
 ```
 
+`FUNDLY_SQLITE` 默认 `data/fundly.db`（`DEFAULT_DB_PATH`）。源文件必须**已经存在**。禁止走 `openDb()`：它是 `{ create: true }`，路径写错会造出空库再被当成最新 prod。
+
 步骤：
 
-1. 读 `BACKY_WEBHOOK_URL` / `BACKY_TOKEN`。可选 `HEAD` webhook，只认 HTTP 200（现网没有 `X-Project-Name`，不要当成功条件）。
-2. `VACUUM INTO` 写到 `data/fundly.db.backy-snap.db`（与活库同目录，避免跨卷拷 3.7GB）。活库保持打开可读；不要 `gzip` 正在写的 `fundly.db`。
-3. `gzip -6` → `data/fundly.db.backy-snap.db.gz`。记下字节数。
-4. `POST {webhook}/uploads`，JSON：
+1. 读 `BACKY_WEBHOOK_URL` / `BACKY_TOKEN`。缺一则退出，不碰磁盘。可选 `HEAD` webhook，只认 HTTP 200（现网没有 `X-Project-Name`）。
+2. 预检目标卷空闲 ≥ 快照 + gzip（按 2026-08-22 实测约 **4.46 GB**）。不够则退出。
+3. 拿锁：`{sqlite}.backy.lock` 用 `O_EXCL` 创建。锁已存在则读 pid，进程仍在就退出；pid 不存在则删锁和残留 snap/gz 后重建。锁与 snap **分开**：失败留下的 `.backy-snap.db*` 不是锁。无锁残留一律删除再做，不续传（R2 单次 PUT 不能断点）。
+4. 只读打开已存在的源库，跑 `assertFundlyDb`（见下节），再 `VACUUM INTO {sqlite}.backy-snap.db`。不要 gzip 活库文件。
+5. `gzip -6` → `{sqlite}.backy-snap.db.gz`，记录精确字节数。
+6. `POST {webhook}/uploads`：
    - `file_name`: `fundly.db.gz`
    - `content_type`: `application/gzip`
    - `file_size`: gzip 精确字节
-   - `environment`: `prod`（可用 `BACKY_ENV` 覆盖为 `test`）
+   - `environment`: `prod`（`BACKY_ENV` 可改为 `test`）
    - `tag`: `fundly-db`
-5. 按 init 返回的 `headers` **原样** `PUT put_url`（`Content-Type`、`Content-Length`、`If-None-Match: *`）。禁止改 header。
-6. `POST {webhook}/uploads/{upload_id}/complete`。201 打印 `id` / `file_size`。
-7. 删除本地 snap 与 gz。PUT 或 complete 失败则 `DELETE …/uploads/{upload_id}`，保留 snap 以便重试。
+7. 按 init 返回的 `headers` **原样** `PUT put_url`。禁止改 header。流式读 gz，不要整文件进内存。
+8. `POST {webhook}/uploads/{upload_id}/complete`。201 打印 `id` / `file_size`。
+9. 成功：删 snap、gz、锁。PUT/complete 失败：`DELETE …/uploads/{upload_id}`，删 snap/gz/锁，非零退出。下次从零做。
 
-失败必须非零退出。并发：同一台机器同时跑两个 `backup` 会抢 snap 路径，用 `O_EXCL` 创建 snap，已存在则退出。
-
-不在 `fetch:daily` 结束时自动备份。先手动；要挂调度另开文档。
+不在 `fetch:daily` 结束时自动备份。
 
 ---
 
 ## 恢复
 
 ```
-bun run restore              # prod 最新一条
-bun run restore --id <id>    # 指定
-bun run restore --force      # 覆盖已有 data/fundly.db
+bun run restore                         # prod 最新一条 → FUNDLY_SQLITE
+bun run restore --id <id>               # 指定 id，不筛 environment（可拉 test 探测包）
+bun run restore --force                 # 覆盖已有目标库
+bun run restore --to /tmp/fundly.db     # 写到别的路径；存在则仍要 --force
+FUNDLY_SQLITE=data/fundly.db bun run restore
 ```
+
+`--to` 覆盖目标路径；未传则用 `FUNDLY_SQLITE` / `DEFAULT_DB_PATH`。`--id` 与默认「最新 prod」互斥筛选：有 id 就只按 id 取。
 
 步骤：
 
-1. 读凭证。`--id` 没有则 `GET {webhook}`，在 `recent_backups` 里筛 `environment === prod`，按 `created_at` 取最新。没有 prod 备份则退出。
-2. `GET {origin}/api/restore/{id}`，900 秒内把 `url` 下到临时 `.gz`。
-3. 解压到 `data/fundly.db.restored`。
-4. `PRAGMA integrity_check` 必须 `ok`。
-5. 若 `data/fundly.db` 已存在且无 `--force`：退出，不覆盖。
-6. `--force` 时把活库改名为 `data/fundly.db.prev-YYYYmmddTHHMMSS`，再把 restored 改成 `data/fundly.db`。
-7. 删临时 gz。
+1. 读凭证。无 `--id` 则 `GET {webhook}`，筛 `environment === prod`，按 `created_at` 取最新；没有则退出。
+2. 目标已存在且无 `--force`：在下载前退出。
+3. 预检空闲：至少 gzip + 解压后体积（约 **4.46 GB**）。`--force` 另提示：旧库会改名为 prev，再占约 4 GB，且只保留**一份**最新 prev。
+4. 拿同一把 `{target}.backy.lock`。
+5. `--force` 且目标存在时，先停写：
+   - 文档约定：调用方必须先停 `dev:all` / `fetch:*` / 其它打开该库的进程。
+   - 实现：尝试只读打开目标，`wal_checkpoint(TRUNCATE)`，关掉连接。打不开或 checkpoint 失败则退出，不下载。
+6. `GET {origin}/api/restore/{id}`。拿到 `url` 后**立刻流式**写入 `{target}.backy-dl.gz`。禁止把约 705 MiB 读进内存。校验 HTTP 状态；若响应有 `Content-Length` 或 JSON `file_size`，落地字节必须一致。403 / 过期 / 中断：重新申请 restore URL 再下，最多 2 次。超过 900 秒必须重签。
+7. 解压到 `{target}.restored`。gzip CRC 失败则删 partial 并退出。
+8. 对 `{target}.restored` 跑 `PRAGMA integrity_check` **和** `assertFundlyDb`。任一层失败：删 restored / dl，不碰活库。
+9. 目标不存在：`rename(restored, target)`。
+10. `--force`：`rename(target, {target}.prev-YYYYmmddTHHMMSS)`，再 `rename(restored, target)`。第二步失败则把 prev 改回 target，非零退出。成功后删除该目标旁更旧的 `*.prev-*`，只留这一份；并删除旧的 `{target}-wal` / `{target}-shm`（`openDb` 会给新文件重建 WAL）。
+11. 成功：删 dl gz、锁。任意失败：删本次 dl / restored，释放锁；已改名的 prev 仅在回滚逻辑里动。
 
-换机最低路径：clone → `bun install` → 导出两个环境变量 → `bun run restore` → `bun run dev:all`。
+换机：clone → `bun install` → 导出两个环境变量 → 确认没有残留 `-wal`/`-shm` → `bun run restore` → `bun run dev:all`。
 
-`GET` 只保证 `recent_backups`。默认恢复只依赖「最新一条 prod」。不要按 tag 前缀拼多文件。
+`GET` 只保证 `recent_backups`。默认恢复只认最新 prod。不要按 tag 拼多文件。
+
+---
+
+## 库校验 `assertFundlyDb`
+
+`integrity_check = ok` 不够：空库、错库也能过。备份源和恢复结果都要过这一关：
+
+- 文件存在，且打开时 `{ create: false }`
+- `schema_version` 表有行，且 `version` 等于当前 `SCHEMA_VERSION`
+- 存在 `fund_basic_info`、`fund_performance`、`fund_nav`
+- `fund_basic_info`、`fund_nav` 行数都 `> 0`
+
+不要把 3069 万行写死成下限。换机当天的库只要「是 Fundly 且非空」。
 
 ---
 
@@ -131,17 +155,19 @@ bun run restore --force      # 覆盖已有 data/fundly.db
 
 | 路径 | 职责 |
 |---|---|
-| `src/backup/backy.ts` | init / PUT / complete / abort / list / restoreUrl；纯 HTTP + 解析 |
-| `src/backup/snapshot.ts` | `VACUUM INTO`、gzip、integrity_check、snap 互斥 |
-| `scripts/backup.ts` | 读 env、调上面两步、打日志 |
-| `scripts/restore.ts` | 选备份、下载、校验、替换 |
-| `tests/backy.test.ts` | URL 拼接、header 原样、选最新 prod、缺字段报错 |
-| `tests/snapshot.test.ts` | 互斥、integrity 失败拒绝替换（用临时小库） |
+| `src/backup/backy.ts` | init / 流式 PUT / complete / abort / list / restoreUrl / 流式下载 |
+| `src/backup/snapshot.ts` | 锁、`assertFundlyDb`、`VACUUM INTO`、gzip、wal 收尾、prev 轮转 |
+| `src/db/repo.ts` | 可复用 `SCHEMA_VERSION`；备份**不要**调用会 `create: true` 的 `openDb` |
+| `scripts/backup.ts` | 读 env、磁盘预检、编排备份 |
+| `scripts/restore.ts` | `--id` / `--force` / `--to`、编排恢复 |
+| `tests/backy.test.ts` | URL、header 原样、选最新 prod、过期 URL 重签、下载字节不符 |
+| `tests/snapshot.test.ts` | 见 6DQ L1 |
+| `.gitignore` | 补 `data/*.db.gz`、`data/*.restored`、`data/*.prev-*`、`data/*.backy.lock`、`data/*.backy-dl.gz` |
 | `package.json` | `backup` / `restore` |
 | `tsconfig.scripts.json` | include 两个脚本 |
 | `docs/03-SCRIPTS.md` | 实现后补命令表 |
 
-`src/db/repo.ts` 的 `DEFAULT_DB_PATH` 继续当默认库路径。
+`DEFAULT_DB_PATH` 仍是默认路径。现有 `data/fundly.db.prev-20260819` 已被 ignore 漏掉，实现 `.gitignore` 时一并收口。
 
 ---
 
@@ -149,10 +175,10 @@ bun run restore --force      # 覆盖已有 data/fundly.db
 
 | 维 | 计划 |
 |---|---|
-| **L1** | `backy.ts` / 选备份 / snap 互斥 / integrity 拒绝覆盖。`bun test`。禁止在单测里打 `backy.hexly.ai`。 |
+| **L1** | mock fetch + 临时小库。必测：缺源文件 / `create: false`、`assertFundlyDb` 拒空库、已有目标且无 `--force`、锁互斥、stale lock（死 pid）、无锁残留 snap 删除重建、磁盘不足、过期 URL 重签、下载中断、gzip CRC 失败、`--force` 第二步 rename 失败回滚、backup 与 restore 并发抢锁、WAL sidecar 在替换后被删。禁止打 `backy.hexly.ai`。 |
 | **L2** | **N/A（本迭代）**。生产 Backy 项目不是隔离实例；`environment=test` 仍是同一项目。有独立 Backy 测试项目再补真 HTTP。 |
-| **L3** | 换机手测：backup → restore --force 到临时路径 → `integrity_check`。不进 CI。 |
-| **G1** | `bun run typecheck`、`typecheck:scripts`、`lint`。 |
+| **L3** | 手测：`bun run backup` → `bun run restore --id <prod> --to /tmp/fundly-restore.db` → `assertFundlyDb`。覆盖已有库时再测 `--force`（先停 `dev:all`）。不进 CI。 |
+| **G1** | `bun run typecheck`、`typecheck:scripts`、`lint`。提交前 `bun run test:coverage`（仓库规定 ≥ 95%）。 |
 | **G2** | token 只走环境变量。提交前 `gitleaks`；文档禁止粘贴 Bearer。 |
 | **D1** | 本功能不新建 Cloudflare 资源。单测只用进程内临时 sqlite / mock fetch。 |
 
@@ -164,7 +190,7 @@ bun run restore --force      # 覆盖已有 data/fundly.db
 
 1. `feat: add backy http client` — `src/backup/backy.ts` + `tests/backy.test.ts`
 2. `feat: add sqlite gzip snapshot` — `src/backup/snapshot.ts` + `tests/snapshot.test.ts`
-3. `feat: add backup and restore cli` — 两个脚本、`package.json`、`tsconfig.scripts.json`
+3. `feat: add backup and restore cli` — 两个脚本、`package.json`、`tsconfig.scripts.json`、`.gitignore`
 4. `docs: document backup restore commands` — `03-SCRIPTS.md`
 
 文档本身（本文件 + 编号表）单独先合，不跟代码混。
@@ -175,5 +201,7 @@ bun run restore --force      # 覆盖已有 data/fundly.db
 
 - 不分片、不写清单 JSON、不启用 Pull
 - 不改 D1 导入、不改 Worker
-- 不把探测备份当默认恢复源
-- 不在成功路径保留 `*.backy-snap.db*`
+- 不把探测备份当默认恢复源（`--id` 显式指定除外）
+- 不在成功路径保留 `*.backy-snap.db*` / 下载中的 `.backy-dl.gz`
+- 不调用 `openDb()` 去打开备份源
+- 不把 705 MiB gzip 读进 ArrayBuffer
