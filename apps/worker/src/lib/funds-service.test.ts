@@ -214,6 +214,7 @@ describe('listFunds ranking capabilities', () => {
     ).run();
     const list = await listFunds(exec(db), parseFundListQuery({ sort: 'sharpe_1y' }));
     expect(list.capabilities.risk).toBe(false);
+    expect(list.capabilities.riskDims.sharpe_1y).toBe(false);
     expect(list.sort).toBe('return_1y');
     expect(list.items[0]?.sharpe_1y).toBeNull();
   });
@@ -252,6 +253,7 @@ describe('listFunds ranking capabilities', () => {
       parseFundListQuery({ sort: 'sharpe_1y', dir: 'desc', metricNotNull: '1' }),
     );
     expect(list.capabilities.risk).toBe(true);
+    expect(list.capabilities.riskDims.sharpe_1y).toBe(true);
     expect(list.sort).toBe('sharpe_1y');
     expect(list.items[0]?.sharpe_1y).toBe(1.5);
     expect(list.total).toBe(1);

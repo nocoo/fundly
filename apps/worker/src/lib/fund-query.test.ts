@@ -119,6 +119,15 @@ describe('fundListSql', () => {
     expect(built.listParams.slice(0, 3)).toEqual(built.countParams);
   });
 
+  it('does not join risk metrics when sorting returns', () => {
+    const built = fundListSql(parseFundListQuery({ sort: 'return_1y', dir: 'desc' }), {
+      risk: true,
+    });
+    expect(built.listSql).not.toContain('fund_risk_metrics');
+    expect(built.countSql).not.toContain('fund_risk_metrics');
+    expect(built.listSql).toContain('NULL AS sharpe_1y');
+  });
+
   it('falls back risk sorts when the table is unavailable', () => {
     const q = parseFundListQuery({ sort: 'sharpe_1y', dir: 'asc', minSamples: '200' });
     const resolved = resolveFundListQuery(q, false);

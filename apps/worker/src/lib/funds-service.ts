@@ -1,7 +1,14 @@
 import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
-import { type FundListQuery, fundListSql, resolveFundListQuery } from './fund-query';
+import {
+  EMPTY_RISK_DIMS,
+  type FundListQuery,
+  fundListSql,
+  isRiskSortKey,
+  type RiskDimCaps,
+  resolveFundListQuery,
+} from './fund-query';
 import {
   formatRankTriple,
   isLiveReturnField,
@@ -14,9 +21,10 @@ import {
 } from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
-  const risk = await hasRiskMetrics(exec);
-  const resolved = resolveFundListQuery(query, risk);
-  const built = fundListSql(resolved, { risk });
+  const riskDims = await riskDimCaps(exec);
+  const risk = riskSortEnabledAny(riskDims);
+  const resolved = resolveFundListQuery(query, riskDims);
+  const built = fundListSql(resolved, { risk: isRiskSortKey(resolved.sort) && risk });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),
     exec.first<{ n: number }>(built.countSql, built.countParams),
@@ -27,7 +35,7 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
     page: resolved.page,
     pageSize: resolved.pageSize,
     sort: resolved.sort,
-    capabilities: { risk },
+    capabilities: { risk, riskDims },
   };
 }
 
@@ -39,12 +47,28 @@ async function hasTable(exec: QueryExec, name: string): Promise<boolean> {
   return (row?.n ?? 0) > 0;
 }
 
-async function hasRiskMetrics(exec: QueryExec): Promise<boolean> {
-  if (!(await hasTable(exec, 'fund_risk_metrics'))) return false;
-  const row = await exec.first<{ n: number }>(
-    'SELECT 1 AS n FROM fund_risk_metrics WHERE sharpe_1y IS NOT NULL LIMIT 1',
+function riskSortEnabledAny(caps: RiskDimCaps): boolean {
+  return caps.sharpe_1y || caps.max_drawdown_1y || caps.volatility_1y || caps.calmar_1y;
+}
+
+async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
+  if (!(await hasTable(exec, 'fund_risk_metrics'))) return EMPTY_RISK_DIMS;
+  const row = await exec.first<{
+    sharpe_1y: number;
+    max_drawdown_1y: number;
+    volatility_1y: number;
+    calmar_1y: number;
+  }>(
+    `SELECT COUNT(sharpe_1y) AS sharpe_1y, COUNT(max_drawdown_1y) AS max_drawdown_1y,
+            COUNT(volatility_1y) AS volatility_1y, COUNT(calmar_1y) AS calmar_1y
+     FROM fund_risk_metrics`,
   );
-  return row != null;
+  return {
+    sharpe_1y: (row?.sharpe_1y ?? 0) > 0,
+    max_drawdown_1y: (row?.max_drawdown_1y ?? 0) > 0,
+    volatility_1y: (row?.volatility_1y ?? 0) > 0,
+    calmar_1y: (row?.calmar_1y ?? 0) > 0,
+  };
 }
 
 async function satelliteColumns(exec: QueryExec): Promise<string> {

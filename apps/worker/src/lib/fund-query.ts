@@ -114,8 +114,25 @@ export function parseFundListQuery(input: {
   };
 }
 
-export function resolveFundListQuery(query: FundListQuery, risk: boolean): FundListQuery {
-  if (isRiskSortKey(query.sort) && !risk) {
+export type RiskDimCaps = Record<(typeof RISK_SORT_KEYS)[number], boolean>;
+
+export const EMPTY_RISK_DIMS: RiskDimCaps = {
+  sharpe_1y: false,
+  max_drawdown_1y: false,
+  volatility_1y: false,
+  calmar_1y: false,
+};
+
+export function riskSortEnabled(sort: string, caps: RiskDimCaps | boolean): boolean {
+  if (!isRiskSortKey(sort)) return false;
+  return typeof caps === 'boolean' ? caps : Boolean(caps[sort]);
+}
+
+export function resolveFundListQuery(
+  query: FundListQuery,
+  risk: RiskDimCaps | boolean,
+): FundListQuery {
+  if (isRiskSortKey(query.sort) && !riskSortEnabled(query.sort, risk)) {
     return { ...query, sort: 'return_1y', dir: 'desc', minSamples: undefined };
   }
   return query;
@@ -208,10 +225,12 @@ export function fundListSql(
   listParams: SqlBinding[];
   countParams: SqlBinding[];
 } {
-  const c = buildFundListClauses(query, opts);
-  const from = fundListFromSql(opts);
+  const joinRisk = Boolean(opts.risk && isRiskSortKey(query.sort));
+  const sqlOpts = { risk: joinRisk };
+  const c = buildFundListClauses(query, sqlOpts);
+  const from = fundListFromSql(sqlOpts);
   return {
-    listSql: `${fundListSelectSql(opts)} ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
+    listSql: `${fundListSelectSql(sqlOpts)} ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
     countSql: `SELECT COUNT(*) AS n ${from} ${c.whereSql}`,
     listParams: [...c.filterParams, ...c.limitParams],
     countParams: [...c.filterParams],
