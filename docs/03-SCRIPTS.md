@@ -82,6 +82,7 @@ FUNDLY_DAILY_POOL=all bun run fetch:daily
 
 # 只刷货币型（补万份收益 / 七日年化）
 FUNDLY_DAILY_POOL=money bun run fetch:daily
+# 实测 977 只、304 秒、0 失败，写入 fund_money_yield 2,773,709 行
 
 # 调整并发和速率（默认 5/5）
 FUNDLY_CONCURRENCY=8 FUNDLY_QPS=8 bun run fetch:daily
