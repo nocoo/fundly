@@ -4,6 +4,8 @@
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
+import { headWebhook, listBackups, loadBackyCredentials } from '../../../src/backup/backy.ts';
+import { resolveEnvironment, runBackup, runRestore } from '../../../src/backup/run.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
@@ -97,6 +99,69 @@ app.get('/api/source', (c) => {
 });
 
 app.get('/api/me', (c) => c.json({ email: null, name: null, avatar: null, authenticated: false }));
+
+app.get('/api/backy', async (c) => {
+  try {
+    const creds = loadBackyCredentials();
+    const history = await listBackups(creds);
+    return c.json({
+      available: true,
+      configured: true,
+      environment: resolveEnvironment(),
+      webhookHost: new URL(creds.webhookUrl).host,
+      history,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('BACKY_WEBHOOK_URL')) {
+      return c.json({
+        available: true,
+        configured: false,
+        environment: 'prod',
+        webhookHost: null,
+        history: null,
+      });
+    }
+    return c.json(
+      {
+        available: true,
+        configured: true,
+        environment: resolveEnvironment(),
+        webhookHost: null,
+        history: null,
+        error: message,
+      },
+      200,
+    );
+  }
+});
+
+app.post('/api/backy/test', async (c) => {
+  try {
+    const status = await headWebhook(loadBackyCredentials());
+    return c.json({ status });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+
+app.post('/api/backy', async (c) => {
+  try {
+    return c.json(await runBackup({ environment: resolveEnvironment() }));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+
+app.post('/api/backy/restore', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { id?: string; force?: boolean };
+  if (!body.id) return c.json({ error: 'id is required' }, 400);
+  try {
+    return c.json(await runRestore({ id: body.id, force: Boolean(body.force) }));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
 
 app.get('/api/funds', async (c) => {
   const source = resolveDataSource({

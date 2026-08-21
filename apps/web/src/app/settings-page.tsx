@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/layout';
+import { BackySettings } from '@/components/settings/backy-settings';
 import { BenchmarkBrowser } from '@/components/settings/benchmark-browser';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { useQuoteColor } from '@/hooks/use-quote-color';
@@ -80,7 +81,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
+      <section className="mb-4 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
         <h2 className="text-sm font-semibold">分类基准基金</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           每个类型必须有一只基准，增长图会叠加其虚线。默认选该分类里盘子大、历史长的代表产品。
@@ -95,6 +96,8 @@ export default function SettingsPage() {
           }
         />
       </section>
+
+      <BackySettings />
     </AppShell>
   );
 }
