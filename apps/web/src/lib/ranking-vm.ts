@@ -221,6 +221,7 @@ export function rankingApiPath(state: RankingState): string {
   params.set('metricNotNull', '1');
   if (state.pass4433) params.set('pass4433', '1');
   if (state.dim.group === 'risk') params.set('minSamples', String(RISK_MIN_SAMPLES));
+  params.set('includeCaps', '1');
   params.set('page', String(state.page));
   params.set('pageSize', String(RANKING_PAGE_SIZE));
   return `/api/funds?${params}`;

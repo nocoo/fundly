@@ -28,6 +28,7 @@ export interface FundListQuery {
   pass4433?: boolean;
   metricNotNull?: boolean;
   minSamples?: number;
+  includeCaps?: boolean;
   sort: FundSortKey;
   dir: SortDir;
   page: number;
@@ -75,6 +76,7 @@ export function parseFundListQuery(input: {
   pass4433?: string | boolean | null;
   metricNotNull?: string | boolean | null;
   minSamples?: string | number | null;
+  includeCaps?: string | boolean | null;
   sort?: string | null;
   dir?: string | null;
   page?: string | number | null;
@@ -106,6 +108,7 @@ export function parseFundListQuery(input: {
     hasNav: flag(input.hasNav),
     pass4433: flag(input.pass4433),
     metricNotNull: flag(input.metricNotNull),
+    includeCaps: flag(input.includeCaps),
     minSamples,
     sort,
     dir,

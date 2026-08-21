@@ -93,6 +93,7 @@ describe('ranking urls', () => {
     expect(path).toContain('sort=max_drawdown_1y');
     expect(path).toContain('dir=asc');
     expect(path).toContain('metricNotNull=1');
+    expect(path).toContain('includeCaps=1');
     expect(path).toContain('pass4433=1');
     expect(path).toContain(`minSamples=${RISK_MIN_SAMPLES}`);
     expect(path).toContain('page=3');

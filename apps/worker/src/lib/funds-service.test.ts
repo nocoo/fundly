@@ -250,7 +250,12 @@ describe('listFunds ranking capabilities', () => {
     ).run();
     const list = await listFunds(
       exec(db),
-      parseFundListQuery({ sort: 'sharpe_1y', dir: 'desc', metricNotNull: '1' }),
+      parseFundListQuery({
+        sort: 'sharpe_1y',
+        dir: 'desc',
+        metricNotNull: '1',
+        includeCaps: '1',
+      }),
     );
     expect(list.capabilities.risk).toBe(true);
     expect(list.capabilities.riskDims.sharpe_1y).toBe(true);

@@ -21,7 +21,8 @@ import {
 } from './period-returns';
 
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
-  const riskDims = await riskDimCaps(exec);
+  const needCaps = Boolean(query.includeCaps || isRiskSortKey(query.sort));
+  const riskDims = needCaps ? await riskDimCaps(exec) : EMPTY_RISK_DIMS;
   const risk = riskSortEnabledAny(riskDims);
   const resolved = resolveFundListQuery(query, riskDims);
   const built = fundListSql(resolved, { risk: isRiskSortKey(resolved.sort) && risk });
@@ -59,15 +60,17 @@ async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
     volatility_1y: number;
     calmar_1y: number;
   }>(
-    `SELECT COUNT(sharpe_1y) AS sharpe_1y, COUNT(max_drawdown_1y) AS max_drawdown_1y,
-            COUNT(volatility_1y) AS volatility_1y, COUNT(calmar_1y) AS calmar_1y
-     FROM fund_risk_metrics`,
+    `SELECT
+        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE sharpe_1y IS NOT NULL) AS sharpe_1y,
+        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE max_drawdown_1y IS NOT NULL) AS max_drawdown_1y,
+        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE volatility_1y IS NOT NULL) AS volatility_1y,
+        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE calmar_1y IS NOT NULL) AS calmar_1y`,
   );
   return {
-    sharpe_1y: (row?.sharpe_1y ?? 0) > 0,
-    max_drawdown_1y: (row?.max_drawdown_1y ?? 0) > 0,
-    volatility_1y: (row?.volatility_1y ?? 0) > 0,
-    calmar_1y: (row?.calmar_1y ?? 0) > 0,
+    sharpe_1y: Boolean(row?.sharpe_1y),
+    max_drawdown_1y: Boolean(row?.max_drawdown_1y),
+    volatility_1y: Boolean(row?.volatility_1y),
+    calmar_1y: Boolean(row?.calmar_1y),
   };
 }
 

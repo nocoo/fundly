@@ -113,6 +113,7 @@ app.get('/api/funds', async (c) => {
     pass4433: c.req.query('pass4433'),
     metricNotNull: c.req.query('metricNotNull'),
     minSamples: c.req.query('minSamples'),
+    includeCaps: c.req.query('includeCaps'),
     sort: c.req.query('sort'),
     dir: c.req.query('dir'),
     page: c.req.query('page'),
