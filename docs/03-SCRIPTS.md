@@ -15,6 +15,7 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
 | `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
+| `dev-all.ts` | `bun run dev:all` | 并行起 `dev:api` + `dev:web` | 常驻 |
 
 ---
 
@@ -176,11 +177,12 @@ bun run import:d1 path/to/db      # 指定 sqlite
 ### 本机 API：`dev-api.ts`
 
 ```bash
-bun run dev:api                   # http://127.0.0.1:7045
+bun run dev:all                   # API :7045 + Vite :7044
+bun run dev:api                   # 只起 API http://127.0.0.1:7045
 FUNDLY_SQLITE=/path bun run dev:api
 ```
 
-Vite 把 `/api/*` 代理到这里。默认读 sqlite；请求头 `X-Fundly-Source: d1` 改打远端 D1。
+Vite 把 `/api/*` 代理到这里。默认读 sqlite；请求头 `X-Fundly-Source: d1` 改打远端 D1。`dev:all` 任一子进程退出会停掉另一个。
 
 ## 🛠 工具脚本
 

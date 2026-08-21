@@ -19,6 +19,7 @@
     "install:web": "bun install --cwd apps/web && bun install --cwd apps/worker",
     "dev:api": "bun run apps/worker/scripts/dev-api.ts",
     "dev:web": "bun run --cwd apps/web dev",
+    "dev:all": "bun run scripts/dev-all.ts",
     "dev:worker": "bun run --cwd apps/worker dev",
     "build:web": "bun run --cwd apps/web build",
     "deploy:web": "bun run --cwd apps/web build && bun run --cwd apps/worker deploy",

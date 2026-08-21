@@ -90,10 +90,11 @@ bun run fetch:daily
 日常入口是本地域名，不要用 `localhost:7044`：
 
 ```bash
-bun run dev:api         # :7045，默认读 data/fundly.db
-bun run dev:web
+bun run dev:all         # 同时起 API :7045 + Vite :7044
 # https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044 → API :7045
 ```
+
+分开起：`bun run dev:api`（默认读 `data/fundly.db`）和 `bun run dev:web`。
 
 生产 Worker 只读 D1。把本机库同步上去：
 

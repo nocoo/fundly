@@ -162,9 +162,8 @@ nmem 本机不可用，端口与版本以 Caddyfile + `caddy version` 为准。
 ## 开发与部署
 
 ```bash
-# 本机浏览：先起 API，再起 SPA
-bun run dev:api          # :7045，默认 sqlite
-bun run dev:web
+# 本机浏览
+bun run dev:all          # API :7045 + Vite :7044
 # 浏览器打开 https://fundly.dev.hexly.ai
 
 # 可选：本地 Worker + 本地 D1（不是远端库）
