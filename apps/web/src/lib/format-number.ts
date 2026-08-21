@@ -58,7 +58,7 @@ export function formatAxisMetric(value: unknown, kind: NumberKind): string {
     return n > 0 ? `+${body}` : body;
   }
   if (kind === 'nav') return n.toFixed(3);
-  if (kind === 'ratio' || kind === 'scale') return n.toFixed(2);
+  if (kind === 'ratio') return n.toFixed(2);
   return formatCompact(n);
 }
 

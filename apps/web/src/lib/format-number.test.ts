@@ -43,6 +43,8 @@ describe('formatMetric', () => {
     expect(formatAxisMetric(-3.8, 'percent')).toBe('-4%');
     expect(formatAxisMetric(1.2, 'nav')).toBe('1.200');
     expect(formatAxisMetric(1.4094, 'nav')).toBe('1.409');
+    expect(formatAxisMetric(1.5915, 'ratio')).toBe('1.59');
+    expect(formatAxisMetric(15300, 'scale')).not.toBe('15300.00');
   });
 });
 
