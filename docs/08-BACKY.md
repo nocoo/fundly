@@ -117,18 +117,27 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 步骤：
 
 1. 读凭证。无 `--id` 则 `GET {webhook}`，筛 `environment === prod`，按 `created_at` 取最新；没有则退出。
-2. 目标已存在且无 `--force`：在下载前退出。
-3. 预检空闲：至少 gzip + 解压后体积（约 **4.46 GB**）。`--force` 另提示：旧库会改名为 prev，再占约 4 GB，且只保留**一份**最新 prev。
-4. 拿同一把 `{target}.backy.lock`。
+2. 拿 `{target}.backy.lock`。启动时若无活锁，清理由上次崩溃留下的 `{target}.backy-dl.gz`、`{target}.restored`。
+3. 目标已存在且无 `--force`：退出（在下载前）。下载期间别人新建的目标不能靠这一步挡住，见第 10 步。
+4. 预检空闲：至少 gzip + 解压后体积（约 **4.46 GB**）。`--force` 另提示：旧库会改名为 prev，再占约 4 GB，且只保留**一份**该目标的最新 prev。
 5. `--force` 且目标存在时，先停写：
-   - 文档约定：调用方必须先停 `dev:all` / `fetch:*` / 其它打开该库的进程。
-   - 实现：尝试只读打开目标，`wal_checkpoint(TRUNCATE)`，关掉连接。打不开或 checkpoint 失败则退出，不下载。
-6. `GET {origin}/api/restore/{id}`。拿到 `url` 后**立刻流式**写入 `{target}.backy-dl.gz`。禁止把约 705 MiB 读进内存。校验 HTTP 状态；若响应有 `Content-Length` 或 JSON `file_size`，落地字节必须一致。403 / 过期 / 中断：重新申请 restore URL 再下，最多 2 次。超过 900 秒必须重签。
-7. 解压到 `{target}.restored`。gzip CRC 失败则删 partial 并退出。
-8. 对 `{target}.restored` 跑 `PRAGMA integrity_check` **和** `assertFundlyDb`。任一层失败：删 restored / dl，不碰活库。
-9. 目标不存在：`rename(restored, target)`。
-10. `--force`：`rename(target, {target}.prev-YYYYmmddTHHMMSS)`，再 `rename(restored, target)`。第二步失败则把 prev 改回 target，非零退出。成功后删除该目标旁更旧的 `*.prev-*`，只留这一份；并删除旧的 `{target}-wal` / `{target}-shm`（`openDb` 会给新文件重建 WAL）。
-11. 成功：删 dl gz、锁。任意失败：删本次 dl / restored，释放锁；已改名的 prev 仅在回滚逻辑里动。
+   - 调用方必须先停 `dev:all` / `fetch:*` / 其它打开该库的进程。
+   - 用 `{ readwrite: true, create: false }` 打开目标（只读连接无法 `wal_checkpoint`，bun:sqlite 会报 `attempt to write a readonly database`）。
+   - 跑 `PRAGMA wal_checkpoint(TRUNCATE)`，**必须** `busy === 0`。`busy !== 0` 表示还有读者/写者，退出且不下载。不要把 `busy: 1` 当成成功。
+   - 关掉连接后才能改名、删 sidecar。
+6. `GET {origin}/api/restore/{id}`。`expires_in: 900` 约束的是**下一次发起 GET 该 URL 的时刻**，不是整次下载必须在 900 秒内结束。健康的流式传输不要在第 900 秒主动掐断。只有尚未开始的请求、中断后重试、或收到 403 才重新申请 restore URL（最多再签 2 次）。
+7. 拿到 `url` 后立刻流式写入 `{target}.backy-dl.gz`。禁止整包进内存。校验 HTTP 状态；若有 `Content-Length` 或 JSON `file_size`，落地字节必须一致。
+8. 解压到 `{target}.restored`。gzip CRC 失败则删 partial 并退出。
+9. 对 `{target}.restored` 跑 `PRAGMA integrity_check` **和** `assertFundlyDb`。任一层失败：删 restored / dl，不碰活库。
+10. 无 `--force`：用**不覆盖**的原子改名（Linux `renameat2(RENAME_NOREPLACE)` / macOS `renamex_np(RENAME_EXCL)`，或先 `link` 再检查）。目标已存在则失败，不覆盖。
+11. `--force`：`rename(target, {target}.prev-YYYYmmddTHHMMSS)`，再把 restored 改到 target。第二步失败则把 prev 改回 target。成功后只删 **`{target}.prev-*` 里更旧的那几份**，不要扫目录里其它 `*.prev-*`。然后删 `{target}-wal` / `{target}-shm`。
+12. 成功：删 dl gz、锁。捕获到的失败：删本次 dl / restored，释放锁。
+
+崩溃恢复（SIGKILL / 断电，下次启动）：
+
+- 有锁但 pid 已死：删锁、dl、restored，按普通失败处理。
+- 目标不存在、但存在一份完整且通过 `assertFundlyDb` 的 `{target}.prev-*`：视为替换中断，把最新那份 prev 改回 target，再报失败。不要自动把未校验的 restored 推上去。
+- 目标与 prev 都在：视为上次已成功改名、第二步未完成或已回滚到「旧库仍叫 target」；以 target 为准，只清 dl / restored。
 
 换机：clone → `bun install` → 导出两个环境变量 → 确认没有残留 `-wal`/`-shm` → `bun run restore` → `bun run dev:all`。
 
@@ -175,7 +184,7 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 
 | 维 | 计划 |
 |---|---|
-| **L1** | mock fetch + 临时小库。必测：缺源文件 / `create: false`、`assertFundlyDb` 拒空库、已有目标且无 `--force`、锁互斥、stale lock（死 pid）、无锁残留 snap 删除重建、磁盘不足、过期 URL 重签、下载中断、gzip CRC 失败、`--force` 第二步 rename 失败回滚、backup 与 restore 并发抢锁、WAL sidecar 在替换后被删。禁止打 `backy.hexly.ai`。 |
+| **L1** | mock fetch + 临时小库。必测：缺源文件 / `create: false`、`assertFundlyDb` 拒空库、已有目标且无 `--force`、锁互斥、stale lock（死 pid）、无锁残留 snap 删除重建、磁盘不足、过期 URL 重签、下载中断、gzip CRC 失败、`--force` 第二步 rename 失败回滚、backup 与 restore 并发抢锁、WAL sidecar 在替换后被删、`wal_checkpoint` 的 `busy !== 0`、无 `--force` 时目标在下载后出现须 noreplace 失败、中断在 `target→prev` 之后须把 prev 改回。禁止打 `backy.hexly.ai`。 |
 | **L2** | **N/A（本迭代）**。生产 Backy 项目不是隔离实例；`environment=test` 仍是同一项目。有独立 Backy 测试项目再补真 HTTP。 |
 | **L3** | 手测：`bun run backup` → `bun run restore --id <prod> --to /tmp/fundly-restore.db` → `assertFundlyDb`。覆盖已有库时再测 `--force`（先停 `dev:all`）。不进 CI。 |
 | **G1** | `bun run typecheck`、`typecheck:scripts`、`lint`。提交前 `bun run test:coverage`（仓库规定 ≥ 95%）。 |
