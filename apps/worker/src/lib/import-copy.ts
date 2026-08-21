@@ -78,6 +78,12 @@ export const IMPORT_TABLES = [
   },
   {
     mode: 'append',
+    table: 'fund_money_yield',
+    columns: ['fund_code', 'nav_date', 'million_income', 'seven_day_yield'],
+    keyCols: ['fund_code', 'nav_date'],
+  },
+  {
+    mode: 'append',
     table: 'fetch_log',
     columns: [
       'id',

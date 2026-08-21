@@ -320,4 +320,22 @@ describe('getFundNav', () => {
     const windowed = await getFundNav(exec(db), '000001', { from: '2026-01-01' });
     expect(windowed.map((r) => r.nav_date)).toEqual(['2026-08-17', '2026-08-18']);
   });
+
+  it('falls back to money yield when unit nav is missing', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL, acc_nav REAL, daily_return REAL);
+      CREATE TABLE fund_money_yield (
+        fund_code TEXT, nav_date TEXT, million_income REAL, seven_day_yield REAL
+      );
+    `);
+    db.prepare(
+      'INSERT INTO fund_money_yield (fund_code, nav_date, million_income, seven_day_yield) VALUES (?, ?, ?, ?)',
+    ).run('000198', '2026-08-18', 0.221, 0.816);
+    const rows = await getFundNav(exec(db), '000198', 10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.million_income).toBe(0.221);
+    expect(rows[0]?.seven_day_yield).toBe(0.816);
+    expect(rows[0]?.unit_nav).toBeNull();
+  });
 });

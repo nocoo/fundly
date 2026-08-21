@@ -65,7 +65,12 @@ export default function FundDetailPage() {
   );
   const navKey = code ? `/api/funds/${code}/nav?from=${bounds.from}&limit=3000` : null;
   const { data: nav, error: navError } = useSWR<{
-    items: { nav_date: string; unit_nav: number }[];
+    items: Array<{
+      nav_date: string;
+      unit_nav: number | null;
+      million_income: number | null;
+      seven_day_yield: number | null;
+    }>;
   }>(navKey, fetchAPI);
   const { prefs } = useChartPrefs();
   const fundType = String(data?.fields.find((f) => f.key === 'fund_type')?.value ?? '');
@@ -75,8 +80,24 @@ export default function FundDetailPage() {
     showBench && bench ? `/api/funds/${bench.code}/nav?from=${bounds.from}&limit=3000` : null,
     fetchAPI,
   );
+  const moneyPoints = useMemo(() => {
+    const raw = (nav?.items ?? [])
+      .filter(
+        (item): item is typeof item & { million_income: number } => item.million_income != null,
+      )
+      .map((item) => ({
+        name: item.nav_date,
+        income: item.million_income,
+        ...(item.seven_day_yield != null ? { yield7: item.seven_day_yield } : {}),
+      }));
+    return clipTimePoints(raw, bounds.from, bounds.to);
+  }, [nav, bounds.from, bounds.to]);
+  const isMoneySeries = moneyPoints.length > 0;
   const growth = useMemo(() => {
-    const primary = (nav?.items ?? []).map((item) => ({ date: item.nav_date, nav: item.unit_nav }));
+    if (isMoneySeries) return [];
+    const primary = (nav?.items ?? [])
+      .filter((item) => item.unit_nav != null)
+      .map((item) => ({ date: item.nav_date, nav: item.unit_nav as number }));
     const benchPoints = (benchNav?.items ?? []).map((item) => ({
       date: item.nav_date,
       nav: item.unit_nav,
@@ -87,7 +108,7 @@ export default function FundDetailPage() {
       from: bounds.from,
       to: bounds.to,
     });
-  }, [nav, benchNav, showBench, prefs.refRates, bounds.from, bounds.to]);
+  }, [isMoneySeries, nav, benchNav, showBench, prefs.refRates, bounds.from, bounds.to]);
   const growthDomain = useMemo(() => alignedNavGrowthDomains(growth), [growth]);
 
   if (isLoading) {
@@ -195,21 +216,50 @@ export default function FundDetailPage() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr] xl:grid-rows-[auto_1fr]">
         <div className="flex flex-col gap-4 xl:row-span-2">
-          <TimeCard
-            title="净值增长"
-            empty={growth.length < 2}
-            emptyLabel={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'}
-            points={growth}
-            series={growthSeries}
-            timeDomain={timeDomain}
-            height={NAV_PANEL}
-            format={(value) => formatMetric(value, 'nav')}
-            axisFormat={(value) => formatAxisMetric(value, 'nav')}
-            rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
-            rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
-            yDomain={growthDomain?.left}
-            rightYDomain={growthDomain?.right}
-          />
+          {isMoneySeries ? (
+            <TimeCard
+              title="万份收益 / 七日年化"
+              empty={moneyPoints.length < 2}
+              emptyLabel={navError ? `收益加载失败：${navError.message}` : '暂无万份收益'}
+              points={moneyPoints}
+              series={[
+                { key: 'income', label: '万份收益', color: GROWTH_STROKE.fund },
+                {
+                  key: 'yield7',
+                  label: '七日年化',
+                  dashed: true,
+                  color: GROWTH_STROKE.bench,
+                  yAxis: 'right',
+                },
+              ]}
+              timeDomain={timeDomain}
+              height={NAV_PANEL}
+              format={(value) =>
+                value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(4)
+              }
+              axisFormat={(value) =>
+                value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(2)
+              }
+              rightFormat={(value) => formatMetric(value, 'percent')}
+              rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+            />
+          ) : (
+            <TimeCard
+              title="净值增长"
+              empty={growth.length < 2}
+              emptyLabel={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'}
+              points={growth}
+              series={growthSeries}
+              timeDomain={timeDomain}
+              height={NAV_PANEL}
+              format={(value) => formatMetric(value, 'nav')}
+              axisFormat={(value) => formatAxisMetric(value, 'nav')}
+              rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
+              rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+              yDomain={growthDomain?.left}
+              rightYDomain={growthDomain?.right}
+            />
+          )}
           <TimeCard
             title="同类排名"
             empty={ranking.length < 2}

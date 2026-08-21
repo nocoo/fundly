@@ -115,15 +115,25 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     applyExtraFallbacks(mapFundDetail(full), extras),
     full.rank_stats_json,
   );
-  const [navCount, live] = await Promise.all([
+  const [navCount, moneyCount, live] = await Promise.all([
     exec.first<{ n: number }>('SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?', [code]),
+    countMoneyYield(exec, code),
     loadLiveReturns(exec, code, fields),
   ]);
   return {
     fields: applyReturnFallbacks(fields, live),
     extras,
-    navCount: navCount?.n ?? 0,
+    navCount: (navCount?.n ?? 0) > 0 ? (navCount?.n ?? 0) : moneyCount,
   };
+}
+
+async function countMoneyYield(exec: QueryExec, code: string): Promise<number> {
+  if (!(await hasTable(exec, 'fund_money_yield'))) return 0;
+  const row = await exec.first<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM fund_money_yield WHERE fund_code = ?',
+    [code],
+  );
+  return row?.n ?? 0;
 }
 
 async function loadLiveReturns(
@@ -235,32 +245,54 @@ export function parseNavQuery(input: { from?: string | null; limit?: string | nu
   return from ? { from, limit } : { limit };
 }
 
+export type FundNavRow = {
+  nav_date: string;
+  unit_nav: number | null;
+  acc_nav: number | null;
+  daily_return: number | null;
+  million_income: number | null;
+  seven_day_yield: number | null;
+};
+
 export async function getFundNav(
   exec: QueryExec,
   code: string,
   opts: number | { from?: string | null; limit?: string | number | null } = 400,
 ) {
   const parsed = typeof opts === 'number' ? parseNavQuery({ limit: opts }) : parseNavQuery(opts);
+  const navRows = parsed.from
+    ? await exec.all<FundNavRow>(
+        `SELECT nav_date, unit_nav, acc_nav, daily_return,
+                NULL AS million_income, NULL AS seven_day_yield
+         FROM fund_nav
+         WHERE fund_code = ? AND nav_date >= ? ORDER BY nav_date ASC LIMIT ?`,
+        [code, parsed.from, parsed.limit],
+      )
+    : await exec.all<FundNavRow>(
+        `SELECT nav_date, unit_nav, acc_nav, daily_return,
+                NULL AS million_income, NULL AS seven_day_yield
+         FROM (
+            SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
+            WHERE fund_code = ? ORDER BY nav_date DESC LIMIT ?
+          ) newest ORDER BY nav_date ASC`,
+        [code, parsed.limit],
+      );
+  if (navRows.length > 0) return navRows;
+  if (!(await hasTable(exec, 'fund_money_yield'))) return navRows;
   if (parsed.from) {
-    return exec.all<{
-      nav_date: string;
-      unit_nav: number;
-      acc_nav: number | null;
-      daily_return: number | null;
-    }>(
-      `SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
+    return exec.all<FundNavRow>(
+      `SELECT nav_date, NULL AS unit_nav, NULL AS acc_nav, NULL AS daily_return,
+              million_income, seven_day_yield
+       FROM fund_money_yield
        WHERE fund_code = ? AND nav_date >= ? ORDER BY nav_date ASC LIMIT ?`,
       [code, parsed.from, parsed.limit],
     );
   }
-  return exec.all<{
-    nav_date: string;
-    unit_nav: number;
-    acc_nav: number | null;
-    daily_return: number | null;
-  }>(
-    `SELECT nav_date, unit_nav, acc_nav, daily_return FROM (
-        SELECT nav_date, unit_nav, acc_nav, daily_return FROM fund_nav
+  return exec.all<FundNavRow>(
+    `SELECT nav_date, NULL AS unit_nav, NULL AS acc_nav, NULL AS daily_return,
+            million_income, seven_day_yield
+     FROM (
+        SELECT nav_date, million_income, seven_day_yield FROM fund_money_yield
         WHERE fund_code = ? ORDER BY nav_date DESC LIMIT ?
       ) newest ORDER BY nav_date ASC`,
     [code, parsed.limit],
