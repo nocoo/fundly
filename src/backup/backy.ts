@@ -46,7 +46,7 @@ export type RestoreLink = {
   expires_in: number;
 };
 
-type FetchLike = typeof fetch;
+export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 export function loadBackyCredentials(
   env: Record<string, string | undefined> = process.env,
@@ -125,7 +125,7 @@ export async function initDirectUpload(
 
 export async function putDirectFile(
   init: DirectUploadInit,
-  body: BodyInit,
+  body: RequestInit['body'],
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
   const res = await fetchImpl(init.put_url, {

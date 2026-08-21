@@ -15,6 +15,9 @@
   "include": [
     "scripts/import-d1.ts",
     "scripts/seed-d1.ts",
+    "scripts/backup.ts",
+    "scripts/restore.ts",
+    "src/backup/**/*.ts",
     "apps/worker/scripts/**/*.ts",
     "apps/worker/scripts/sqlite-bindings.ts",
     "apps/worker/src/lib/import-copy.ts",

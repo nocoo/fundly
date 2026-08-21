@@ -7,6 +7,13 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+data/*.db.gz
+data/*.restored
+data/*.prev-*
+data/*.backy.lock
+data/*.backy-dl.gz
+data/*.backy-snap.db
+data/*.backy-snap.db.gz
 
 # Env
 .env

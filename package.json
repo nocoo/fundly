@@ -16,6 +16,8 @@
     "fetch:all": "bun run scripts/fetch-all.ts",
     "rank:refresh": "bun run scripts/refresh-ranks.ts",
     "db:init": "bun run scripts/init-db.ts",
+    "backup": "bun run scripts/backup.ts",
+    "restore": "bun run scripts/restore.ts",
     "install:web": "bun install --cwd apps/web && bun install --cwd apps/worker",
     "dev:api": "bun run apps/worker/scripts/dev-api.ts",
     "dev:web": "bun run --cwd apps/web dev",

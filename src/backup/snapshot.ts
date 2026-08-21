@@ -2,6 +2,8 @@ import { Database } from 'bun:sqlite';
 import {
   closeSync,
   constants,
+  createReadStream,
+  createWriteStream,
   existsSync,
   linkSync,
   openSync,
@@ -14,7 +16,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname } from 'node:path';
-import { createReadStream, createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip, createGzip } from 'node:zlib';
 import { SCHEMA_VERSION } from '../db/schema.ts';

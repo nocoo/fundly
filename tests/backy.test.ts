@@ -3,12 +3,12 @@ import { unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  type BackyHistory,
   downloadRestore,
   loadBackyCredentials,
   pickLatestProd,
   putDirectFile,
   restoreUrlFor,
-  type BackyHistory,
 } from '../src/backup/backy.ts';
 
 function history(rows: Array<Partial<BackyHistory['recent_backups'][number]>>): BackyHistory {
@@ -29,8 +29,12 @@ function history(rows: Array<Partial<BackyHistory['recent_backups'][number]>>): 
 
 describe('backy credentials and urls', () => {
   test('requires both env vars', () => {
-    expect(() => loadBackyCredentials({})).toThrow('BACKY_WEBHOOK_URL and BACKY_TOKEN are required');
-    expect(() => loadBackyCredentials({ BACKY_WEBHOOK_URL: 'https://backy.hexly.ai/api/webhook/x' })).toThrow();
+    expect(() => loadBackyCredentials({})).toThrow(
+      'BACKY_WEBHOOK_URL and BACKY_TOKEN are required',
+    );
+    expect(() =>
+      loadBackyCredentials({ BACKY_WEBHOOK_URL: 'https://backy.hexly.ai/api/webhook/x' }),
+    ).toThrow();
     expect(
       loadBackyCredentials({
         BACKY_WEBHOOK_URL: ' https://backy.hexly.ai/api/webhook/x ',
@@ -68,9 +72,9 @@ describe('pickLatestProd', () => {
 
 describe('putDirectFile', () => {
   test('forwards init headers unchanged', async () => {
-    let seen: Headers | null = null;
-    const fetchImpl: typeof fetch = async (_input, init) => {
-      seen = new Headers(init?.headers);
+    const seen: { headers: Headers | null } = { headers: null };
+    const fetchImpl = async (_input: string | URL | Request, init?: RequestInit) => {
+      seen.headers = new Headers(init?.headers);
       return new Response(null, { status: 200 });
     };
     await putDirectFile(
@@ -90,9 +94,9 @@ describe('putDirectFile', () => {
       'body',
       fetchImpl,
     );
-    expect(seen?.get('Content-Type')).toBe('application/gzip');
-    expect(seen?.get('Content-Length')).toBe('67');
-    expect(seen?.get('If-None-Match')).toBe('*');
+    expect(seen.headers?.get('Content-Type')).toBe('application/gzip');
+    expect(seen.headers?.get('Content-Length')).toBe('67');
+    expect(seen.headers?.get('If-None-Match')).toBe('*');
   });
 });
 
@@ -102,7 +106,7 @@ describe('downloadRestore', () => {
     const payload = 'hello-backy';
     let restoreGets = 0;
     let fileGets = 0;
-    const fetchImpl: typeof fetch = async (input) => {
+    const fetchImpl = async (input: string | URL | Request) => {
       const url = String(input);
       if (url.includes('/api/restore/')) {
         restoreGets += 1;
@@ -134,7 +138,7 @@ describe('downloadRestore', () => {
 
   test('rejects size mismatch', async () => {
     const dest = join(tmpdir(), `fundly-dl-bad-${Date.now()}.bin`);
-    const fetchImpl: typeof fetch = async (input) => {
+    const fetchImpl = async (input: string | URL | Request) => {
       const url = String(input);
       if (url.includes('/api/restore/')) {
         return Response.json({
