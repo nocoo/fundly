@@ -12,6 +12,7 @@ import {
 import {
   formatRankTriple,
   isLiveReturnField,
+  isNavOnlyReturnField,
   LIVE_RETURN_FIELDS,
   navReturn,
   parseRankStats,
@@ -142,7 +143,7 @@ async function loadLiveReturns(
   fields: FieldView[],
 ): Promise<Partial<Record<ReturnField, number | null>>> {
   const empty = LIVE_RETURN_FIELDS.filter(
-    (key) => fields.find((field) => field.key === key)?.empty,
+    (key) => !isNavOnlyReturnField(key) && fields.find((field) => field.key === key)?.empty,
   );
   if (empty.length === 0) return {};
   const last = await exec.first<{ nav_date: string; acc_nav: number | null; unit_nav: number }>(

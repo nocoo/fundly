@@ -282,6 +282,70 @@ describe('db repo', () => {
     expect(kept.pass_4433).toBe(1);
   });
 
+  test('upsertPerformance does not write long-window returns', () => {
+    const path = tmpDbPath();
+    const db = openDb(path);
+    initSchema(db);
+    upsertFundList(db, [
+      {
+        fundCode: '000001',
+        pinyinAbbr: 'X',
+        fundName: 'x',
+        fundType: '股票型',
+        pinyinFull: 'X',
+      },
+    ]);
+    upsertPerformance(db, {
+      fundCode: '000001',
+      return1m: 1,
+      return3m: 2,
+      return6m: 3,
+      return1y: 25,
+      return2y: 40,
+      return3y: 60,
+      return5y: 80,
+      returnYtd: null,
+      returnSinceStart: null,
+      rankPct1m: null,
+      rankPct3m: null,
+      rankPct6m: null,
+      rankPct1y: null,
+      rankPct2y: null,
+      rankPct3y: null,
+      rankPct5y: null,
+      dataDate: '2026-08-18',
+    });
+    db.query('UPDATE fund_performance SET return_2y = 11, return_3y = 22, return_5y = 33').run();
+    upsertPerformance(db, {
+      fundCode: '000001',
+      return1m: 1,
+      return3m: 2,
+      return6m: 3,
+      return1y: 26,
+      return2y: 1,
+      return3y: 1,
+      return5y: 1,
+      returnYtd: null,
+      returnSinceStart: null,
+      rankPct1m: null,
+      rankPct3m: null,
+      rankPct6m: null,
+      rankPct1y: null,
+      rankPct2y: null,
+      rankPct3y: null,
+      rankPct5y: null,
+      dataDate: '2026-08-18',
+    });
+    const row = db
+      .query('SELECT return_2y, return_3y, return_5y FROM fund_performance WHERE fund_code = ?')
+      .get('000001') as { return_2y: number; return_3y: number; return_5y: number };
+    expect(row.return_2y).toBe(11);
+    expect(row.return_3y).toBe(22);
+    expect(row.return_5y).toBe(33);
+    db.close();
+    unlinkSync(path);
+  });
+
   test('upsertTrendExtra roundtrips json', () => {
     const path = tmpDbPath();
     const db = openDb(path);

@@ -129,8 +129,7 @@ describe('listFunds / getFundDetail', () => {
     expect(since?.empty).toBe(false);
     expect(Number(since?.value)).toBeCloseTo(298.2, 1);
     const twoYear = detail?.fields.find((f) => f.key === 'return_2y');
-    expect(twoYear?.empty).toBe(false);
-    expect(Number(twoYear?.value)).toBeCloseTo(99.1, 1);
+    expect(twoYear?.empty).toBe(true);
     expect(detail?.fields.find((f) => f.key === 'return_1y')?.value).toBe(44.06);
     expect(detail?.fields.find((f) => f.key === 'established_date')?.value).toBe('2001-12-18');
   });

@@ -157,15 +157,12 @@ const UPSERT_PERFORMANCE = `
     return_ytd, return_since_start,
     rank_pct_1m, rank_pct_3m, rank_pct_6m, rank_pct_1y, rank_pct_2y, rank_pct_3y, rank_pct_5y,
     data_date, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(fund_code) DO UPDATE SET
     return_1m = excluded.return_1m,
     return_3m = excluded.return_3m,
     return_6m = excluded.return_6m,
     return_1y = excluded.return_1y,
-    return_2y = excluded.return_2y,
-    return_3y = excluded.return_3y,
-    return_5y = excluded.return_5y,
     return_ytd = excluded.return_ytd,
     return_since_start = excluded.return_since_start,
     data_date = excluded.data_date,
@@ -179,9 +176,6 @@ export function upsertPerformance(db: Database, perf: FundPerformance): void {
     perf.return3m,
     perf.return6m,
     perf.return1y,
-    perf.return2y,
-    perf.return3y,
-    perf.return5y,
     perf.returnYtd,
     perf.returnSinceStart,
     perf.rankPct1m,
@@ -446,6 +440,16 @@ export interface NavRow {
 }
 
 /** 拉某只基金的净值序列（升序） */
+export function readDividends(db: Database, fundCode: string): DividendRow[] {
+  return db
+    .query(
+      `SELECT fund_code AS fundCode, event_date AS eventDate, event_type AS eventType,
+              dividend_per_share AS dividendPerShare, split_ratio AS splitRatio, remark
+       FROM fund_dividend WHERE fund_code = ?`,
+    )
+    .all(fundCode) as DividendRow[];
+}
+
 export function readNav(db: Database, fundCode: string): NavRow[] {
   const rows = db
     .query(

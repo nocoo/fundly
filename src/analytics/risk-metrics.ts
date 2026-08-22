@@ -9,10 +9,13 @@
  * - 无风险利率默认 rf = 2%
  * - 日收益率优先取 dailyReturn（东财已给），缺失则从 unitNav 相邻差算
  * - "1y" 窗口 = 最新净值往前 365 自然日；样本数 <30 视为不足，指标返 null
+ * - 窗口日历跨度 < 0.8 * 窗长时指标写 null（样本数仍记录）
+ * - unitNav 应由调用方传入总回报指数；直接传单位净值会把分红当成回撤
  */
 
 const TRADING_DAYS_PER_YEAR = 252;
 const DEFAULT_RISK_FREE_RATE = 0.02;
+export const RISK_SPAN_RATIO = 0.8;
 
 export interface NavSample {
   navDate: string; // YYYY-MM-DD
@@ -89,6 +92,10 @@ function metricsForWindow(sorted: readonly NavSample[], days: number, rf: number
   const window = sorted.filter((n) => n.navDate >= cutoff);
   const samples = window.length;
   if (samples < 30) return { ...EMPTY, samples };
+  const firstDate = window[0]?.navDate;
+  if (!firstDate || daysBetween(firstDate, lastDate) < RISK_SPAN_RATIO * days) {
+    return { ...EMPTY, samples };
+  }
 
   // 日收益率序列（小数，非百分比）
   const dailyReturns = extractDailyReturns(window);

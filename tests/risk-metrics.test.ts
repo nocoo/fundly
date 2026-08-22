@@ -133,7 +133,7 @@ describe('computeRiskMetrics', () => {
   test('fills daily return from consecutive nav diff when missing', () => {
     const navs: NavSample[] = [];
     const start = new Date('2025-01-01T00:00:00Z');
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 320; i++) {
       const d = new Date(start);
       d.setUTCDate(start.getUTCDate() + i);
       navs.push({
@@ -143,8 +143,17 @@ describe('computeRiskMetrics', () => {
       });
     }
     const m = computeRiskMetrics(navs);
-    // 应能算出 volatility 而不是 null
     expect(m.y1.volatility).not.toBeNull();
+  });
+
+  test('nulls multi-year metrics when calendar span is short', () => {
+    const navs = generate('2025-08-01', 220, 0.1);
+    const m = computeRiskMetrics(navs);
+    expect(m.y1.samples).toBeGreaterThanOrEqual(200);
+    expect(m.y3.samples).toBeGreaterThanOrEqual(200);
+    expect(m.y1.volatility).toBeNull();
+    expect(m.y3.sharpe).toBeNull();
+    expect(m.y3.maxDrawdown).toBeNull();
   });
 
   test('custom risk-free rate affects sharpe', () => {

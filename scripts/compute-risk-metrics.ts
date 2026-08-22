@@ -6,12 +6,14 @@
 
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { computeRiskMetrics } from '../src/analytics/risk-metrics.ts';
+import { computeRiskMetrics, type NavSample } from '../src/analytics/risk-metrics.ts';
+import { buildTotalReturn } from '../src/analytics/total-return.ts';
 import {
   DEFAULT_DB_PATH,
   initSchema,
   listFundCodesWithNav,
   openDb,
+  readDividends,
   readNav,
   upsertRiskMetrics,
 } from '../src/db/repo.ts';
@@ -34,7 +36,7 @@ async function main(): Promise<void> {
 
   for (const code of codes) {
     const nav = readNav(db, code);
-    const m = computeRiskMetrics(nav);
+    const m = computeRiskMetrics(navsOnTotalReturn(nav, readDividends(db, code)));
     if (
       m.y1.samples === 0 &&
       m.y3.samples === 0 &&
@@ -83,6 +85,20 @@ async function main(): Promise<void> {
     elapsedSec: Math.round((Date.now() - t0) / 1000),
   });
   db.close();
+}
+
+function navsOnTotalReturn(
+  nav: ReturnType<typeof readNav>,
+  events: ReturnType<typeof readDividends>,
+): NavSample[] {
+  const tr = buildTotalReturn(nav, events);
+  if (!tr) return [];
+  const byDate = new Map(tr.map((point) => [point.navDate, point.trNav]));
+  return nav.flatMap((point) => {
+    const trNav = byDate.get(point.navDate);
+    if (trNav == null) return [];
+    return [{ navDate: point.navDate, unitNav: trNav, dailyReturn: point.dailyReturn }];
+  });
 }
 
 await main();

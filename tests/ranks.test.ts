@@ -83,6 +83,10 @@ describe('refreshRanks', () => {
     expect(b.rank_pct_1y).toBeCloseTo(50, 5);
     expect(a.rank_pct_1y).toBeCloseTo(100, 5);
     expect(a.rank_pct_2y).toBeCloseTo(50, 5);
+    const written = db
+      .query('SELECT return_2y FROM fund_performance WHERE fund_code = ?')
+      .get('a') as { return_2y: number };
+    expect(written.return_2y).toBeCloseTo(100, 5);
     expect(a.pass_4433).toBe(0);
     const stats = JSON.parse(
       (

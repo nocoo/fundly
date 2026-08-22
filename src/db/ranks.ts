@@ -1,6 +1,9 @@
 import type { Database } from 'bun:sqlite';
+import { buildTotalReturn, trWindowReturn } from '../analytics/total-return.ts';
+import { windowStartDate } from '../metrics/dates.ts';
 import {
   isCrawledReturnField,
+  NAV_ONLY_RETURN_FIELDS,
   pass4433,
   planReturnLookups,
   RANK_RETURN_FIELDS,
@@ -8,7 +11,7 @@ import {
   rankPeerGroups,
   resolveFundReturns,
 } from '../metrics/index.ts';
-import { ensurePerformanceRankStatsColumn } from './repo.ts';
+import { ensurePerformanceRankStatsColumn, readDividends, readNav } from './repo.ts';
 
 type PerfRow = {
   fund_code: string;
@@ -83,6 +86,8 @@ export function refreshRanks(db: Database): RankRefreshResult {
       last: last ? { date: last.nav_date, acc: last.acc_nav, unit: last.unit_nav } : null,
       asOf,
     }) as Record<RankReturnField, number | null>;
+    const long = longWindowTrReturns(row.fund_code, last?.nav_date ?? null, db);
+    for (const field of NAV_ONLY_RETURN_FIELDS) returns[field] = long[field];
     return { fundCode: row.fund_code, fundType: row.fund_type, returns };
   });
 
@@ -90,6 +95,7 @@ export function refreshRanks(db: Database): RankRefreshResult {
   const ranks = rankPeerGroups(resolved);
   const upd = db.prepare(
     `UPDATE fund_performance SET
+       return_2y = ?, return_3y = ?, return_5y = ?,
        rank_pct_1m = ?, rank_pct_3m = ?, rank_pct_6m = ?, rank_pct_1y = ?,
        rank_pct_2y = ?, rank_pct_3y = ?, rank_pct_5y = ?, pass_4433 = ?,
        rank_stats_json = ?, updated_at = ?
@@ -104,6 +110,9 @@ export function refreshRanks(db: Database): RankRefreshResult {
       const flag = pass4433(row.percents);
       if (flag === 1) pass += 1;
       upd.run(
+        item.returns.return_2y,
+        item.returns.return_3y,
+        item.returns.return_5y,
         row.percents.rank_pct_1m,
         row.percents.rank_pct_3m,
         row.percents.rank_pct_6m,
@@ -120,4 +129,25 @@ export function refreshRanks(db: Database): RankRefreshResult {
   })();
 
   return { funds: resolved.length, types, pass4433: pass };
+}
+
+function longWindowTrReturns(
+  fundCode: string,
+  lastDate: string | null,
+  db: Database,
+): Record<(typeof NAV_ONLY_RETURN_FIELDS)[number], number | null> {
+  const empty: Record<(typeof NAV_ONLY_RETURN_FIELDS)[number], number | null> = {
+    return_2y: null,
+    return_3y: null,
+    return_5y: null,
+  };
+  if (!lastDate) return empty;
+  const tr = buildTotalReturn(readNav(db, fundCode), readDividends(db, fundCode));
+  if (!tr) return empty;
+  const out = { ...empty };
+  for (const field of NAV_ONLY_RETURN_FIELDS) {
+    const start = windowStartDate(lastDate, field);
+    out[field] = start ? trWindowReturn(tr, start, lastDate) : null;
+  }
+  return out;
 }
