@@ -28,19 +28,23 @@ describe('list origin', () => {
       search: '?q=华夏',
     });
     expect(parseListHref('/ranking?typeL1=all')).toEqual({
-      path: '/ranking',
+      path: '/select/return',
       search: '?typeL1=all',
     });
     expect(resolveListOrigin({ list: '/ranking?page=2' })).toEqual({
-      path: '/ranking',
+      path: '/select/return',
       search: '?page=2',
+    });
+    expect(parseListHref('/ranking?dim=sharpe_1y')).toEqual({
+      path: '/select/risk',
+      search: '?dim=sharpe_1y',
     });
     expect(parseListOrigin({ path: '/settings' })).toBeNull();
   });
 
   it('reads the current list location', () => {
     expect(originFromList('/ranking', '?pass4433=1')).toEqual({
-      path: '/ranking',
+      path: '/select/return',
       search: '?pass4433=1',
     });
     expect(originFromList('/select/return', '?typeL1=混合型')).toEqual({

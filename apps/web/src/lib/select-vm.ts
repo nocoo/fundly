@@ -14,25 +14,68 @@ export type SelectDim = {
   kind: NumberKind;
   dir: 'asc' | 'desc';
   signed: boolean;
+  rankPct?: string;
 };
 
 const DIMS: Record<SelectLens, readonly SelectDim[]> = {
   return: [
-    { key: 'return_1y', label: '近1年', kind: 'percent', dir: 'desc', signed: true },
-    { key: 'return_6m', label: '近6月', kind: 'percent', dir: 'desc', signed: true },
-    { key: 'return_3m', label: '近3月', kind: 'percent', dir: 'desc', signed: true },
-    { key: 'return_1m', label: '近1月', kind: 'percent', dir: 'desc', signed: true },
+    {
+      key: 'return_1y',
+      label: '近1年',
+      kind: 'percent',
+      dir: 'desc',
+      signed: true,
+      rankPct: 'rank_pct_1y',
+    },
+    {
+      key: 'return_6m',
+      label: '近6月',
+      kind: 'percent',
+      dir: 'desc',
+      signed: true,
+      rankPct: 'rank_pct_6m',
+    },
+    {
+      key: 'return_3m',
+      label: '近3月',
+      kind: 'percent',
+      dir: 'desc',
+      signed: true,
+      rankPct: 'rank_pct_3m',
+    },
+    {
+      key: 'return_1m',
+      label: '近1月',
+      kind: 'percent',
+      dir: 'desc',
+      signed: true,
+      rankPct: 'rank_pct_1m',
+    },
     { key: 'excess_hs300_1y', label: '超额沪深300', kind: 'percent', dir: 'desc', signed: true },
+    { key: 'seven_day_yield', label: '七日年化', kind: 'percent', dir: 'desc', signed: false },
   ],
   risk: [
     { key: 'max_drawdown_1y', label: '回撤1年', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'max_drawdown_3y', label: '回撤3年', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'max_drawdown_5y', label: '回撤5年', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'max_drawdown_all', label: '回撤全期', kind: 'percent', dir: 'asc', signed: false },
     { key: 'volatility_1y', label: '波动1年', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'volatility_3y', label: '波动3年', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'volatility_5y', label: '波动5年', kind: 'percent', dir: 'asc', signed: false },
     { key: 'sharpe_1y', label: '夏普1年', kind: 'ratio', dir: 'desc', signed: false },
+    { key: 'sharpe_3y', label: '夏普3年', kind: 'ratio', dir: 'desc', signed: false },
+    { key: 'sharpe_5y', label: '夏普5年', kind: 'ratio', dir: 'desc', signed: false },
+    { key: 'sortino_1y', label: '索提诺1年', kind: 'ratio', dir: 'desc', signed: false },
+    { key: 'sortino_3y', label: '索提诺3年', kind: 'ratio', dir: 'desc', signed: false },
     { key: 'calmar_1y', label: '卡玛1年', kind: 'ratio', dir: 'desc', signed: false },
+    { key: 'calmar_3y', label: '卡玛3年', kind: 'ratio', dir: 'desc', signed: false },
   ],
   hold: [
     { key: 'ulcer_1y', label: '溃疡1年', kind: 'percent', dir: 'asc', signed: false },
     { key: 'underwater_ratio_1y', label: '水下占比', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'max_underwater_days_1y', label: '最长水下', kind: 'count', dir: 'asc', signed: false },
+    { key: 'max_consec_down_1y', label: '最长连跌', kind: 'count', dir: 'asc', signed: false },
+    { key: 'down_day_ratio_1y', label: '下跌日占比', kind: 'percent', dir: 'asc', signed: false },
     { key: 'worst_month_1y', label: '最差月', kind: 'percent', dir: 'desc', signed: true },
     { key: 'recovery_days_1y', label: '收复天数', kind: 'count', dir: 'asc', signed: false },
   ],
@@ -45,8 +88,18 @@ const DIMS: Record<SelectLens, readonly SelectDim[]> = {
   cost: [{ key: 'all_in_fee_pct', label: '综合费', kind: 'percent', dir: 'asc', signed: false }],
   picks: [
     { key: 'select_score', label: '综合分', kind: 'ratio', dir: 'desc', signed: false },
-    { key: 'return_1y', label: '近1年', kind: 'percent', dir: 'desc', signed: true },
+    {
+      key: 'return_1y',
+      label: '近1年',
+      kind: 'percent',
+      dir: 'desc',
+      signed: true,
+      rankPct: 'rank_pct_1y',
+    },
     { key: 'scale_yi', label: '规模', kind: 'scale', dir: 'asc', signed: false },
+    { key: 'top10_weight_pct', label: '前十大', kind: 'percent', dir: 'asc', signed: false },
+    { key: 'equity_ratio_pct', label: '股票仓位', kind: 'percent', dir: 'desc', signed: false },
+    { key: 'inst_holder_pct', label: '机构占比', kind: 'percent', dir: 'desc', signed: false },
   ],
 };
 
@@ -77,24 +130,68 @@ export type SelectState = {
   dim: SelectDim;
   pass4433: boolean;
   page: number;
+  mvpOnly: boolean;
+  minSamples: number | null;
+  feePeer: number | null;
+  ddPeer: number | null;
+  scalePeer: number | null;
+  top10Max: number | null;
 };
+
+function parsePage(raw: string | null): number {
+  const page = Number(raw ?? 1);
+  return Number.isFinite(page) && page >= 1 ? Math.min(100_000, Math.floor(page)) : 1;
+}
+
+function parsePeer(raw: string | null, fallback: number | null): number | null {
+  if (raw === 'off') return null;
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1 || n > 100) return fallback;
+  return Math.floor(n);
+}
+
+function parseTop10(raw: string | null): number | null {
+  if (raw == null || raw === '' || raw === 'off') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function defaultMinSamples(lens: SelectLens): number | null {
+  return lens === 'risk' || lens === 'hold' || lens === 'picks' ? RISK_MIN_SAMPLES : null;
+}
 
 export function parseSelectSearch(params: URLSearchParams, lens: SelectLens): SelectState {
   const dims = dimsFor(lens);
   const dimKey = params.get('dim');
   const dim = dims.find((item) => item.key === dimKey) ?? defaultDim(lens);
+  const samplesRaw = params.get('minSamples');
+  let minSamples = defaultMinSamples(lens);
+  if (samplesRaw === 'off') minSamples = null;
+  else if (samplesRaw) {
+    const n = Number(samplesRaw);
+    if (Number.isFinite(n) && n >= 1) minSamples = Math.min(10_000, Math.floor(n));
+  }
   return {
     typeL1: params.get('typeL1')?.trim() || DEFAULT_TYPE_L1,
     typeL2: params.get('typeL2')?.trim() ?? '',
     dim,
     pass4433: lens === 'picks' ? params.get('pass4433') !== 'off' : params.get('pass4433') === '1',
-    page: Math.max(1, Number(params.get('page')) || 1),
+    page: parsePage(params.get('page')),
+    mvpOnly: params.get('mvpOnly') === '1',
+    minSamples,
+    feePeer: lens === 'picks' ? parsePeer(params.get('feePeer'), 50) : null,
+    ddPeer: lens === 'picks' ? parsePeer(params.get('ddPeer'), 50) : null,
+    scalePeer: lens === 'picks' ? parsePeer(params.get('scalePeer'), null) : null,
+    top10Max: lens === 'picks' ? parseTop10(params.get('top10Max')) : null,
   };
 }
 
 export function normalizeSelectState(
   state: SelectState,
   types: Array<{ fund_type: string; n: number }>,
+  lens: SelectLens = 'return',
 ): SelectState {
   const l1s = listTypeL1(types);
   let typeL1 = state.typeL1;
@@ -106,7 +203,8 @@ export function normalizeSelectState(
   else if (types.length > 0 && !listTypeL2(types, typeL1).some((item) => item.value === typeL2)) {
     typeL2 = '';
   }
-  return { ...state, typeL1, typeL2 };
+  const dim = dimsFor(lens).find((item) => item.key === state.dim.key) ?? defaultDim(lens);
+  return { ...state, typeL1, typeL2, dim, page: Math.floor(state.page) };
 }
 
 export function selectApiPath(lens: SelectLens, state: SelectState): string {
@@ -120,36 +218,115 @@ export function selectApiPath(lens: SelectLens, state: SelectState): string {
   params.set('pageSize', String(SELECT_PAGE_SIZE));
   params.set('metricNotNull', '1');
   params.set('includeCaps', '1');
+  if (state.mvpOnly) params.set('mvpOnly', '1');
   if (state.pass4433) params.set('pass4433', '1');
   if (lens === 'picks' && !state.pass4433) params.set('pass4433', 'off');
-  if (lens === 'risk' || lens === 'hold' || lens === 'picks') {
-    params.set('minSamples', String(RISK_MIN_SAMPLES));
-  }
+  if (state.minSamples != null) params.set('minSamples', String(state.minSamples));
+  else if (lens === 'risk' || lens === 'hold' || lens === 'picks') params.set('minSamples', 'off');
   if (lens === 'picks') {
     params.set('lens', 'picks');
-    params.set('feePeer', '50');
-    params.set('ddPeer', '50');
+    params.set('feePeer', state.feePeer == null ? 'off' : String(state.feePeer));
+    params.set('ddPeer', state.ddPeer == null ? 'off' : String(state.ddPeer));
+    if (state.scalePeer != null) params.set('scalePeer', String(state.scalePeer));
+    if (state.top10Max != null) params.set('top10Max', String(state.top10Max));
   }
   return `/api/funds?${params}`;
 }
 
-export function selectUrlState(state: SelectState, lens: SelectLens): URLSearchParams {
-  const params = new URLSearchParams();
-  if (state.typeL1 !== DEFAULT_TYPE_L1) params.set('typeL1', state.typeL1);
-  if (state.typeL2) params.set('typeL2', state.typeL2);
-  if (state.dim.key !== defaultDim(lens).key) params.set('dim', state.dim.key);
-  if (state.pass4433) params.set('pass4433', '1');
-  if (state.page > 1) params.set('page', String(state.page));
-  return params;
+export function selectUrlState(
+  state: SelectState,
+  lens: SelectLens,
+): Record<string, string | null> {
+  return {
+    typeL1: state.typeL1 === DEFAULT_TYPE_L1 ? null : state.typeL1,
+    typeL2: state.typeL2 || null,
+    dim: state.dim.key === defaultDim(lens).key ? null : state.dim.key,
+    pass4433: lens === 'picks' ? (state.pass4433 ? null : 'off') : state.pass4433 ? '1' : null,
+    page: state.page <= 1 ? null : String(state.page),
+    mvpOnly: state.mvpOnly ? '1' : null,
+    minSamples:
+      state.minSamples == null && defaultMinSamples(lens) != null
+        ? 'off'
+        : state.minSamples != null && state.minSamples !== defaultMinSamples(lens)
+          ? String(state.minSamples)
+          : null,
+    feePeer:
+      lens === 'picks'
+        ? state.feePeer == null
+          ? 'off'
+          : state.feePeer === 50
+            ? null
+            : String(state.feePeer)
+        : null,
+    ddPeer:
+      lens === 'picks'
+        ? state.ddPeer == null
+          ? 'off'
+          : state.ddPeer === 50
+            ? null
+            : String(state.ddPeer)
+        : null,
+    scalePeer: lens === 'picks' && state.scalePeer != null ? String(state.scalePeer) : null,
+    top10Max: lens === 'picks' && state.top10Max != null ? String(state.top10Max) : null,
+  };
+}
+
+export function selectSearchEmpty(params: URLSearchParams): boolean {
+  return [...params.keys()].length === 0;
+}
+
+export function selectSearchDirty(
+  params: URLSearchParams,
+  state: SelectState,
+  lens: SelectLens,
+): boolean {
+  const want = selectUrlState(state, lens);
+  for (const [key, expected] of Object.entries(want)) {
+    const actual = params.get(key);
+    if (expected == null) {
+      if (actual != null) return true;
+    } else if (actual !== expected) return true;
+  }
+  for (const key of params.keys()) {
+    if (!(key in want)) return true;
+  }
+  return false;
 }
 
 export function storageKey(lens: SelectLens): string {
   return `fundly_select_${lens}`;
 }
 
+export function parseStoredSelect(raw: unknown, lens: SelectLens): Partial<SelectState> {
+  if (!raw || typeof raw !== 'object') return {};
+  const rec = raw as Record<string, unknown>;
+  const dimKey = typeof rec.dim === 'string' ? rec.dim : undefined;
+  const dim = dimKey ? dimsFor(lens).find((item) => item.key === dimKey) : undefined;
+  const page = Number(rec.page ?? 1);
+  return {
+    typeL1: typeof rec.typeL1 === 'string' ? rec.typeL1 : undefined,
+    typeL2: typeof rec.typeL2 === 'string' ? rec.typeL2 : undefined,
+    dim,
+    pass4433: rec.pass4433 === true || rec.pass4433 === '1',
+    page: Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1,
+    mvpOnly: rec.mvpOnly === true || rec.mvpOnly === '1',
+    minSamples:
+      typeof rec.minSamples === 'number'
+        ? rec.minSamples
+        : rec.minSamples === 'off'
+          ? null
+          : undefined,
+    feePeer:
+      typeof rec.feePeer === 'number' ? rec.feePeer : rec.feePeer === 'off' ? null : undefined,
+    ddPeer: typeof rec.ddPeer === 'number' ? rec.ddPeer : rec.ddPeer === 'off' ? null : undefined,
+    scalePeer: typeof rec.scalePeer === 'number' ? rec.scalePeer : undefined,
+    top10Max: typeof rec.top10Max === 'number' ? rec.top10Max : undefined,
+  };
+}
+
 export function readStoredSelect(lens: SelectLens): Partial<SelectState> {
-  migrateLegacyRanking(lens);
-  return readStoredJson(storageKey(lens)) ?? {};
+  migrateLegacyRanking();
+  return parseStoredSelect(readStoredJson(storageKey(lens)), lens);
 }
 
 export function writeStoredSelect(lens: SelectLens, state: SelectState): void {
@@ -159,17 +336,28 @@ export function writeStoredSelect(lens: SelectLens, state: SelectState): void {
     dim: state.dim.key,
     pass4433: state.pass4433,
     page: state.page,
+    mvpOnly: state.mvpOnly,
+    minSamples: state.minSamples,
+    feePeer: state.feePeer,
+    ddPeer: state.ddPeer,
+    scalePeer: state.scalePeer,
+    top10Max: state.top10Max,
   });
 }
 
-function migrateLegacyRanking(lens: SelectLens): void {
-  const legacy = readStoredJson(RANKING_FILTERS_KEY) as { dim?: string } | null;
+function migrateLegacyRanking(): void {
+  const legacy = readStoredJson(RANKING_FILTERS_KEY) as { dim?: string; pass4433?: unknown } | null;
   if (!legacy) return;
   const target: SelectLens =
     typeof legacy.dim === 'string' && /sharpe|drawdown|volatility|calmar/.test(legacy.dim)
       ? 'risk'
       : 'return';
-  if (lens === target) writeStoredJson(storageKey(lens), legacy);
+  if (!readStoredJson(storageKey(target))) {
+    writeStoredJson(storageKey(target), {
+      ...legacy,
+      pass4433: legacy.pass4433 === true || legacy.pass4433 === '1',
+    });
+  }
   if (typeof localStorage !== 'undefined') localStorage.removeItem(RANKING_FILTERS_KEY);
 }
 

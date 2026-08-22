@@ -1,3 +1,4 @@
+import { rankingRedirectPath } from './select-vm';
 import { readStoredJson, writeStoredJson } from './stored-json';
 
 export const LIST_ORIGIN_KEY = 'fundly_list_origin';
@@ -59,15 +60,24 @@ export function parseListOrigin(raw: unknown): ListOrigin | null {
 export function parseListHref(href: string): ListOrigin | null {
   const [path, query] = href.split('?');
   if (!path || !isListPath(path)) return null;
-  return { path, search: query ? `?${query}` : '' };
+  const origin: ListOrigin = { path, search: query ? `?${query}` : '' };
+  if (origin.path !== '/ranking') return origin;
+  return (
+    parseListHref(rankingRedirectPath(origin.search)) ?? {
+      path: '/select/return',
+      search: '',
+    }
+  );
 }
 
 export function originFromList(pathname: string, search: string): ListOrigin | null {
   if (!isListPath(pathname)) return null;
-  return {
+  const origin: ListOrigin = {
     path: pathname,
     search: search.startsWith('?') || search === '' ? search : `?${search}`,
   };
+  if (origin.path !== '/ranking') return origin;
+  return parseListHref(rankingRedirectPath(origin.search));
 }
 
 export function readListOrigin(): ListOrigin | null {

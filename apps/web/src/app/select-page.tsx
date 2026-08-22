@@ -27,9 +27,14 @@ import {
   normalizeSelectState,
   parseSelectSearch,
   rankingRedirectPath,
+  readStoredSelect,
   SELECT_PAGE_SIZE,
   type SelectLens,
+  type SelectState,
   selectApiPath,
+  selectSearchDirty,
+  selectSearchEmpty,
+  selectUrlState,
   writeStoredSelect,
 } from '@/lib/select-vm';
 
@@ -46,6 +51,12 @@ interface ListResponse {
   page: number;
   pageSize: number;
   sort: string;
+  capabilities?: {
+    risk: boolean;
+    riskDims: Record<string, boolean>;
+    select: boolean;
+    selectDims: Record<string, boolean>;
+  };
 }
 
 export function RankingRedirect() {
@@ -70,32 +81,44 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
     fetchAPI,
   );
   const normalized = useMemo(
-    () => normalizeSelectState(parsed, types?.items ?? []),
-    [parsed, types],
+    () => normalizeSelectState(parsed, types?.items ?? [], lens),
+    [parsed, types, lens],
   );
   const api = selectApiPath(lens, normalized);
   const { data, error, isLoading, isValidating } = useSWR<ListResponse>(api, fetchAPI);
 
-  const set = useCallback(
-    (patch: Record<string, string | null>) => {
-      const next = new URLSearchParams(params);
-      for (const [key, value] of Object.entries(patch)) {
-        if (value == null || value === '') next.delete(key);
-        else next.set(key, value);
+  const applyState = useCallback(
+    (state: SelectState) => {
+      const next = new URLSearchParams();
+      for (const [key, value] of Object.entries(selectUrlState(state, lens))) {
+        if (value != null && value !== '') next.set(key, value);
       }
-      if (!('page' in patch)) next.delete('page');
       setParams(next, { replace: true });
     },
-    [params, setParams],
+    [lens, setParams],
+  );
+
+  const set = useCallback(
+    (patch: Partial<SelectState>) => {
+      applyState({ ...normalized, ...patch, page: patch.page ?? 1 });
+    },
+    [applyState, normalized],
   );
 
   useEffect(() => {
-    if (!hydrated.current) {
-      hydrated.current = true;
-      return;
-    }
+    if (hydrated.current) return;
+    hydrated.current = true;
+    if (!selectSearchEmpty(params)) return;
+    const stored = readStoredSelect(lens);
+    if (Object.keys(stored).length === 0) return;
+    applyState(normalizeSelectState({ ...normalized, ...stored }, types?.items ?? [], lens));
+  }, [applyState, lens, normalized, params, types]);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
     writeStoredSelect(lens, normalized);
-  }, [lens, normalized]);
+    if (selectSearchDirty(params, normalized, lens)) applyState(normalized);
+  }, [applyState, lens, normalized, params]);
 
   const listOrigin = originFromList(location.pathname, location.search) ?? {
     path: `/select/${lens}`,
@@ -106,10 +129,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
     navigate(loc.to, { state: loc.state });
   };
 
-  const dim =
-    data?.sort && data.sort !== normalized.dim.key
-      ? (dimsFor(lens).find((item) => item.key === data.sort) ?? normalized.dim)
-      : normalized.dim;
+  const dim = normalized.dim;
   const l1Options = listTypeL1(types?.items ?? []).map((item) => ({
     value: item.value,
     label: `${item.label} (${formatCount(item.n)})`,
@@ -120,6 +140,12 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
   }));
   const dimOptions = dimsFor(lens).map((item) => ({ value: item.key, label: item.label }));
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const dimReady = dimCapability(lens, dim.key, data?.capabilities);
+  const emptyHint = !dimReady
+    ? lens === 'risk'
+      ? '该维尚未计算，请跑 bun run compute:risk。'
+      : '该维尚未计算，请跑 bun run compute:select。'
+    : '这一页没有基金。';
 
   return (
     <AppShell breadcrumbs={[{ label: '选基' }, { label: LENS_LABEL[lens] }]}>
@@ -132,8 +158,8 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
           allValue={TYPE_L1_ALL}
           onChange={(value) =>
             set({
-              typeL1: value === DEFAULT_TYPE_L1 ? null : value,
-              typeL2: null,
+              typeL1: value === DEFAULT_TYPE_L1 ? DEFAULT_TYPE_L1 : value,
+              typeL2: '',
             })
           }
         />
@@ -144,21 +170,57 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
             options={l2Options}
             includeAll
             allLabel="全部细类"
-            onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
+            onChange={(value) => set({ typeL2: value === 'all' ? '' : value })}
           />
         ) : null}
         <FilterChips
           label="维度"
           value={dim.key}
           options={dimOptions}
-          onChange={(value) => set({ dim: value === defaultDim(lens).key ? null : value })}
+          onChange={(value) =>
+            set({ dim: dimsFor(lens).find((item) => item.key === value) ?? defaultDim(lens) })
+          }
         />
         <div className="flex flex-wrap items-center gap-2">
           <FilterCheck
             label="仅 4433"
             checked={normalized.pass4433}
-            onChange={(checked) => set({ pass4433: checked ? '1' : null })}
+            onChange={(checked) => set({ pass4433: checked })}
           />
+          {lens === 'picks' ? (
+            <>
+              <FilterCheck
+                label="仅 MVP"
+                checked={normalized.mvpOnly}
+                onChange={(checked) => set({ mvpOnly: checked })}
+              />
+              <FilterCheck
+                label="样本≥200"
+                checked={normalized.minSamples != null}
+                onChange={(checked) => set({ minSamples: checked ? 200 : null })}
+              />
+              <FilterCheck
+                label="费率前50%"
+                checked={normalized.feePeer != null}
+                onChange={(checked) => set({ feePeer: checked ? 50 : null })}
+              />
+              <FilterCheck
+                label="回撤前50%"
+                checked={normalized.ddPeer != null}
+                onChange={(checked) => set({ ddPeer: checked ? 50 : null })}
+              />
+              <FilterCheck
+                label="规模前50%"
+                checked={normalized.scalePeer != null}
+                onChange={(checked) => set({ scalePeer: checked ? 50 : null })}
+              />
+              <FilterCheck
+                label="前十大≤60%"
+                checked={normalized.top10Max != null}
+                onChange={(checked) => set({ top10Max: checked ? 60 : null })}
+              />
+            </>
+          ) : null}
         </div>
         {normalized.typeL1 === TYPE_L1_ALL ? (
           <p className="text-xs text-muted-foreground">
@@ -185,15 +247,14 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
                 <TableHead>名称</TableHead>
                 <TableHead>类型</TableHead>
                 <TableHead className="text-right">{dim.label}</TableHead>
+                {dim.rankPct ? <TableHead className="text-right">同类%</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">
-                    {lens === 'return' || lens === 'risk'
-                      ? '这一页没有基金。'
-                      : '尚未计算该维，请跑 bun run compute:select。'}
+                  <TableCell colSpan={dim.rankPct ? 6 : 5} className="text-muted-foreground">
+                    {emptyHint}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -231,6 +292,11 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
                         align="end"
                       />
                     </TableCell>
+                    {dim.rankPct ? (
+                      <TableCell>
+                        <Metric value={row[dim.rankPct]} kind="percent" align="end" />
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))
               )}
@@ -241,7 +307,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
               type="button"
               className="text-sm text-muted-foreground"
               disabled={normalized.page <= 1}
-              onClick={() => set({ page: String(normalized.page - 1) })}
+              onClick={() => set({ page: normalized.page - 1 })}
             >
               上一页
             </button>
@@ -249,7 +315,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
               type="button"
               className="text-sm text-muted-foreground"
               disabled={normalized.page >= pages}
-              onClick={() => set({ page: String(normalized.page + 1) })}
+              onClick={() => set({ page: normalized.page + 1 })}
             >
               下一页
             </button>
@@ -258,4 +324,16 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
       )}
     </AppShell>
   );
+}
+
+function dimCapability(
+  lens: SelectLens,
+  key: string,
+  caps: ListResponse['capabilities'] | undefined,
+): boolean {
+  if (!caps) return true;
+  if (key.startsWith('return_')) return true;
+  if (caps.riskDims[key] != null) return caps.riskDims[key] as boolean;
+  if (caps.selectDims[key] != null) return caps.selectDims[key] as boolean;
+  return lens === 'return';
 }
