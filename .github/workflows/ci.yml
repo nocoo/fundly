@@ -2,14 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
-    name: Lint test typecheck
+    name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,3 +39,5 @@ jobs:
         run: |
           bun run test
           bun run test:web
+      - name: Build web
+        run: bun run build:web

@@ -99,7 +99,7 @@
 - **单元测试**：`tests/` 目录，覆盖 fetchers 解析逻辑、db repo、utils 工具
 - **集成测试**：mock HTTP 响应（用真实抓下来的 fixture）
 - **覆盖率目标**：≥ 95%（`bun test --coverage`）
-- **CI**：后续接入 GitHub Actions
+- **CI**：GitHub Actions `.github/workflows/ci.yml`（typecheck / lint / test / build:web）。Railway 打开 Wait for CI 后等它全绿再部署，见 [09-RAILWAY.md](./09-RAILWAY.md)。
 
 ## 🚧 已知边界
 

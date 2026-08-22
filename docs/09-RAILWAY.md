@@ -102,11 +102,26 @@ railway domain
 
 ---
 
+## CI 与自动部署
+
+GitHub Actions：`.github/workflows/ci.yml`。`main` 的 push / PR 会跑 typecheck、lint、`bun test`、`bun test:web`、`bun run build:web`。
+
+Railway 服务已接 `nocoo/fundly`。要让它**等 CI 全绿再部署**：
+
+1. 打开 [fundly 服务设置](https://railway.com/project/c0f17860-907e-40eb-9ae1-d64258f0a6e2/service/87995549-a6fc-486a-8613-30d0b8cfc3f8)
+2. 打开 **Wait for CI**
+3. GitHub 上确认 Railway App 已接受最新权限：https://github.com/settings/installations
+
+打开后，推 `main` 会先 `WAITING`，CI 失败则 `SKIPPED`，全绿才构建镜像。`railway up` 从本机直推不走这道闸。
+
+本机 CLI token 没有改 `checkSuites` 的权限，这个开关只能在 Dashboard 拨一次。
+
 ## 日常
 
 ```bash
 bun run build:web          # 只改前端时先构建
-railway up --yes --detach  # 推当前目录
+railway up --yes --detach  # 本机直推，不等 GitHub CI
+git push origin main       # 走 GitHub → CI →（Wait for CI 打开后）Railway
 ```
 
 探活：
