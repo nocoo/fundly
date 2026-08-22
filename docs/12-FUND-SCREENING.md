@@ -245,24 +245,24 @@ nav_samples_* 仍写实际样本数
 
 ```
 CURRENCY = 人民币|美元现汇|美元现钞|美元汇|美元
-CLASS    = [ABCDEHI]类?
+CLASS    = [A-I]类?
 suffix   = (CURRENCY CLASS) | (CLASS CURRENCY) | CLASS
 ```
 
 正则（先长后短）：
 
 ```
-/^(.+?)((?:人民币|美元现汇|美元现钞|美元汇|美元)[ABCDEHI]类?|[ABCDEHI]类?(?:人民币|美元现汇|美元现钞|美元汇|美元)|[ABCDEHI]类?)$/
+/^(.+?)((?:人民币|美元现汇|美元现钞|美元汇|美元)[A-I]类?|[A-I]类?(?:人民币|美元现汇|美元现钞|美元汇|美元)|[A-I]类?)$/
 ```
 
 标准化后再存，禁止生吞原后缀：
 
-- 字母 = `A`–`I`
+- 字母 = `A`–`I`（含 F/G；实库如 易方达安悦超短债A/C/F。不含 X/Y/Z）
 - 币种别名：`美元汇` → `美元现汇`；其余原样；没有币种则为空
 - `share_class` = `${币种}${字母}`，如 `A`、`人民币A`、`美元现汇A`
 - `base` = 去掉整段 suffix 后 `trim`，长度 ≥ 2
 
-**写入 `share_group_key = base` 的前提**：库里另有至少一只基金，用同一规则得到相同 `base`、不同 `share_class`。否则两字段都空，**不猜**。夹具至少覆盖：`指数A`、`A类人民币`、`C类美元汇`、`美元现汇A`。
+**写入 `share_group_key = base` 的前提**：库里另有至少一只基金，用同一规则得到相同 `base`、不同 `share_class`。否则两字段都空，**不猜**。夹具至少覆盖：`指数A`、`A类人民币`、`C类美元汇`、`美元现汇A`、`易方达安悦超短债A/C/F`。
 
 兄弟份额：`GET /api/funds/:code/siblings`（`funds-service.ts` + 详情字段映射 + 详情页消费）返回 `share_group_key` 相同且非空、`fund_code` 不同的全部行（代码、简称、份额、综合费、销服是否已知）。不靠当前列表页拼盘。
 
@@ -494,7 +494,7 @@ bun run compute:select "$path"
 |------|------|
 | `src/analytics/risk-metrics.ts` | 窗口指标改吃 `tr_nav`；补 3y/5y 日历跨度门 |
 | `scripts/compute-risk-metrics.ts` + `src/db/repo.ts` | 读 dividend/split，先 `tr_nav` 再算风险；覆盖单测 |
-| `src/db/repo.ts` `upsertPerformance` | ON CONFLICT 不再覆盖 `return_2y/3y/5y` |
+| `src/db/repo.ts` `upsertPerformance` | INSERT 这三列写 NULL；ON CONFLICT 也不覆盖 |
 | `src/metrics/nav-return.ts` / `src/db/ranks.ts` | 2y/3y/5y 用 `tr_nav` 比，同一事务写收益+百分位+4433 |
 | `src/analytics/total-return.ts` | 由 unit_nav + daily_return + dividend/split 构造 `tr_nav` |
 | `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复；输入 `tr_nav` |
@@ -541,7 +541,7 @@ bun run compute:select "$path"
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A` |
+| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F` |
 | **L2** | fund-query 新 sort / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3（可含 version=2 行）上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待） |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
