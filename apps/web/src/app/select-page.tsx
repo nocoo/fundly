@@ -5,6 +5,7 @@ import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
+import { Input } from '@/components/ui/input';
 import { Metric } from '@/components/ui/metric';
 import {
   Table,
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FundTypeBadges } from '@/components/ui/type-badge';
+import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
 import { listTypeL1, listTypeL2 } from '@/lib/fund-type';
 import { fundDetailLink, fundDetailTo, originFromList, writeListOrigin } from '@/lib/list-origin';
@@ -67,7 +69,7 @@ export function RankingRedirect() {
 export default function SelectPage() {
   const { lens: rawLens = 'return' } = useParams();
   if (!isSelectLens(rawLens)) return <Navigate to="/select/return" replace />;
-  return <SelectLensPage lens={rawLens} />;
+  return <SelectLensPage key={rawLens} lens={rawLens} />;
 }
 
 function SelectLensPage({ lens }: { lens: SelectLens }) {
@@ -138,7 +140,11 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
     value: item.value,
     label: `${item.label} (${formatCount(item.n)})`,
   }));
-  const dimOptions = dimsFor(lens).map((item) => ({ value: item.key, label: item.label }));
+  const dimOptions = dimsFor(lens, normalized.typeL1).map((item) => ({
+    value: item.key,
+    label: item.label,
+  }));
+  const search = useImeSearch(normalized.q, (value) => set({ q: value }));
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const dimReady = dimCapability(lens, dim.key, data?.capabilities);
   const emptyHint = !dimReady
@@ -173,12 +179,25 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
             onChange={(value) => set({ typeL2: value === 'all' ? '' : value })}
           />
         ) : null}
+        <div className="max-w-sm">
+          <Input
+            value={search.value}
+            placeholder="搜索代码 / 简称 / 拼音"
+            onChange={search.onChange}
+            onCompositionStart={search.onCompositionStart}
+            onCompositionEnd={search.onCompositionEnd}
+          />
+        </div>
         <FilterChips
           label="维度"
           value={dim.key}
           options={dimOptions}
           onChange={(value) =>
-            set({ dim: dimsFor(lens).find((item) => item.key === value) ?? defaultDim(lens) })
+            set({
+              dim:
+                dimsFor(lens, normalized.typeL1).find((item) => item.key === value) ??
+                defaultDim(lens, normalized.typeL1),
+            })
           }
         />
         <div className="flex flex-wrap items-center gap-2">
@@ -285,12 +304,21 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
                       <FundTypeBadges type={row.fund_type} />
                     </TableCell>
                     <TableCell>
-                      <Metric
-                        value={row[dim.key]}
-                        kind={dim.kind}
-                        signed={dim.signed}
-                        align="end"
-                      />
+                      <div className="flex flex-col items-end gap-0.5">
+                        <Metric
+                          value={
+                            dim.key === 'all_in_fee_pct'
+                              ? (row.all_in_fee_pct ?? row.fee_shown_pct)
+                              : row[dim.key]
+                          }
+                          kind={dim.kind}
+                          signed={dim.signed}
+                          align="end"
+                        />
+                        {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
+                          <span className="text-[11px] text-muted-foreground">销服未知</span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     {dim.rankPct ? (
                       <TableCell>

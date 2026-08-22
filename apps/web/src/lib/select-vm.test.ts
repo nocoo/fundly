@@ -16,6 +16,11 @@ describe('rankingRedirectPath', () => {
     expect(rankingRedirectPath('?dim=return_1m')).toBe('/select/return?dim=return_1m');
   });
 
+  it('drops unknown ranking dims instead of substring matching', () => {
+    expect(rankingRedirectPath('?dim=sharpe_fake')).toBe('/select/return');
+    expect(rankingRedirectPath('?dim=return_bad')).toBe('/select/return');
+  });
+
   it('sends risk dims to /select/risk', () => {
     const url = rankingRedirectPath('?dim=sharpe_1y&typeL1=股票型');
     expect(url.startsWith('/select/risk?')).toBe(true);
@@ -45,6 +50,12 @@ describe('parseSelectSearch', () => {
     expect(off.minSamples).toBeNull();
     expect(off.scalePeer).toBe(50);
     expect(off.top10Max).toBe(60);
+  });
+
+  it('switches money L1 to seven-day yield', () => {
+    const money = parseSelectSearch(new URLSearchParams('typeL1=货币型'), 'return');
+    expect(money.dim.key).toBe('seven_day_yield');
+    expect(selectApiPath('return', money)).toContain('seven_day_yield');
   });
 
   it('floors fractional pages', () => {

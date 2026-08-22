@@ -116,12 +116,22 @@ export function isSelectLens(value: string): value is SelectLens {
   return Object.hasOwn(DIMS, value);
 }
 
-export function dimsFor(lens: SelectLens): readonly SelectDim[] {
+export function isMoneyTypeL1(typeL1: string): boolean {
+  return typeL1.startsWith('货币');
+}
+
+export function dimsFor(lens: SelectLens, typeL1 = ''): readonly SelectDim[] {
+  if (lens === 'return' && isMoneyTypeL1(typeL1)) {
+    return DIMS.return.filter((item) => item.key === 'seven_day_yield');
+  }
+  if (lens === 'return') {
+    return DIMS.return.filter((item) => item.key !== 'seven_day_yield');
+  }
   return DIMS[lens];
 }
 
-export function defaultDim(lens: SelectLens): SelectDim {
-  return DIMS[lens][0] as SelectDim;
+export function defaultDim(lens: SelectLens, typeL1 = ''): SelectDim {
+  return dimsFor(lens, typeL1)[0] as SelectDim;
 }
 
 export type SelectState = {
@@ -136,6 +146,7 @@ export type SelectState = {
   ddPeer: number | null;
   scalePeer: number | null;
   top10Max: number | null;
+  q: string;
 };
 
 function parsePage(raw: string | null): number {
@@ -163,9 +174,10 @@ function defaultMinSamples(lens: SelectLens): number | null {
 }
 
 export function parseSelectSearch(params: URLSearchParams, lens: SelectLens): SelectState {
-  const dims = dimsFor(lens);
+  const typeL1 = params.get('typeL1')?.trim() || DEFAULT_TYPE_L1;
+  const dims = dimsFor(lens, typeL1);
   const dimKey = params.get('dim');
-  const dim = dims.find((item) => item.key === dimKey) ?? defaultDim(lens);
+  const dim = dims.find((item) => item.key === dimKey) ?? defaultDim(lens, typeL1);
   const samplesRaw = params.get('minSamples');
   let minSamples = defaultMinSamples(lens);
   if (samplesRaw === 'off') minSamples = null;
@@ -174,12 +186,13 @@ export function parseSelectSearch(params: URLSearchParams, lens: SelectLens): Se
     if (Number.isFinite(n) && n >= 1) minSamples = Math.min(10_000, Math.floor(n));
   }
   return {
-    typeL1: params.get('typeL1')?.trim() || DEFAULT_TYPE_L1,
+    typeL1,
     typeL2: params.get('typeL2')?.trim() ?? '',
     dim,
     pass4433: lens === 'picks' ? params.get('pass4433') !== 'off' : params.get('pass4433') === '1',
     page: parsePage(params.get('page')),
     mvpOnly: params.get('mvpOnly') === '1',
+    q: params.get('q')?.trim() ?? '',
     minSamples,
     feePeer: lens === 'picks' ? parsePeer(params.get('feePeer'), 50) : null,
     ddPeer: lens === 'picks' ? parsePeer(params.get('ddPeer'), 50) : null,
@@ -203,7 +216,8 @@ export function normalizeSelectState(
   else if (types.length > 0 && !listTypeL2(types, typeL1).some((item) => item.value === typeL2)) {
     typeL2 = '';
   }
-  const dim = dimsFor(lens).find((item) => item.key === state.dim.key) ?? defaultDim(lens);
+  const dim =
+    dimsFor(lens, typeL1).find((item) => item.key === state.dim.key) ?? defaultDim(lens, typeL1);
   return { ...state, typeL1, typeL2, dim, page: Math.floor(state.page) };
 }
 
@@ -218,6 +232,7 @@ export function selectApiPath(lens: SelectLens, state: SelectState): string {
   params.set('pageSize', String(SELECT_PAGE_SIZE));
   params.set('metricNotNull', '1');
   params.set('includeCaps', '1');
+  if (state.q) params.set('q', state.q);
   if (state.mvpOnly) params.set('mvpOnly', '1');
   if (state.pass4433) params.set('pass4433', '1');
   if (lens === 'picks' && !state.pass4433) params.set('pass4433', 'off');
@@ -240,7 +255,8 @@ export function selectUrlState(
   return {
     typeL1: state.typeL1 === DEFAULT_TYPE_L1 ? null : state.typeL1,
     typeL2: state.typeL2 || null,
-    dim: state.dim.key === defaultDim(lens).key ? null : state.dim.key,
+    q: state.q || null,
+    dim: state.dim.key === defaultDim(lens, state.typeL1).key ? null : state.dim.key,
     pass4433: lens === 'picks' ? (state.pass4433 ? null : 'off') : state.pass4433 ? '1' : null,
     page: state.page <= 1 ? null : String(state.page),
     mvpOnly: state.mvpOnly ? '1' : null,
@@ -321,6 +337,7 @@ export function parseStoredSelect(raw: unknown, lens: SelectLens): Partial<Selec
     ddPeer: typeof rec.ddPeer === 'number' ? rec.ddPeer : rec.ddPeer === 'off' ? null : undefined,
     scalePeer: typeof rec.scalePeer === 'number' ? rec.scalePeer : undefined,
     top10Max: typeof rec.top10Max === 'number' ? rec.top10Max : undefined,
+    q: typeof rec.q === 'string' ? rec.q : undefined,
   };
 }
 
@@ -342,6 +359,7 @@ export function writeStoredSelect(lens: SelectLens, state: SelectState): void {
     ddPeer: state.ddPeer,
     scalePeer: state.scalePeer,
     top10Max: state.top10Max,
+    q: state.q,
   });
 }
 
@@ -361,11 +379,14 @@ function migrateLegacyRanking(): void {
   if (typeof localStorage !== 'undefined') localStorage.removeItem(RANKING_FILTERS_KEY);
 }
 
+const RANKING_RETURN_DIMS = new Set(['return_1m', 'return_3m', 'return_6m', 'return_1y']);
+const RANKING_RISK_DIMS = new Set(['sharpe_1y', 'max_drawdown_1y', 'volatility_1y', 'calmar_1y']);
+
 export function rankingRedirectPath(search: string): string {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   const dim = params.get('dim') ?? '';
-  const lens = /sharpe|drawdown|volatility|calmar/.test(dim) ? 'risk' : 'return';
-  if (dim && !/return_|sharpe|drawdown|volatility|calmar/.test(dim)) params.delete('dim');
+  const lens = RANKING_RISK_DIMS.has(dim) ? 'risk' : 'return';
+  if (dim && !RANKING_RETURN_DIMS.has(dim) && !RANKING_RISK_DIMS.has(dim)) params.delete('dim');
   const q = params.toString();
   return q ? `/select/${lens}?${q}` : `/select/${lens}`;
 }
