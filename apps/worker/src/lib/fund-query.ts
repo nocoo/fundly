@@ -250,7 +250,7 @@ export function resolveFundListQuery(
     return { ...query, sort: 'return_1y', dir: 'desc', minSamples: undefined };
   }
   if (isSelectSortKey(query.sort) && !selectSortEnabled(query.sort, select)) {
-    return { ...query, sort: 'return_1y', dir: 'desc' };
+    return query;
   }
   return query;
 }
@@ -265,9 +265,13 @@ function samplesColumn(sort: FundSortKey): string {
   return 'r.nav_samples_1y';
 }
 
+function qualify(expr: string, flat: boolean): string {
+  return flat ? expr.replace(/\b[bprs]\./g, '') : expr;
+}
+
 export function buildFundListClauses(
   query: FundListQuery,
-  opts: { risk?: boolean; select?: boolean } = {},
+  opts: { risk?: boolean; select?: boolean; flat?: boolean } = {},
 ): {
   whereSql: string;
   orderSql: string;
@@ -277,45 +281,60 @@ export function buildFundListClauses(
 } {
   const where: string[] = [];
   const filterParams: SqlBinding[] = [];
+  const flat = Boolean(opts.flat);
   if (query.q) {
     const tokens = searchTokens(query.q);
     const parts = tokens.length > 0 ? tokens : [query.q];
     for (const token of parts) {
       where.push(
-        "(b.fund_code LIKE ? OR b.fund_name LIKE ? OR IFNULL(b.pinyin_abbr, '') LIKE ? OR IFNULL(b.pinyin_full, '') LIKE ?)",
+        qualify(
+          "(b.fund_code LIKE ? OR b.fund_name LIKE ? OR IFNULL(b.pinyin_abbr, '') LIKE ? OR IFNULL(b.pinyin_full, '') LIKE ?)",
+          flat,
+        ),
       );
       const like = `%${token}%`;
       filterParams.push(like, like, like, like);
     }
   }
   if (query.typeL1 && query.typeL2) {
-    where.push('b.fund_type = ?');
+    where.push(qualify('b.fund_type = ?', flat));
     filterParams.push(`${query.typeL1}-${query.typeL2}`);
   } else if (query.typeL1) {
-    where.push('(b.fund_type = ? OR b.fund_type LIKE ?)');
+    where.push(qualify('(b.fund_type = ? OR b.fund_type LIKE ?)', flat));
     filterParams.push(query.typeL1, `${query.typeL1}-%`);
   } else if (query.fundType) {
-    where.push('b.fund_type = ?');
+    where.push(qualify('b.fund_type = ?', flat));
     filterParams.push(query.fundType);
   }
   if (query.mvpOnly) {
-    where.push('b.in_mvp_pool = 1');
+    where.push(qualify('b.in_mvp_pool = 1', flat));
   }
   if (query.hasNav) {
-    where.push('EXISTS (SELECT 1 FROM fund_nav n WHERE n.fund_code = b.fund_code)');
+    where.push(
+      flat
+        ? 'EXISTS (SELECT 1 FROM fund_nav n WHERE n.fund_code = ranked.fund_code)'
+        : 'EXISTS (SELECT 1 FROM fund_nav n WHERE n.fund_code = b.fund_code)',
+    );
   }
   if (query.pass4433) {
-    where.push('p.pass_4433 = 1');
+    where.push(qualify('p.pass_4433 = 1', flat));
   }
   if (query.metricNotNull) {
-    where.push(`${SORT_COLUMNS[query.sort]} IS NOT NULL`);
+    where.push(`${qualify(SORT_COLUMNS[query.sort], flat)} IS NOT NULL`);
   }
-  if (opts.risk && isRiskSortKey(query.sort) && query.minSamples != null) {
-    where.push(`${samplesColumn(query.sort)} >= ?`);
+  if (
+    query.minSamples != null &&
+    (isRiskSortKey(query.sort) ||
+      query.lens === 'picks' ||
+      query.sort.startsWith('ulcer') ||
+      query.sort.includes('underwater') ||
+      query.sort.includes('recovery'))
+  ) {
+    where.push(`${qualify(samplesColumn(query.sort), flat)} >= ?`);
     filterParams.push(query.minSamples);
   }
   if (query.top10Max != null) {
-    where.push('s.top10_weight_pct IS NOT NULL AND s.top10_weight_pct <= ?');
+    where.push(qualify('s.top10_weight_pct IS NOT NULL AND s.top10_weight_pct <= ?', flat));
     filterParams.push(query.top10Max);
   }
   if (query.feePeer != null) {
@@ -334,8 +353,8 @@ export function buildFundListClauses(
   const dirSql = query.dir === 'desc' ? 'DESC' : 'ASC';
   const orderSql =
     query.sort === 'fund_code'
-      ? `ORDER BY b.fund_code ${dirSql}`
-      : `ORDER BY ${SORT_COLUMNS[query.sort]} ${dirSql}, b.fund_code ASC`;
+      ? `ORDER BY ${qualify('b.fund_code', flat)} ${dirSql}`
+      : `ORDER BY ${qualify(SORT_COLUMNS[query.sort], flat)} ${dirSql}, ${qualify('b.fund_code', flat)} ASC`;
   const offset = (query.page - 1) * query.pageSize;
   return {
     whereSql,
@@ -376,9 +395,16 @@ export function fundListSelectSql(opts: { risk?: boolean; select?: boolean } = {
     ? 'r.sharpe_1y, r.max_drawdown_1y, r.volatility_1y, r.calmar_1y, r.nav_samples_1y'
     : 'NULL AS sharpe_1y, NULL AS max_drawdown_1y, NULL AS volatility_1y, NULL AS calmar_1y, NULL AS nav_samples_1y';
   const selectCols = opts.select
-    ? 's.ulcer_1y, s.dca_cagr_3y, s.all_in_fee_pct, s.select_score, s.excess_hs300_1y, s.scale_yi, s.top10_weight_pct, s.equity_ratio_pct, s.inst_holder_pct, s.sales_fee_known'
-    : 'NULL AS ulcer_1y, NULL AS dca_cagr_3y, NULL AS all_in_fee_pct, NULL AS select_score, NULL AS excess_hs300_1y, NULL AS scale_yi, NULL AS top10_weight_pct, NULL AS equity_ratio_pct, NULL AS inst_holder_pct, NULL AS sales_fee_known';
-  return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.in_mvp_pool,
+    ? `s.ulcer_1y, s.underwater_ratio_1y, s.max_underwater_days_1y, s.max_consec_down_1y, s.down_day_ratio_1y,
+       s.worst_month_1y, s.recovery_days_1y, s.dca_cagr_3y, s.dca_vs_lump_3y, s.dca_month_win_3y, s.dca_month_vol_3y,
+       s.all_in_fee_pct, s.select_score, s.excess_hs300_1y, s.scale_yi, s.top10_weight_pct, s.equity_ratio_pct,
+       s.inst_holder_pct, s.sales_fee_known`
+    : `NULL AS ulcer_1y, NULL AS underwater_ratio_1y, NULL AS max_underwater_days_1y, NULL AS max_consec_down_1y,
+       NULL AS down_day_ratio_1y, NULL AS worst_month_1y, NULL AS recovery_days_1y, NULL AS dca_cagr_3y,
+       NULL AS dca_vs_lump_3y, NULL AS dca_month_win_3y, NULL AS dca_month_vol_3y, NULL AS all_in_fee_pct,
+       NULL AS select_score, NULL AS excess_hs300_1y, NULL AS scale_yi, NULL AS top10_weight_pct,
+       NULL AS equity_ratio_pct, NULL AS inst_holder_pct, NULL AS sales_fee_known`;
+  return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
       ${riskCols}, ${selectCols}
@@ -413,11 +439,12 @@ export function fundListSql(
   const needPeer = query.feePeer != null || query.ddPeer != null || query.scalePeer != null;
   if (needPeer) {
     const inner = `${fundListSelectSql(sqlOpts).replace('SELECT ', `SELECT ${peerRankSql()}, `)} `;
+    const outer = buildFundListClauses(query, { ...sqlOpts, flat: true });
     return {
-      listSql: `SELECT * FROM (${inner}) ranked ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
-      countSql: `SELECT COUNT(*) AS n FROM (${inner}) ranked ${c.whereSql}`,
-      listParams: [...c.filterParams, ...c.limitParams],
-      countParams: [...c.filterParams],
+      listSql: `SELECT * FROM (${inner}) ranked ${outer.whereSql} ${outer.orderSql} ${outer.limitSql}`,
+      countSql: `SELECT COUNT(*) AS n FROM (${inner}) ranked ${outer.whereSql}`,
+      listParams: [...outer.filterParams, ...outer.limitParams],
+      countParams: [...outer.filterParams],
     };
   }
   return {

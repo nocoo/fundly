@@ -40,9 +40,10 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
   if (window.length < 60) return { ...EMPTY };
 
   let peak = window[0]?.trNav ?? 0;
-  let peakIndex = 0;
+  let peakAt = 0;
   let maxDd = 0;
   let maxDdTrough = 0;
+  let maxDdPeakIndex = 0;
   let underwaterDays = 0;
   let streakUnder = 0;
   let maxUnder = 0;
@@ -51,7 +52,7 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
     const nav = window[i]?.trNav ?? 0;
     if (nav > peak) {
       peak = nav;
-      peakIndex = i;
+      peakAt = i;
     }
     const dd = peak > 0 ? 1 - nav / peak : 0;
     sq += dd * dd;
@@ -65,6 +66,7 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
     if (dd > maxDd) {
       maxDd = dd;
       maxDdTrough = i;
+      maxDdPeakIndex = peakAt;
     }
   }
 
@@ -90,7 +92,11 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
     if (!cur) byMonth.set(month, { first: point.trNav, last: point.trNav });
     else cur.last = point.trNav;
   }
-  const completeMonths = [...byMonth.values()].filter((m) => m.first > 0);
+  const monthKeys = [...byMonth.keys()].sort();
+  const completeMonths = monthKeys.slice(1, -1).flatMap((key) => {
+    const month = byMonth.get(key);
+    return month && month.first > 0 ? [month] : [];
+  });
   let worstMonth: number | null = null;
   if (completeMonths.length >= 10) {
     for (const month of completeMonths) {
@@ -115,7 +121,7 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
     recovery = 0;
     status = 'recovered';
   } else {
-    const peakNav = window[peakIndex]?.trNav ?? 0;
+    const peakNav = window[maxDdPeakIndex]?.trNav ?? 0;
     for (let i = maxDdTrough; i < window.length; i++) {
       if ((window[i]?.trNav ?? 0) >= peakNav - 1e-12) {
         recovery = i - maxDdTrough;

@@ -87,7 +87,7 @@ export function parseSelectSearch(params: URLSearchParams, lens: SelectLens): Se
     typeL1: params.get('typeL1')?.trim() || DEFAULT_TYPE_L1,
     typeL2: params.get('typeL2')?.trim() ?? '',
     dim,
-    pass4433: params.get('pass4433') === '1',
+    pass4433: lens === 'picks' ? params.get('pass4433') !== 'off' : params.get('pass4433') === '1',
     page: Math.max(1, Number(params.get('page')) || 1),
   };
 }
@@ -121,12 +121,12 @@ export function selectApiPath(lens: SelectLens, state: SelectState): string {
   params.set('metricNotNull', '1');
   params.set('includeCaps', '1');
   if (state.pass4433) params.set('pass4433', '1');
+  if (lens === 'picks' && !state.pass4433) params.set('pass4433', 'off');
   if (lens === 'risk' || lens === 'hold' || lens === 'picks') {
     params.set('minSamples', String(RISK_MIN_SAMPLES));
   }
   if (lens === 'picks') {
     params.set('lens', 'picks');
-    if (state.pass4433 !== false) params.set('pass4433', '1');
     params.set('feePeer', '50');
     params.set('ddPeer', '50');
   }

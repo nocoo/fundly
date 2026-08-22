@@ -63,12 +63,12 @@ export function computeDcaMetrics(points: readonly TotalReturnPoint[] | null): D
   if (!points || points.length < 2) return { ...EMPTY };
   const end = points[points.length - 1];
   if (!end) return { ...EMPTY };
-  const windowStart = addMonths(end.navDate, -36);
+  const endMonth = `${end.navDate.slice(0, 7)}-01`;
   const debits: TotalReturnPoint[] = [];
   for (let i = 35; i >= 0; i--) {
-    const monthEnd = addMonths(windowStart, i + 1);
-    const monthStart = addMonths(windowStart, i);
-    const hit = lastInMonth(points, monthStart < windowStart ? windowStart : monthStart, monthEnd);
+    const monthStart = addMonths(endMonth, -i);
+    const monthEnd = addMonths(monthStart, 1);
+    const hit = lastInMonth(points, monthStart, monthEnd);
     if (hit) debits.push(hit);
   }
   if (debits.length < 30) return { ...EMPTY };

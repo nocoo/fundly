@@ -1,5 +1,5 @@
 import { windowStartDate } from '../metrics/dates.ts';
-import { type TotalReturnPoint, trWindowReturn } from './total-return.ts';
+import type { TotalReturnPoint } from './total-return.ts';
 
 export const HS300_BENCH_CODE = '510300';
 const STALE_STRUCTURE_DAYS = 400;
@@ -54,24 +54,32 @@ export function computeExcessHs300(
   if (!fund || !bench || fund.length < 2 || bench.length < 2) {
     return { excess: null, asof: null };
   }
-  const end = fund[fund.length - 1]?.navDate;
+  const fundByDate = new Map(fund.map((p) => [p.navDate, p.trNav]));
+  const aligned: Array<{ navDate: string; fund: number; bench: number }> = [];
+  for (const point of bench) {
+    const fundTr = fundByDate.get(point.navDate);
+    if (fundTr == null) continue;
+    aligned.push({ navDate: point.navDate, fund: fundTr, bench: point.trNav });
+  }
+  if (aligned.length < 200) return { excess: null, asof: null };
+  const end = aligned[aligned.length - 1];
   if (!end) return { excess: null, asof: null };
-  const start = windowStartDate(end, 'return_1y');
-  if (!start) return { excess: null, asof: null };
-  const fundRet = trWindowReturn(fund, start, end);
-  const benchRet = trWindowReturn(bench, start, end);
-  if (fundRet == null || benchRet == null) return { excess: null, asof: null };
-  let asof: string | null = null;
-  for (const point of fund) {
-    if (point.navDate <= end) asof = point.navDate;
+  const startBound = windowStartDate(end.navDate, 'return_1y');
+  if (!startBound) return { excess: null, asof: null };
+  const window = aligned.filter((row) => row.navDate >= startBound);
+  if (window.length < 200) return { excess: null, asof: null };
+  const first = window[0];
+  const last = window[window.length - 1];
+  if (!first || !last || first.fund <= 0 || first.bench <= 0) return { excess: null, asof: null };
+  if (daysBetween(first.navDate, last.navDate) < 0.8 * 365) {
+    return { excess: null, asof: last.navDate };
   }
-  if (!asof || stale(asof, scoreAsof, STALE_EXCESS_DAYS)) {
-    return { excess: null, asof };
+  if (stale(last.navDate, scoreAsof, STALE_EXCESS_DAYS)) {
+    return { excess: null, asof: last.navDate };
   }
-  const startPoint = fund.find((p) => p.navDate >= start) ?? fund[0];
-  const span = startPoint ? daysBetween(startPoint.navDate, asof) : 0;
-  if (span < 0.8 * 365) return { excess: null, asof };
-  return { excess: fundRet - benchRet, asof };
+  const fundRet = last.fund / first.fund - 1;
+  const benchRet = last.bench / first.bench - 1;
+  return { excess: (fundRet - benchRet) * 100, asof: last.navDate };
 }
 
 export function computeStructureMetrics(input: {
