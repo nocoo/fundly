@@ -31,6 +31,10 @@ const sidebarPath = resolve(root, 'apps/web/src/components/layout/sidebar.tsx');
 const sidebar = readFileSync(sidebarPath, 'utf8');
 writeFileSync(sidebarPath, sidebar.replace(`v${previous}`, `v${next}`));
 
+const loginPath = resolve(root, 'apps/web/src/app/login-page.tsx');
+const login = readFileSync(loginPath, 'utf8');
+writeFileSync(loginPath, login.replace(`'${previous}'`, `'${next}'`));
+
 const range = changelogRange(previous, Boolean(run('git', ['tag', '-l', `v${previous}`])));
 const log = run('git', ['log', '--pretty=format:%s', range]).split('\n').filter(Boolean);
 const today = new Date().toISOString().slice(0, 10);
@@ -44,6 +48,7 @@ run('git', [
   'CHANGELOG.md',
   'apps/worker/src/lib/version.ts',
   'apps/web/src/components/layout/sidebar.tsx',
+  'apps/web/src/app/login-page.tsx',
 ]);
 run('git', ['commit', '-m', `chore: release ${next}`]);
 run('git', ['tag', `v${next}`]);
