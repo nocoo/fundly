@@ -171,6 +171,7 @@ export default function BackupPage() {
                     <Button
                       variant="ghost"
                       size="xs"
+                      className="px-0"
                       disabled={busy !== null}
                       onClick={() => {
                         if (window.confirm('用这份备份覆盖本机数据库？请先停采集和本机 API。')) {
