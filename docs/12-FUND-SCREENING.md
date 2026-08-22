@@ -121,7 +121,7 @@ localStorage key：`fundly_select_<lens>`。分页 50。点行进详情，来源
 规范化（纯函数 `src/metrics/fund-search.ts`，**不新增依赖**）：
 
 1. 去空白、全角括号、`·`；大写 ASCII
-2. 抽出信号：是否含 `ETF` / `LOF` / `联接`；份额字母按本文件份额规则
+2. 抽出信号：是否含 `ETF` / `LOF` / `联接`；份额字母按本文件份额规则（先排除 ETF/LOF/FOF/QDII 尾字母）
 3. `core` = 去掉 `基金`、`ETF联接`、`联接`、`ETF`、`LOF`、末尾份额后的剩余
 4. `tokens` = 把 `core` 拆成连续汉字块、连续字母块、连续数字块（例：`易方达300` → `易方达` + `300`；`YFD300` → `YFD` + `300`）。单字符 token 丢掉，除非它是份额字母已在信号里处理
 
@@ -318,6 +318,7 @@ suffix   = (CURRENCY CLASS) | (CLASS CURRENCY) | CLASS
 标准化后再存，禁止生吞原后缀：
 
 - 字母 = `A`–`I`（含 F/G；实库如 易方达安悦超短债A/C/F。不含 X/Y/Z）
+- **产品缩写优先于份额字母**：若字母是 `F` 且去掉该字母后以 `ET` / `LO` / `FO` 结尾（`ETF`/`LOF`/`FOF`），不当份额。若字母是 `I` 且去掉后以 `QDI` 结尾（`QDII`），不当份额。有表、缺表、搜索现场解析必须用同一函数
 - 币种别名：`美元汇` → `美元现汇`；其余原样；没有币种则为空
 - `share_class` = `${币种}${字母}`，如 `A`、`人民币A`、`美元现汇A`
 - `base` = 去掉整段 suffix 后 `trim`，长度 ≥ 2
@@ -611,7 +612,9 @@ bun run compute:select "$path"
 | `src/fetchers/eastmoney.ts` | 解析 `Data_grandTotal` |
 | `src/utils/types.ts` `PingzhongData.extra` | 增加 `grandTotalJson` |
 | `src/db/repo.ts` `upsertTrendExtra` | 写入 `grand_total_json` |
-| `apps/worker/src/lib/fund-extra.ts` + 详情图 | 解析并叠「本基金 / 沪深300 / 同类平均」 |
+| `apps/worker/src/lib/fund-extra.ts` | 解析 `grand_total_json` |
+| `apps/web/src/lib/fund-extra-vm.ts` | 独立半年百分比序列，自身首末日期 |
+| `apps/web/src/app/fund-detail-page.tsx` | 独立小图，不叠单位净值主图；坏 JSON 不画 |
 | `scripts/compute-select-metrics.ts` | `initSchema` + 批算写入 |
 | `scripts/refresh-select.ts` | 四步包装，fail-fast |
 | `package.json` | `compute:select`、`refresh:select` |
@@ -652,7 +655,7 @@ bun run compute:select "$path"
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` token 分=4、纯 `ETF`/`LOF` 只召回带该信号的名称且非 LOF 要加分、空 tokens 且无信号回空、缺 `fund_select_metrics` 时份额只解析名称、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、allocation 与 scale 日期不一致各自过期、超额共同末日陈旧、基准 510300 缺窗、grandTotal 独立半年百分比图不叠净值 |
+| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` token 分=4、纯 `ETF`/`LOF`/`联接` 只召回带该信号的名称、纯 `F` 不召回 ETF/LOF/FOF、空 tokens 且无信号回空、缺 `fund_select_metrics` 时份额只解析名称、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、allocation 与 scale 日期不一致各自过期、超额共同末日陈旧、基准 510300 缺窗、grandTotal 独立半年百分比图与坏 JSON |
 | **L2** | fund-query 新 sort / 多段 AND 搜索 / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 含 `scale_yi` 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3 且含 `grand_total_json` 列上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待）；`grand_total_json` 从 pingzhong → extra 类型 → upsert → 详情 DTO/图 闭环 |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
