@@ -1,0 +1,9 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/live"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+startCommand = "bun run apps/worker/scripts/serve.ts"

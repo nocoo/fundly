@@ -23,6 +23,7 @@
     "dev:web": "bun run --cwd apps/web dev",
     "dev:all": "bun run scripts/dev-all.ts",
     "build:web": "bun run --cwd apps/web build",
+    "start": "bun run apps/worker/scripts/serve.ts",
     "lint": "biome check src scripts tests apps",
     "lint:fix": "biome check --write src scripts tests apps",
     "format": "biome format --write src scripts tests apps",
