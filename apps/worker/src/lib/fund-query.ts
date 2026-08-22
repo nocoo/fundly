@@ -422,6 +422,20 @@ export function fundListSql(
   listParams: SqlBinding[];
   countParams: SqlBinding[];
 } {
+  if (
+    (isSelectSortKey(query.sort) && !opts.select) ||
+    query.sort === 'seven_day_yield' ||
+    ((query.lens === 'picks' || query.feePeer != null || query.scalePeer != null || query.top10Max != null) &&
+      !opts.select) ||
+    (query.ddPeer != null && !opts.risk)
+  ) {
+    return {
+      listSql: `${fundListSelectSql({})} WHERE 0=1 ORDER BY b.fund_code ASC LIMIT ? OFFSET ?`,
+      countSql: 'SELECT 0 AS n',
+      listParams: [query.pageSize, (query.page - 1) * query.pageSize],
+      countParams: [],
+    };
+  }
   const joinRisk = Boolean(
     opts.risk && (isRiskSortKey(query.sort) || query.ddPeer != null || query.lens === 'picks'),
   );

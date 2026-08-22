@@ -156,7 +156,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
         <div className="flex flex-wrap items-center gap-2">
           <FilterCheck
             label="仅 4433"
-            checked={normalized.pass4433 || lens === 'picks'}
+            checked={normalized.pass4433}
             onChange={(checked) => set({ pass4433: checked ? '1' : null })}
           />
         </div>

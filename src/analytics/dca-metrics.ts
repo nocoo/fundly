@@ -29,8 +29,8 @@ function lastInMonth(
 ): TotalReturnPoint | null {
   let found: TotalReturnPoint | null = null;
   for (const point of points) {
-    if (point.navDate >= start && point.navDate <= end) found = point;
-    if (point.navDate > end) break;
+    if (point.navDate >= start && point.navDate < end) found = point;
+    if (point.navDate >= end) break;
   }
   return found;
 }
