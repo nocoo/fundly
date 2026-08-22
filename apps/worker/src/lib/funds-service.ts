@@ -87,18 +87,24 @@ function selectSortEnabledAny(caps: SelectDimCaps): boolean {
   return Object.values(caps).some(Boolean);
 }
 
+async function columnSet(exec: QueryExec, table: string): Promise<Set<string>> {
+  const rows = await exec.all<{ name: string }>(`PRAGMA table_info(${table})`);
+  return new Set(rows.map((row) => row.name));
+}
+
 async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
   const out = { ...EMPTY_SELECT_DIMS };
   if (await hasTable(exec, 'fund_select_metrics')) {
-    const parts = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield').map((key) =>
-      key === 'recovery_days_1y'
-        ? `EXISTS(SELECT 1 FROM fund_select_metrics WHERE recovery_status_1y IN ('recovered', 'open')) AS ${key}`
-        : `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
-    );
-    const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
-    for (const key of SELECT_SORT_KEYS) {
-      if (key === 'seven_day_yield') continue;
-      out[key] = Boolean(row?.[key]);
+    const cols = await columnSet(exec, 'fund_select_metrics');
+    const keys = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield' && cols.has(key));
+    if (keys.length > 0) {
+      const parts = keys.map((key) =>
+        key === 'recovery_days_1y' && cols.has('recovery_status_1y')
+          ? `EXISTS(SELECT 1 FROM fund_select_metrics WHERE recovery_status_1y IN ('recovered', 'open')) AS ${key}`
+          : `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
+      );
+      const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
+      for (const key of keys) out[key] = Boolean(row?.[key]);
     }
   }
   if (await hasTable(exec, 'fund_money_yield')) {
@@ -116,14 +122,17 @@ async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
 
 async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
   if (!(await hasTable(exec, 'fund_risk_metrics'))) return EMPTY_RISK_DIMS;
-  const parts = Object.keys(EMPTY_RISK_DIMS).map(
+  const cols = await columnSet(exec, 'fund_risk_metrics');
+  const keys = (Object.keys(EMPTY_RISK_DIMS) as Array<keyof RiskDimCaps>).filter((key) =>
+    cols.has(key),
+  );
+  if (keys.length === 0) return EMPTY_RISK_DIMS;
+  const parts = keys.map(
     (key) => `EXISTS(SELECT 1 FROM fund_risk_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
   );
   const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
   const out = { ...EMPTY_RISK_DIMS };
-  for (const key of Object.keys(EMPTY_RISK_DIMS) as Array<keyof RiskDimCaps>) {
-    out[key] = Boolean(row?.[key]);
-  }
+  for (const key of keys) out[key] = Boolean(row?.[key]);
   return out;
 }
 

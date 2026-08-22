@@ -215,8 +215,8 @@ describe('listFunds ranking capabilities', () => {
     const list = await listFunds(exec(db), parseFundListQuery({ sort: 'sharpe_1y' }));
     expect(list.capabilities.risk).toBe(false);
     expect(list.capabilities.riskDims.sharpe_1y).toBe(false);
-    expect(list.sort).toBe('return_1y');
-    expect(list.items[0]?.sharpe_1y).toBeNull();
+    expect(list.sort).toBe('sharpe_1y');
+    expect(list.total).toBe(0);
   });
 
   it('exposes risk when sharpe rows exist', async () => {
@@ -233,8 +233,12 @@ describe('listFunds ranking capabilities', () => {
         rank_pct_1y REAL, data_date TEXT, updated_at INTEGER NOT NULL
       );
       CREATE TABLE fund_risk_metrics (
-        fund_code TEXT PRIMARY KEY, sharpe_1y REAL, max_drawdown_1y REAL, volatility_1y REAL,
-        calmar_1y REAL, nav_samples_1y INTEGER
+        fund_code TEXT PRIMARY KEY,
+        sharpe_1y REAL, sharpe_3y REAL, sharpe_5y REAL,
+        max_drawdown_1y REAL, max_drawdown_3y REAL, max_drawdown_5y REAL, max_drawdown_all REAL,
+        volatility_1y REAL, volatility_3y REAL, volatility_5y REAL,
+        calmar_1y REAL, calmar_3y REAL, sortino_1y REAL, sortino_3y REAL,
+        nav_samples_1y INTEGER, nav_samples_3y INTEGER, nav_samples_5y INTEGER
       );
     `);
     db.prepare(

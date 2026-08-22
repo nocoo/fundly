@@ -608,14 +608,14 @@ export function fundListSql(
     return {
       listSql: `SELECT * FROM (${inner}) ranked ${outer.whereSql} ${outer.orderSql} ${outer.limitSql}`,
       countSql: `SELECT COUNT(*) AS n FROM (${inner}) ranked ${outer.whereSql}`,
-      listParams: [...outer.scoreParams, ...outer.filterParams, ...outer.limitParams],
+      listParams: [...outer.filterParams, ...outer.scoreParams, ...outer.limitParams],
       countParams: [...outer.filterParams],
     };
   }
   return {
     listSql: `${fundListSelectSql(sqlOpts)} ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
     countSql: `SELECT COUNT(*) AS n ${from} ${c.whereSql}`,
-    listParams: [...c.scoreParams, ...c.filterParams, ...c.limitParams],
+    listParams: [...c.filterParams, ...c.scoreParams, ...c.limitParams],
     countParams: [...c.filterParams],
   };
 }

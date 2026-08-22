@@ -231,7 +231,8 @@ describe('fundListSql', () => {
     const built = fundListSql(parseFundListQuery({ q: '易方达300', sort: 'fund_code' }));
     expect((built.listSql.match(/LIKE \?/g) ?? []).length).toBeGreaterThanOrEqual(8);
     expect(built.listSql).toContain('ORDER BY (');
-    expect(built.listParams[0]).toBe('易方达300');
+    expect(built.listParams[0]).toBe('%易方达%');
+    expect(built.listParams).toContain('易方达300');
     const empty = fundListSql(parseFundListQuery({ q: '***' }));
     expect(empty.listSql).toContain('0=1');
   });
