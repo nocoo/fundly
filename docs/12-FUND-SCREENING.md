@@ -43,7 +43,7 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | 盘中估值、重仓股实时涨跌、指数看板 | 文档写过 `fundgz` 已 404；库里没有分钟线 | **不做**。选基看日频总回报，不看盘中估算 |
 | Fuse.js + ETF/LOF/联接/份额信号搜名称 | `/funds` 是 `LIKE` 代码/简称/拼音 | **学**：本地打分，不引入 Fuse，不打东财 suggest |
 | 重仓前十 + 资产配置展示 | `fund_portfolio` 25 万行、`fund_trend_extra` 已有规模/仓位/持有人 | **学**：算成可排序字段，不拉股票行情 |
-| 净值图叠「沪深300 / 同类平均」 | pingzhong 已下 `Data_grandTotal`，解析后丢掉 | **学**：落库只给详情叠约半年曲线。近 1 年超额改用 `tr_nav` 对 510300 |
+| 净值图叠「沪深300 / 同类平均」 | pingzhong 已下 `Data_grandTotal`，解析后丢掉 | **学**：落库后在详情画**独立**半年百分比小图。近 1 年超额改用 `tr_nav` 对 510300 |
 | 用户定投计划生成未来买单 | 本方案是历史路径是否适合定投 | **不混**。继续只做历史 `tr_nav` 定投 |
 | OCR / LLM 从截图抠代码 | 无 | **不做** |
 | 五维雷达当卖点 | `performance_5d_json` 仅详情装饰 | **继续不当主分** |
@@ -655,7 +655,7 @@ bun run compute:select "$path"
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` token 分=4、纯 `ETF`/`LOF`/`联接` 只召回带该信号的名称、纯 `F` 不召回 ETF/LOF/FOF、空 tokens 且无信号回空、缺 `fund_select_metrics` 时份额只解析名称、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、allocation 与 scale 日期不一致各自过期、超额共同末日陈旧、基准 510300 缺窗、grandTotal 独立半年百分比图与坏 JSON |
+| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` token 分=4、纯 `ETF`/`LOF`/`联接` 只召回带该信号的名称、纯 `F` 不召回 ETF/LOF/FOF、纯 `I` 不召回 QDII、空 tokens 且无信号回空、缺 `fund_select_metrics` 时份额只解析名称、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、allocation 与 scale 日期不一致各自过期、超额共同末日陈旧、基准 510300 缺窗、grandTotal 独立小图时间域=JSON 自身首末、坏 JSON 不画 |
 | **L2** | fund-query 新 sort / 多段 AND 搜索 / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 含 `scale_yi` 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3 且含 `grand_total_json` 列上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待）；`grand_total_json` 从 pingzhong → extra 类型 → upsert → 详情 DTO/图 闭环 |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
