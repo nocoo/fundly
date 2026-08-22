@@ -19,12 +19,11 @@ export const NAV_GROUPS: NavGroupDef[] = [
     items: [{ href: '/', label: '仪表盘', icon: 'LayoutDashboard' }],
   },
   {
-    label: '选基',
+    label: '排名',
     defaultOpen: true,
     items: [
       { href: '/funds', label: '基金浏览', icon: 'Search' },
       { href: '/ranking', label: '基金排名', icon: 'Trophy' },
-      { href: '/data', label: '数据管理', icon: 'Database' },
     ],
   },
   {

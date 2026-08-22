@@ -1,7 +1,6 @@
 import {
   ChevronUp,
   Cloud,
-  Database,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
@@ -33,7 +32,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Cloud,
   LayoutDashboard,
   Search,
-  Database,
   Settings,
   Trophy,
 };

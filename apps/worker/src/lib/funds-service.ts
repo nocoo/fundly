@@ -305,33 +305,62 @@ export async function listFundTypes(exec: QueryExec) {
   );
 }
 
+const STAT_TABLES = [
+  'fund_basic_info',
+  'fund_performance',
+  'fund_nav',
+  'fund_trend_extra',
+  'fetch_log',
+  'fund_risk_metrics',
+  'fund_dividend',
+  'fund_fees',
+  'fund_manager',
+  'fund_manager_link',
+  'fund_portfolio',
+  'fund_money_yield',
+] as const;
+
 export async function getDataStats(exec: QueryExec) {
-  const tables = [
-    'fund_basic_info',
-    'fund_performance',
-    'fund_nav',
-    'fund_trend_extra',
-    'fetch_log',
-  ] as const;
   const counts: Record<string, number> = {};
-  for (const t of tables) {
+  for (const t of STAT_TABLES) {
+    if (!(await hasTable(exec, t))) continue;
     const row = await exec.first<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`);
     counts[t] = row?.n ?? 0;
   }
   const span = await exec.first<{ min_date: string | null; max_date: string | null }>(
     'SELECT MIN(nav_date) AS min_date, MAX(nav_date) AS max_date FROM fund_nav',
   );
-  const lastFetch = await exec.first<{ created_at: number | null; status: string | null }>(
-    'SELECT created_at, status FROM fetch_log ORDER BY created_at DESC LIMIT 1',
+  const lastFetch = (await hasTable(exec, 'fetch_log'))
+    ? await exec.first<{ created_at: number | null; status: string | null }>(
+        'SELECT created_at, status FROM fetch_log ORDER BY created_at DESC LIMIT 1',
+      )
+    : null;
+  const lastPerf = (await hasTable(exec, 'fund_performance'))
+    ? await exec.first<{ data_date: string | null }>(
+        'SELECT MAX(data_date) AS data_date FROM fund_performance',
+      )
+    : null;
+  const mvp = await exec.first<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM fund_basic_info WHERE in_mvp_pool = 1',
   );
-  const lastPerf = await exec.first<{ data_date: string | null }>(
-    'SELECT MAX(data_date) AS data_date FROM fund_performance',
-  );
+  const pass4433 = (await hasTable(exec, 'fund_performance'))
+    ? await exec.first<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM fund_performance WHERE pass_4433 = 1',
+      )
+    : null;
+  const fetchStatus = (await hasTable(exec, 'fetch_log'))
+    ? await exec.all<{ status: string; n: number }>(
+        `SELECT COALESCE(status, 'unknown') AS status, COUNT(*) AS n
+         FROM fetch_log GROUP BY status ORDER BY n DESC`,
+      )
+    : [];
   return {
     counts,
     navSpan: { min: span?.min_date ?? null, max: span?.max_date ?? null },
     lastFetchAt: lastFetch?.created_at ?? null,
     lastFetchStatus: lastFetch?.status ?? null,
     lastPerfDate: lastPerf?.data_date ?? null,
+    flags: { mvp: mvp?.n ?? 0, pass4433: pass4433?.n ?? 0 },
+    fetchStatus,
   };
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/layout';
 import { BenchmarkBrowser } from '@/components/settings/benchmark-browser';
+import { DataOverview } from '@/components/settings/data-overview';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import { parseRefRates } from '@/lib/chart-growth';
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   return (
     <AppShell breadcrumbs={[{ label: '设置' }]}>
       <h1 className="mb-4 text-xl font-semibold">设置</h1>
+
+      <DataOverview />
 
       <section className="mb-4 rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
         <h2 className="text-sm font-semibold">涨跌颜色</h2>

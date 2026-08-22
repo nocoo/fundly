@@ -5,6 +5,7 @@ import { presentField } from './fund-detail';
 import { parseFundListQuery } from './fund-query';
 import {
   applyRankTriples,
+  getDataStats,
   getFundDetail,
   getFundNav,
   listFunds,
@@ -262,6 +263,43 @@ describe('listFunds ranking capabilities', () => {
     expect(list.sort).toBe('sharpe_1y');
     expect(list.items[0]?.sharpe_1y).toBe(1.5);
     expect(list.total).toBe(1);
+  });
+});
+
+describe('getDataStats', () => {
+  it('counts core tables and optional satellites', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY, fund_name TEXT NOT NULL, fund_type TEXT NOT NULL,
+        in_mvp_pool INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_performance (
+        fund_code TEXT PRIMARY KEY, pass_4433 INTEGER NOT NULL DEFAULT 0, data_date TEXT, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL);
+      CREATE TABLE fetch_log (id INTEGER PRIMARY KEY, status TEXT, created_at INTEGER);
+      CREATE TABLE fund_fees (fund_code TEXT PRIMARY KEY);
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','A','混合型-灵活',1,1,1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','B','股票型',0,1,1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,'2026-08-18',1)`);
+    db.exec(`INSERT INTO fund_nav VALUES ('000001','2020-01-01',1)`);
+    db.exec(`INSERT INTO fund_nav VALUES ('000001','2026-08-20',1.2)`);
+    db.exec(`INSERT INTO fetch_log VALUES (1,'success',10)`);
+    db.exec(`INSERT INTO fetch_log VALUES (2,'error',11)`);
+    db.exec(`INSERT INTO fund_fees VALUES ('000001')`);
+    const stats = await getDataStats(exec(db));
+    expect(stats.counts.fund_basic_info).toBe(2);
+    expect(stats.counts.fund_fees).toBe(1);
+    expect(stats.counts.fund_risk_metrics).toBeUndefined();
+    expect(stats.flags.mvp).toBe(1);
+    expect(stats.flags.pass4433).toBe(1);
+    expect(stats.navSpan).toEqual({ min: '2020-01-01', max: '2026-08-20' });
+    expect(stats.fetchStatus).toHaveLength(2);
+    expect(new Set(stats.fetchStatus.map((row) => row.status))).toEqual(
+      new Set(['error', 'success']),
+    );
   });
 });
 

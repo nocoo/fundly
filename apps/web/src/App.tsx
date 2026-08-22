@@ -7,7 +7,6 @@ const Dashboard = lazy(() => import('@/app/dashboard'));
 const Funds = lazy(() => import('@/app/funds-page'));
 const Settings = lazy(() => import('@/app/settings-page'));
 const Backup = lazy(() => import('@/app/backup-page'));
-const DataAdmin = lazy(() => import('@/app/data-admin-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
 const Ranking = lazy(() => import('@/app/ranking-page'));
 const NotFound = lazy(() => import('@/app/not-found-page'));
@@ -51,14 +50,6 @@ export function App() {
           element={
             <Guard>
               <Ranking />
-            </Guard>
-          }
-        />
-        <Route
-          path="/data"
-          element={
-            <Guard>
-              <DataAdmin />
             </Guard>
           }
         />
