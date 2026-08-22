@@ -8,6 +8,7 @@ import {
   getDataStats,
   getFundDetail,
   getFundNav,
+  listFundSiblings,
   listFunds,
   returnFromNavPair,
 } from './funds-service';
@@ -266,6 +267,31 @@ describe('listFunds ranking capabilities', () => {
     expect(list.sort).toBe('sharpe_1y');
     expect(list.items[0]?.sharpe_1y).toBe(1.5);
     expect(list.total).toBe(1);
+  });
+});
+
+describe('listFundSiblings', () => {
+  it('returns other funds that share a group key', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY, fund_name TEXT NOT NULL, fund_type TEXT NOT NULL,
+        in_mvp_pool INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_select_metrics (
+        fund_code TEXT PRIMARY KEY, share_class TEXT, share_group_key TEXT,
+        all_in_fee_pct REAL, sales_fee_known INTEGER
+      );
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','测试A','混合型-偏股',1,1,1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','测试C','混合型-偏股',1,1,1)`);
+    db.exec(`INSERT INTO fund_select_metrics VALUES ('000001','A','测试',1.2,1)`);
+    db.exec(`INSERT INTO fund_select_metrics VALUES ('000002','C','测试',0.8,1)`);
+    const items = await listFundSiblings(exec(db), '000001');
+    expect(items).toHaveLength(1);
+    expect(items[0]?.fund_code).toBe('000002');
+    expect(items[0]?.share_class).toBe('C');
+    expect(await listFundSiblings(exec(db), '999999')).toEqual([]);
   });
 });
 
