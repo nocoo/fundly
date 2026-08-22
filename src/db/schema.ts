@@ -107,6 +107,12 @@ export const SCHEMA_DDL = [
   `CREATE INDEX IF NOT EXISTS idx_log_created ON fetch_log(created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_log_status ON fetch_log(status)`,
 
+  `CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  INTEGER NOT NULL
+  )`,
+
   // ============================================================
   // schema_version
   // ============================================================

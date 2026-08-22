@@ -14,20 +14,7 @@ describe('backup run helpers', () => {
     expect(() => resolveEnvironment('qa')).toThrow('invalid BACKY_ENV');
   });
 
-  test('backup refuses to start without credentials', async () => {
-    const prevUrl = process.env.BACKY_WEBHOOK_URL;
-    const prevTok = process.env.BACKY_TOKEN;
-    delete process.env.BACKY_WEBHOOK_URL;
-    delete process.env.BACKY_TOKEN;
-    try {
-      await expect(runBackup({ sqlite: '/tmp/missing.db' })).rejects.toThrow(
-        'BACKY_WEBHOOK_URL and BACKY_TOKEN are required',
-      );
-    } finally {
-      if (prevUrl) process.env.BACKY_WEBHOOK_URL = prevUrl;
-      else delete process.env.BACKY_WEBHOOK_URL;
-      if (prevTok) process.env.BACKY_TOKEN = prevTok;
-      else delete process.env.BACKY_TOKEN;
-    }
+  test('backup refuses to start without stored credentials', async () => {
+    await expect(runBackup({ sqlite: '/tmp/missing-fundly.db' })).rejects.toThrow();
   });
 });

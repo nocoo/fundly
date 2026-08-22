@@ -8,10 +8,10 @@ import {
   downloadRestore,
   initDirectUpload,
   listBackups,
-  loadBackyCredentials,
   pickLatestProd,
   putDirectFile,
 } from './backy.ts';
+import { loadStoredBackyCredentials } from './settings.ts';
 import {
   acquireLock,
   assertDiskSpace,
@@ -57,7 +57,7 @@ export function resolveEnvironment(value?: string): BackyEnvironment {
 
 export async function runBackup(opts: BackupOptions = {}): Promise<BackupCreated> {
   const sqlite = resolveSqlite(opts.sqlite);
-  const creds = loadBackyCredentials();
+  const creds = loadStoredBackyCredentials(sqlite);
   assertFundlyDb(sqlite);
   assertDiskSpace(dirname(sqlite), backupNeedBytes(sqlite));
   acquireLock(sqlite);
@@ -94,8 +94,9 @@ export async function runBackup(opts: BackupOptions = {}): Promise<BackupCreated
 export async function runRestore(
   opts: RestoreOptions = {},
 ): Promise<{ id: string; target: string }> {
-  const target = opts.to ?? resolveSqlite(opts.sqlite);
-  const creds = loadBackyCredentials();
+  const sqlite = resolveSqlite(opts.sqlite);
+  const target = opts.to ?? sqlite;
+  const creds = loadStoredBackyCredentials(sqlite);
   acquireLock(target);
   try {
     try {

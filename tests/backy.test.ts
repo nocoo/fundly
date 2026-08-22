@@ -11,7 +11,7 @@ import {
   headWebhook,
   initDirectUpload,
   listBackups,
-  loadBackyCredentials,
+  parseBackyCredentials,
   pickLatestProd,
   putDirectFile,
   restoreUrlFor,
@@ -34,19 +34,12 @@ function history(rows: Array<Partial<BackyHistory['recent_backups'][number]>>): 
 }
 
 describe('backy credentials and urls', () => {
-  test('requires both env vars', () => {
-    expect(() => loadBackyCredentials({})).toThrow(
-      'BACKY_WEBHOOK_URL and BACKY_TOKEN are required',
+  test('requires both webhook and token', () => {
+    expect(() => parseBackyCredentials('', 'tok')).toThrow(
+      'backy webhook url and token are not configured',
     );
-    expect(() =>
-      loadBackyCredentials({ BACKY_WEBHOOK_URL: 'https://backy.hexly.ai/api/webhook/x' }),
-    ).toThrow();
-    expect(
-      loadBackyCredentials({
-        BACKY_WEBHOOK_URL: ' https://backy.hexly.ai/api/webhook/x ',
-        BACKY_TOKEN: ' tok ',
-      }),
-    ).toEqual({
+    expect(() => parseBackyCredentials('https://backy.hexly.ai/api/webhook/x', '')).toThrow();
+    expect(parseBackyCredentials(' https://backy.hexly.ai/api/webhook/x ', ' tok ')).toEqual({
       webhookUrl: 'https://backy.hexly.ai/api/webhook/x',
       token: 'tok',
     });

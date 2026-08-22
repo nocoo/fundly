@@ -48,15 +48,11 @@ export type RestoreLink = {
 
 export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-export function loadBackyCredentials(
-  env: Record<string, string | undefined> = process.env,
-): BackyCredentials {
-  const webhookUrl = env.BACKY_WEBHOOK_URL?.trim() ?? '';
-  const token = env.BACKY_TOKEN?.trim() ?? '';
-  if (!webhookUrl || !token) {
-    throw new Error('BACKY_WEBHOOK_URL and BACKY_TOKEN are required');
-  }
-  return { webhookUrl, token };
+export function parseBackyCredentials(webhookUrl: string, token: string): BackyCredentials {
+  const url = webhookUrl.trim();
+  const secret = token.trim();
+  if (!url || !secret) throw new Error('backy webhook url and token are not configured');
+  return { webhookUrl: url, token: secret };
 }
 
 export function restoreOrigin(webhookUrl: string): string {
