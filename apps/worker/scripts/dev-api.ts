@@ -143,7 +143,7 @@ app.get('/api/backy', async (c) => {
   }
 });
 
-app.put('/api/backy/config', async (c) => {
+app.on(['PUT', 'POST'], '/api/backy/config', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { webhookUrl?: string; token?: string };
   try {
     return c.json(

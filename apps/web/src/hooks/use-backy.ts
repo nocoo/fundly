@@ -14,8 +14,9 @@ async function mutateAPI<T>(url: string, method: string, body?: unknown): Promis
   });
   const data = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as T & {
     error?: string;
+    message?: string;
   };
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(data.error ?? data.message ?? `HTTP ${res.status}`);
   return data;
 }
 
@@ -53,7 +54,7 @@ export function useBacky() {
     setBusy('save');
     setMessage(null);
     try {
-      await mutateAPI('/api/backy/config', 'PUT', {
+      await mutateAPI('/api/backy/config', 'POST', {
         webhookUrl,
         token: token.trim() || undefined,
       });

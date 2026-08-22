@@ -74,7 +74,7 @@ app.get('/api/backy', async (c) => {
   }
 });
 
-app.put('/api/backy/config', async (c) => {
+app.on(['PUT', 'POST'], '/api/backy/config', async (c) => {
   const input = (await c.req.json().catch(() => ({}))) as { webhookUrl?: string; token?: string };
   const webhookUrl = input.webhookUrl?.trim() ?? '';
   if (!webhookUrl) return c.json({ error: 'webhook url is required' }, 400);
