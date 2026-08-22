@@ -5,7 +5,8 @@ import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
 import { headWebhook, listBackups } from '../../../src/backup/backy.ts';
-import { resolveEnvironment, runBackup, runRestore } from '../../../src/backup/run.ts';
+import { isBackupRunning, resolveBackupJob, writeBackupJob } from '../../../src/backup/job.ts';
+import { resolveEnvironment, runRestore } from '../../../src/backup/run.ts';
 import {
   loadStoredBackyCredentials,
   readBackyConfig,
@@ -117,6 +118,7 @@ app.get('/api/backy', async (c) => {
       hasToken: false,
       environment: resolveEnvironment(),
       history: null,
+      job: resolveBackupJob(SQLITE_PATH),
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -127,6 +129,7 @@ app.get('/api/backy', async (c) => {
     hasToken: config.hasToken,
     environment: resolveEnvironment(),
     history: null as Awaited<ReturnType<typeof listBackups>> | null,
+    job: resolveBackupJob(SQLITE_PATH),
     error: undefined as string | undefined,
   };
   if (!base.configured) return c.json(base);
@@ -163,12 +166,23 @@ app.post('/api/backy/test', async (c) => {
   }
 });
 
-app.post('/api/backy', async (c) => {
-  try {
-    return c.json(await runBackup({ environment: resolveEnvironment() }));
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+app.get('/api/backy/job', (c) => c.json({ job: resolveBackupJob(SQLITE_PATH) }));
+
+app.post('/api/backy', (c) => {
+  if (isBackupRunning(SQLITE_PATH)) {
+    return c.json({ status: 'running', job: resolveBackupJob(SQLITE_PATH) }, 202);
   }
+  const startedAt = new Date().toISOString();
+  const root = resolve(import.meta.dirname, '../../..');
+  const child = Bun.spawn(['bun', 'run', resolve(root, 'scripts/backup.ts')], {
+    cwd: root,
+    env: { ...process.env, FUNDLY_SQLITE: SQLITE_PATH },
+    stdin: 'ignore',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+  writeBackupJob(SQLITE_PATH, { status: 'running', pid: child.pid, startedAt });
+  return c.json({ status: 'running', job: resolveBackupJob(SQLITE_PATH) }, 202);
 });
 
 app.post('/api/backy/restore', async (c) => {

@@ -14,6 +14,13 @@ export type BackyHistory = {
   recent_backups: BackyBackup[];
 };
 
+export type BackupJob = {
+  status: 'running' | 'ok' | 'error';
+  message?: string;
+  id?: string;
+  file_size?: number;
+};
+
 export type BackyStatus = {
   available: boolean;
   configured: boolean;
@@ -21,6 +28,7 @@ export type BackyStatus = {
   hasToken: boolean;
   environment: string;
   history: BackyHistory | null;
+  job?: BackupJob | null;
   error?: string;
 };
 

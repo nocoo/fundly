@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchAPI } from '@/api';
-import { type BackyStatus, unavailableStatus, validateBackyForm } from '@/lib/backy-vm';
+import {
+  type BackupJob,
+  type BackyStatus,
+  unavailableStatus,
+  validateBackyForm,
+} from '@/lib/backy-vm';
 import { canToggleSource, readStoredSource } from '@/lib/source';
 
 async function mutateAPI<T>(url: string, method: string, body?: unknown): Promise<T> {
@@ -81,19 +86,47 @@ export function useBacky() {
     }
   }, []);
 
+  const waitForJob = useCallback(async () => {
+    for (let i = 0; i < 180; i++) {
+      const next = await fetchAPI<{ job: BackupJob | null }>('/api/backy/job');
+      if (next.job?.status === 'ok') {
+        setMessage({ ok: true, text: next.job.id ? `已上传 ${next.job.id}` : '备份完成' });
+        return;
+      }
+      if (next.job?.status === 'error') {
+        throw new Error(next.job.message ?? '备份失败');
+      }
+      setMessage({ ok: true, text: '正在备份，请稍候…' });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    throw new Error('备份超时');
+  }, []);
+
+  useEffect(() => {
+    if (status?.job?.status !== 'running' || busy === 'push') return;
+    setBusy('push');
+    setMessage({ ok: true, text: '正在备份，请稍候…' });
+    void waitForJob()
+      .then(() => refresh())
+      .catch((error) => {
+        setMessage({ ok: false, text: error instanceof Error ? error.message : '备份失败' });
+      })
+      .finally(() => setBusy(null));
+  }, [busy, refresh, status?.job?.status, waitForJob]);
+
   const push = useCallback(async () => {
     setBusy('push');
     setMessage(null);
     try {
-      const result = await mutateAPI<{ id: string; file_size: number }>('/api/backy', 'POST');
-      setMessage({ ok: true, text: `已上传 ${result.id}` });
+      await mutateAPI('/api/backy', 'POST');
+      await waitForJob();
       await refresh();
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : '推送失败' });
     } finally {
       setBusy(null);
     }
-  }, [refresh]);
+  }, [refresh, waitForJob]);
 
   const restore = useCallback(
     async (id: string) => {

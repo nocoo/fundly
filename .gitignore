@@ -14,6 +14,7 @@ data/*.backy.lock
 data/*.backy-dl.gz
 data/*.backy-snap.db
 data/*.backy-snap.db.gz
+data/*.backy-job.json
 
 # Env
 .env
