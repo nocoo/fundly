@@ -15,5 +15,5 @@
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts", "worker-configuration.d.ts", "../../src/metrics/**/*.ts"],
-  "exclude": ["node_modules", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "src/**/*.test.ts", "../../src/metrics/fund-search.ts"]
 }

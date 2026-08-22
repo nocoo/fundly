@@ -87,6 +87,7 @@ export function parsePingzhongData(fundCode: string, jsText: string): PingzhongD
       holderStructureJson: vars.Data_holderStructure ?? null,
       rankingTrendJson: vars.Data_rateInSimilarType ?? null,
       performance5dJson: vars.Data_performanceEvaluation ?? null,
+      grandTotalJson: vars.Data_grandTotal ?? null,
     },
   };
 }

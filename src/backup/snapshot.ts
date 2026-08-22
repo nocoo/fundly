@@ -18,7 +18,7 @@ import {
 import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip, createGzip } from 'node:zlib';
-import { SCHEMA_VERSION } from '../db/schema.ts';
+import { SCHEMA_VERSION, V2_REQUIRED_COLUMNS } from '../db/schema.ts';
 
 export function snapPath(sqlite: string): string {
   return `${sqlite}.backy-snap.db`;
@@ -119,24 +119,80 @@ export function openExisting(path: string, readwrite: boolean): Database {
   return new Database(path, readwrite ? { create: false } : { create: false, readonly: true });
 }
 
+function tableExists(db: Database, name: string): boolean {
+  const row = db
+    .query(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(name) as { ok: number } | null;
+  return Boolean(row);
+}
+
+function columnNames(db: Database, table: string): Set<string> {
+  return new Set(
+    (db.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+      (col) => col.name,
+    ),
+  );
+}
+
+function maxSchemaVersion(db: Database): number | null {
+  if (!tableExists(db, 'schema_version')) return null;
+  const row = db.query('SELECT MAX(version) AS version FROM schema_version').get() as {
+    version: number | null;
+  } | null;
+  return row?.version ?? null;
+}
+
+export function assertCoreTables(db: Database): void {
+  for (const table of ['fund_basic_info', 'fund_performance', 'fund_nav'] as const) {
+    if (!tableExists(db, table)) throw new Error(`missing table ${table}`);
+  }
+  const basic = db.query('SELECT COUNT(*) AS n FROM fund_basic_info').get() as { n: number };
+  const nav = db.query('SELECT COUNT(*) AS n FROM fund_nav').get() as { n: number };
+  if (basic.n <= 0 || nav.n <= 0) throw new Error('fundly database is empty');
+}
+
+export function assertV2Columns(db: Database): void {
+  for (const [table, required] of Object.entries(V2_REQUIRED_COLUMNS)) {
+    const cols = columnNames(db, table);
+    for (const col of required) {
+      if (!cols.has(col)) throw new Error(`missing column ${table}.${col}`);
+    }
+  }
+}
+
+export function assertRestoreSource(path: string): { version: number } {
+  const db = openExisting(path, false);
+  try {
+    const ok = db.query('PRAGMA integrity_check').get() as Record<string, string> | null;
+    const check = ok ? Object.values(ok)[0] : null;
+    if (check !== 'ok') {
+      throw new Error(`integrity_check failed: ${check ?? 'missing'}`);
+    }
+    const version = maxSchemaVersion(db);
+    if (version !== 2 && version !== 3) {
+      throw new Error(`unsupported schema_version: ${version ?? 'missing'}`);
+    }
+    assertCoreTables(db);
+    assertV2Columns(db);
+    return { version };
+  } finally {
+    db.close();
+  }
+}
+
 export function assertFundlyDb(path: string): void {
   const db = openExisting(path, false);
   try {
-    const version = db.query('SELECT MAX(version) AS version FROM schema_version').get() as {
-      version: number | null;
-    } | null;
-    if (version?.version !== SCHEMA_VERSION) {
-      throw new Error(`unexpected schema_version: ${version?.version ?? 'missing'}`);
+    const version = maxSchemaVersion(db);
+    if (version !== SCHEMA_VERSION) {
+      throw new Error(`unexpected schema_version: ${version ?? 'missing'}`);
     }
-    for (const table of ['fund_basic_info', 'fund_performance', 'fund_nav'] as const) {
-      const row = db
-        .query(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?`)
-        .get(table) as { ok: number } | null;
-      if (!row) throw new Error(`missing table ${table}`);
+    assertCoreTables(db);
+    if (!tableExists(db, 'fund_select_metrics'))
+      throw new Error('missing table fund_select_metrics');
+    if (!columnNames(db, 'fund_trend_extra').has('grand_total_json')) {
+      throw new Error('missing column fund_trend_extra.grand_total_json');
     }
-    const basic = db.query('SELECT COUNT(*) AS n FROM fund_basic_info').get() as { n: number };
-    const nav = db.query('SELECT COUNT(*) AS n FROM fund_nav').get() as { n: number };
-    if (basic.n <= 0 || nav.n <= 0) throw new Error('fundly database is empty');
   } finally {
     db.close();
   }

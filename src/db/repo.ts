@@ -28,6 +28,13 @@ export function openDb(path: string = DEFAULT_DB_PATH): Database {
 }
 
 /** 初始化 schema（幂等） */
+export function ensureGrandTotalColumn(db: Database): void {
+  const cols = db.query('PRAGMA table_info(fund_trend_extra)').all() as Array<{ name: string }>;
+  if (cols.length === 0) return;
+  if (cols.some((col) => col.name === 'grand_total_json')) return;
+  db.exec('ALTER TABLE fund_trend_extra ADD COLUMN grand_total_json TEXT');
+}
+
 export function ensurePerformanceRankStatsColumn(db: Database): void {
   const cols = db.query('PRAGMA table_info(fund_performance)').all() as Array<{ name: string }>;
   if (cols.some((col) => col.name === 'rank_stats_json')) return;
@@ -60,6 +67,7 @@ export function initSchema(db: Database): void {
       db.exec(ddl);
     }
     ensurePerformanceRankStatsColumn(db);
+    ensureGrandTotalColumn(db);
     dropBasicInfoDuplicateColumns(db);
     // 记录版本
     const existing = db
@@ -295,14 +303,15 @@ export function latestNavDate(db: Database): string | null {
 const UPSERT_TREND_EXTRA = `
   INSERT INTO fund_trend_extra (
     fund_code, asset_allocation_json, scale_history_json,
-    holder_structure_json, ranking_trend_json, performance_5d_json, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    holder_structure_json, ranking_trend_json, performance_5d_json, grand_total_json, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(fund_code) DO UPDATE SET
     asset_allocation_json = excluded.asset_allocation_json,
     scale_history_json = excluded.scale_history_json,
     holder_structure_json = excluded.holder_structure_json,
     ranking_trend_json = excluded.ranking_trend_json,
     performance_5d_json = excluded.performance_5d_json,
+    grand_total_json = excluded.grand_total_json,
     updated_at = excluded.updated_at
 `;
 
@@ -314,6 +323,7 @@ export function upsertTrendExtra(db: Database, data: PingzhongData): void {
     data.extra.holderStructureJson,
     data.extra.rankingTrendJson,
     data.extra.performance5dJson,
+    data.extra.grandTotalJson,
     Date.now(),
   );
 }

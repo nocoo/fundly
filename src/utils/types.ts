@@ -73,6 +73,7 @@ export interface PingzhongData {
     holderStructureJson: string | null;
     rankingTrendJson: string | null;
     performance5dJson: string | null;
+    grandTotalJson: string | null;
   };
 }
 

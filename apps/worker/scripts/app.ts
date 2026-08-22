@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
-import { existsSync, mkdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { headWebhook, listBackups } from '../../../src/backup/backy.ts';
@@ -11,7 +11,6 @@ import {
   readBackyConfig,
   saveBackyConfig,
 } from '../../../src/backup/settings.ts';
-import { initSchema } from '../../../src/db/repo.ts';
 import { type AuthConfig, loadAuthConfig } from '../src/lib/auth-config.ts';
 import { registerAuthRoutes, requireSession } from '../src/lib/auth-routes.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
@@ -41,11 +40,8 @@ function sqliteExec(db: Database): QueryExec {
 }
 
 export function openReadonlySqlite(sqlitePath: string): QueryExec {
-  mkdirSync(dirname(sqlitePath), { recursive: true });
   if (!existsSync(sqlitePath)) {
-    const fresh = new Database(sqlitePath, { create: true });
-    initSchema(fresh);
-    fresh.close();
+    throw new Error(`database not found: ${sqlitePath}`);
   }
   return sqliteExec(new Database(sqlitePath, { readonly: true }));
 }

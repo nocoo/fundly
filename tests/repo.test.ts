@@ -391,6 +391,7 @@ describe('db repo', () => {
         holderStructureJson: null,
         rankingTrendJson: null,
         performance5dJson: null,
+        grandTotalJson: null,
       },
     };
     upsertTrendExtra(db, data);

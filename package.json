@@ -16,6 +16,8 @@
     "fetch:all": "bun run scripts/fetch-all.ts",
     "rank:refresh": "bun run scripts/refresh-ranks.ts",
     "compute:risk": "bun run scripts/compute-risk-metrics.ts",
+    "compute:select": "bun run scripts/compute-select-metrics.ts",
+    "refresh:select": "bun run scripts/refresh-select.ts",
     "fetch:dividend": "bun run scripts/fetch-dividend.ts",
     "fetch:fees": "bun run scripts/fetch-fees.ts",
     "fetch:manager": "bun run scripts/fetch-manager.ts",

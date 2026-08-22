@@ -158,6 +158,9 @@ async function main(): Promise<void> {
   });
 
   db.close();
+  if (process.env.FUNDLY_DAILY_STRICT === '1' && failed > 0) {
+    process.exit(1);
+  }
 }
 
 await main();

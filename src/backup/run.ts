@@ -1,5 +1,6 @@
+import { Database } from 'bun:sqlite';
 import { dirname } from 'node:path';
-import { DEFAULT_DB_PATH } from '../db/repo.ts';
+import { DEFAULT_DB_PATH, initSchema } from '../db/repo.ts';
 import {
   abortDirectUpload,
   type BackupCreated,
@@ -16,6 +17,7 @@ import {
   acquireLock,
   assertDiskSpace,
   assertFundlyDb,
+  assertRestoreSource,
   backupNeedBytes,
   checkpointWal,
   clearStaleWorkFiles,
@@ -124,6 +126,13 @@ export async function runRestore(
     const link = await downloadRestore(creds, chosen.id, dl);
     assertDiskSpace(dirname(target), restoreNeedBytes(link.file_size));
     await gunzipFile(dl, restored);
+    assertRestoreSource(restored);
+    const db = new Database(restored);
+    try {
+      initSchema(db);
+    } finally {
+      db.close();
+    }
     assertFundlyDb(restored);
 
     if (exists && opts.force) replaceWithForce(restored, target);

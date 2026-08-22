@@ -3,7 +3,21 @@
  * 参考 GoFundBot 的 models.py，做了简化和优化（详见 docs/02-SCHEMA.md）
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+
+export const V2_REQUIRED_COLUMNS: Record<string, readonly string[]> = {
+  fund_basic_info: [
+    'fund_code',
+    'fund_name',
+    'fund_type',
+    'in_mvp_pool',
+    'created_at',
+    'updated_at',
+  ],
+  fund_performance: ['fund_code', 'return_1m', 'return_1y', 'updated_at'],
+  fund_nav: ['fund_code', 'nav_date', 'unit_nav'],
+  schema_version: ['version', 'applied_at'],
+};
 
 export const SCHEMA_DDL = [
   // ============================================================
@@ -86,6 +100,7 @@ export const SCHEMA_DDL = [
     holder_structure_json TEXT,
     ranking_trend_json    TEXT,
     performance_5d_json   TEXT,
+    grand_total_json      TEXT,
     updated_at            INTEGER NOT NULL,
     FOREIGN KEY (fund_code) REFERENCES fund_basic_info(fund_code)
   )`,
@@ -233,4 +248,45 @@ export const SCHEMA_DDL = [
   ) WITHOUT ROWID`,
   `CREATE INDEX IF NOT EXISTS idx_port_report ON fund_portfolio(report_date DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_port_stock ON fund_portfolio(stock_code)`,
+
+  `CREATE TABLE IF NOT EXISTS fund_select_metrics (
+    fund_code              TEXT PRIMARY KEY,
+    ulcer_1y               REAL,
+    underwater_ratio_1y    REAL,
+    max_underwater_days_1y INTEGER,
+    max_consec_down_1y     INTEGER,
+    down_day_ratio_1y      REAL,
+    worst_month_1y         REAL,
+    recovery_days_1y       INTEGER,
+    recovery_status_1y     TEXT NOT NULL DEFAULT 'insufficient',
+    dca_cagr_3y            REAL,
+    dca_vs_lump_3y         REAL,
+    dca_month_win_3y       REAL,
+    dca_month_vol_3y       REAL,
+    all_in_fee_pct         REAL,
+    sales_fee_known        INTEGER NOT NULL DEFAULT 0,
+    share_class            TEXT NOT NULL DEFAULT '',
+    share_group_key        TEXT NOT NULL DEFAULT '',
+    scale_yi               REAL,
+    scale_asof             TEXT,
+    equity_ratio_pct       REAL,
+    alloc_asof             TEXT,
+    inst_holder_pct        REAL,
+    holder_asof            TEXT,
+    top10_weight_pct       REAL,
+    port_asof              TEXT,
+    excess_hs300_1y        REAL,
+    excess_asof            TEXT,
+    select_score           REAL,
+    score_asof             TEXT,
+    updated_at             INTEGER NOT NULL,
+    FOREIGN KEY (fund_code) REFERENCES fund_basic_info(fund_code)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_select_ulcer ON fund_select_metrics(ulcer_1y)`,
+  `CREATE INDEX IF NOT EXISTS idx_select_dca ON fund_select_metrics(dca_cagr_3y DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_select_fee ON fund_select_metrics(all_in_fee_pct)`,
+  `CREATE INDEX IF NOT EXISTS idx_select_score ON fund_select_metrics(select_score DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_select_share_group ON fund_select_metrics(share_group_key) WHERE share_group_key != ''`,
+  `CREATE INDEX IF NOT EXISTS idx_select_scale ON fund_select_metrics(scale_yi)`,
+  `CREATE INDEX IF NOT EXISTS idx_select_excess ON fund_select_metrics(excess_hs300_1y DESC)`,
 ];

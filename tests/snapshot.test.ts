@@ -8,6 +8,7 @@ import {
   assertCheckpointIdle,
   assertDiskSpace,
   assertFundlyDb,
+  assertRestoreSource,
   clearStaleWorkFiles,
   exclusiveRename,
   gunzipFile,
@@ -68,7 +69,7 @@ describe('assertFundlyDb', () => {
     db.exec(
       'CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at INTEGER, description TEXT)',
     );
-    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (2, 1)');
+    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (3, 1)');
     db.exec('CREATE TABLE fund_basic_info (fund_code TEXT)');
     db.exec('CREATE TABLE fund_performance (fund_code TEXT)');
     db.exec('CREATE TABLE fund_nav (fund_code TEXT)');
@@ -79,6 +80,22 @@ describe('assertFundlyDb', () => {
   test('accepts a seeded fundly db', () => {
     const path = tmp('ok.db');
     seedMini(path);
+    assertFundlyDb(path);
+  });
+
+  test('migrates a supported v2 snapshot to v3', () => {
+    const path = tmp('v2.db');
+    seedMini(path);
+    const db = new Database(path);
+    db.exec('DELETE FROM schema_version WHERE version = 3');
+    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (2, 1)');
+    db.exec('DROP TABLE fund_select_metrics');
+    db.exec('ALTER TABLE fund_trend_extra DROP COLUMN grand_total_json');
+    db.close();
+    expect(assertRestoreSource(path).version).toBe(2);
+    const writable = new Database(path);
+    initSchema(writable);
+    writable.close();
     assertFundlyDb(path);
   });
 
