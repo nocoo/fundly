@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { getDisplayName, isLocalDevHost, sidebarUserState } from './user';
+import { getDisplayName, isLocalDevHost, mustSignIn, sidebarUserState } from './user';
 
 describe('getDisplayName', () => {
   it('falls back to 未登录 when unauthenticated', () => {
@@ -45,6 +45,40 @@ describe('sidebarUserState', () => {
       'fundly.hexly.ai',
     );
     expect(state).toMatchObject({ kind: 'user', name: 'Zheng Li', email: 'a@b.com' });
+  });
+});
+
+describe('mustSignIn', () => {
+  it('sends guests to login unless auth is explicitly off', () => {
+    expect(mustSignIn(undefined)).toBe(true);
+    expect(mustSignIn({ authenticated: false, email: null, name: null, avatar: null })).toBe(true);
+    expect(
+      mustSignIn({
+        authenticated: false,
+        authRequired: true,
+        email: null,
+        name: null,
+        avatar: null,
+      }),
+    ).toBe(true);
+    expect(
+      mustSignIn({
+        authenticated: false,
+        authRequired: false,
+        email: null,
+        name: null,
+        avatar: null,
+      }),
+    ).toBe(false);
+    expect(
+      mustSignIn({
+        authenticated: true,
+        authRequired: true,
+        email: 'a@b.com',
+        name: 'A',
+        avatar: null,
+      }),
+    ).toBe(false);
   });
 });
 

@@ -18,6 +18,12 @@ export type SidebarUserState =
       avatar: string | null;
     };
 
+export function mustSignIn(user: UserInfo | undefined): boolean {
+  if (!user) return true;
+  if (user.authenticated) return false;
+  return user.authRequired !== false;
+}
+
 export function isLocalDevHost(host: string): boolean {
   return (
     host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.endsWith('.dev.hexly.ai')

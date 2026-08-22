@@ -111,7 +111,7 @@ fundly/
 
 生产走 Google OAuth + `ALLOWED_EMAILS`，见 [10-AUTH.md](./10-AUTH.md)。Cloudflare Access 已拆除。
 
-本机没配 `GOOGLE_CLIENT_*` 时侧栏仍显示「本地开发」。配齐后与生产同一套登录页。
+本机 `fundly.dev.hexly.ai` 和线上同一套 Google 登录。仓库根目录 `.env` 配好密钥后必须重启 `dev:api`，旧进程的 `/api/me` 没有 `authRequired`，页面会直接放行。
 
 ---
 

@@ -17,7 +17,7 @@
 | 白名单 | `ALLOWED_EMAILS` 逗号分隔；空 = 放行所有 Google 账号 | 与 Gecko 相同 |
 | 登录页 | 仿 Gecko `/login` 工卡 | 家族项目手感一致；`bg-primary` 自动是 #E85D2A |
 
-生产（`component=railway`）缺密钥时 API 直接 503，不裸奔。本机没配密钥则保持未登录可逛。
+本机和线上都要登录。缺密钥时受保护的 `/api/*` 返回 503，不裸奔。只有 `AUTH_DISABLED=1` 才关掉登录（单测用）。
 
 ---
 

@@ -57,7 +57,7 @@ export function createApi(
   const sqlite = openReadonlySqlite(sqlitePath);
   const app = new Hono();
   const repoRoot = resolve(import.meta.dirname, '../../..');
-  const auth = opts.auth ?? loadAuthConfig(process.env, opts.component === 'railway');
+  const auth = opts.auth ?? loadAuthConfig(process.env, true);
 
   app.use('/api/*', async (c, next) => {
     c.header('access-control-allow-origin', c.req.header('origin') ?? '*');
