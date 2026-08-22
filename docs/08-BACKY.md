@@ -47,28 +47,30 @@ Backy 项目名 `fundly`，webhook 已开通。Pull 未开，也不开：采集�
 | 上传路径 | 直传 3b（init → PUT R2 → complete） | 50MB webhook 装不下 |
 | 调度 | 本机 Push，不开 Pull | 笔记本不常驻 |
 | 多文件 / 分片 | 不做 | 接口一次一条；当前体积无必要 |
-| 密钥 | 环境变量，不进 git | webhook token 是 secret |
+| 密钥 | 本机 `app_settings`，页面填写 | 不进 git、不写进源码 |
 | 默认恢复 | `environment=prod` 最新一条 | 探测用过 `test`，不能当换机源 |
 
 不采用：
 
 - 裸传 4.01GB（上限只剩 0.99GB；PUT 1 小时窗口紧）
 - 先打大 gzip 再切（缺一片解不开）
-- 把 token 写进文档或脚本默认值
+- 把 token 写进源码或文档
 - 自动化测试打生产 Backy 项目
 
 ---
 
 ## 凭证
 
-| 环境变量 | 含义 |
+存在本机 `app_settings`：
+
+| key | 含义 |
 |---|---|
-| `BACKY_WEBHOOK_URL` | `https://backy.hexly.ai/api/webhook/<projectId>` |
-| `BACKY_TOKEN` | `Authorization: Bearer …` 的 token |
+| `backy_webhook_url` | `https://backy.hexly.ai/api/webhook/<projectId>` |
+| `backy_token` | Bearer token |
 
-restore 不在 webhook 路径下。实现从 `BACKY_WEBHOOK_URL` 取 origin，拼 `GET {origin}/api/restore/{backupId}`。
+`/backup` 页填写并 `PUT /api/backy/config`。GET 状态只回 URL 和 `hasToken`，不回 token。CLI 从同一张表读。缺任一项：不碰净值库、非零退出。
 
-缺任一变量：CLI 非零退出，不碰数据库。
+restore 不在 webhook 路径下。从已存 URL 取 origin，拼 `GET {origin}/api/restore/{backupId}`。
 
 ---
 
@@ -83,7 +85,7 @@ FUNDLY_SQLITE=data/fundly.db BACKY_ENV=prod bun run backup
 
 步骤：
 
-1. 读 `BACKY_WEBHOOK_URL` / `BACKY_TOKEN`。缺一则退出，不碰磁盘。可选 `HEAD` webhook，只认 HTTP 200（现网没有 `X-Project-Name`）。
+1. 从 `app_settings` 读 webhook / token。缺一则退出，不碰磁盘。可选 `HEAD` webhook，只认 HTTP 200（现网没有 `X-Project-Name`）。
 2. 预检目标卷空闲 ≥ 快照 + gzip（按 2026-08-22 实测约 **4.46 GB**）。不够则退出。
 3. 拿锁：`{sqlite}.backy.lock` 用 `O_EXCL` 创建。锁已存在则读 pid，进程仍在就退出；pid 不存在则删锁和残留 snap/gz 后重建。锁与 snap **分开**：失败留下的 `.backy-snap.db*` 不是锁。无锁残留一律删除再做，不续传（R2 单次 PUT 不能断点）。
 4. 只读打开已存在的源库，跑 `assertFundlyDb`（见下节），再 `VACUUM INTO {sqlite}.backy-snap.db`。不要 gzip 活库文件。
@@ -175,7 +177,8 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 | `package.json` | `backup` / `restore` |
 | `tsconfig.scripts.json` | include 两个脚本 |
 | `docs/03-SCRIPTS.md` | 命令表 |
-| `apps/web/src/components/settings/backy-settings.tsx` | 设置页：Cloud 图标、推送、历史卡片 |
+| `src/backup/settings.ts` | `app_settings` 读写 |
+| `apps/web/src/app/backup-page.tsx` | `/backup`：连接表单 + 最近备份表 |
 | `apps/worker/scripts/dev-api.ts` | `/api/backy*` 本机入口 |
 
 `DEFAULT_DB_PATH` 仍是默认路径。现有 `data/fundly.db.prev-20260819` 已被 ignore 漏掉，实现 `.gitignore` 时一并收口。
@@ -190,7 +193,7 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 | **L2** | **N/A（本迭代）**。生产 Backy 项目不是隔离实例；`environment=test` 仍是同一项目。有独立 Backy 测试项目再补真 HTTP。 |
 | **L3** | 手测：`bun run backup` → `bun run restore --id <prod> --to /tmp/fundly-restore.db` → `assertFundlyDb`。覆盖已有库时再测 `--force`（先停 `dev:all`）。不进 CI。 |
 | **G1** | `bun run typecheck`、`typecheck:scripts`、`lint`。提交前 `bun run test:coverage`（仓库规定 ≥ 95%）。 |
-| **G2** | token 只走环境变量。提交前 `gitleaks`；文档禁止粘贴 Bearer。 |
+| **G2** | token 只进本机 `app_settings`。提交前 `gitleaks`；文档禁止粘贴 Bearer。 |
 | **D1** | 本功能不新建 Cloudflare 资源。单测只用进程内临时 sqlite / mock fetch。 |
 
 本迭代最高 **Tier B**（L1 + G1）。不要为了刷 Tier 去打生产 webhook。

@@ -18,6 +18,7 @@ Fundly 使用 **bun:sqlite**（Bun 原生 SQLite），单文件存储于 `data/f
 | `fund_nav` | `(fund_code, nav_date)` | ~22M | 历史净值明细（长表） |
 | `fund_trend_extra` | `fund_code` | 14,700 | 非核心走势 JSON（规模/持有人等） |
 | `fetch_log` | `id` | ∞ | 抓取日志（成功/失败） |
+| `app_settings` | `key` | 少量 | 本机应用配置（含 Backy 凭证） |
 | `schema_version` | `version` | 1 | 迁移版本 |
 
 ---
@@ -174,6 +175,20 @@ CREATE INDEX idx_log_status  ON fetch_log(status);
 ```
 
 用途：审计、性能分析、失败重试队列。
+
+---
+
+## `app_settings` — 本机应用配置
+
+```sql
+CREATE TABLE app_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+```
+
+目前写入 `backy_webhook_url` / `backy_token`。不进 git。`initSchema` 会 `CREATE TABLE IF NOT EXISTS`，不升 `SCHEMA_VERSION`。
 
 ---
 

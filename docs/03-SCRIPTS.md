@@ -155,17 +155,15 @@ bun run rank:refresh data/fundly.db
 
 本机写库换机走 Backy，不分片。细节见 [08-BACKY.md](./08-BACKY.md)。
 
+Webhook / API Key 在本机页 `/backup` 填写，写入 `app_settings`。CLI 读同一张表。
+
 ```bash
-export BACKY_WEBHOOK_URL='https://backy.hexly.ai/api/webhook/<projectId>'
-export BACKY_TOKEN='…'
 bun run backup
 bun run restore                 # 最新 prod
 bun run restore --id <id>       # 指定
 bun run restore --force         # 覆盖已有库（先停 dev:all / 采集）
 bun run restore --to /tmp/x.db
 ```
-
-设置页「远程备份」只在本机 API 上可用：列表、测试连接、推送、按 id 恢复。
 
 ---
 
