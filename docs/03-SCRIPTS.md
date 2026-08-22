@@ -14,9 +14,7 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
 | `refresh-ranks.ts` | `bun run rank:refresh` | **按同类重算排名百分位 + 4433，写入库** | 全市场 27,527 只实测 4 秒 |
-| `seed-d1.ts` | `bun run import:d1:seed` | 空库首次：SQL 文件 + `wrangler d1 execute --file` | 视文件数 |
-| `import-d1.ts` | `bun run import:d1` | 增量：可变表 upsert，净值按水位追加 | 视新增行 |
-| `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，默认 sqlite | 常驻 |
+| `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，读 sqlite | 常驻 |
 | `dev-all.ts` | `bun run dev:all` | 并行起 `dev:api` + `dev:web` | 常驻 |
 
 ---
@@ -167,35 +165,6 @@ bun run restore --to /tmp/x.db
 
 ---
 
-## ☁ D1 导入
-
-空库先建表，再用 SQL 文件做首次 seed。不要对空库跑 REST 逐批导入 3000 万净值行。
-
-```bash
-bun run migrate:d1                # wrangler d1 migrations apply --remote
-bun run import:d1:seed            # 默认 data/fundly.db → wrangler d1 execute --file
-FUNDLY_SEED_TABLES=fund_nav bun run import:d1:seed   # 只补一张表
-FUNDLY_SEED_TABLES=fund_nav FUNDLY_SEED_SKIP_FILES=46 \
-  FUNDLY_SEED_SQLITE=data/fundly.db.seed-snapshot.db \
-  FUNDLY_SEED_SNAPSHOT='<size:mtimeMs from first run>' bun run import:d1:seed
-# 首次 VACUUM INTO data/fundly.db.seed-snapshot.db。已存在时必须显式 FUNDLY_SEED_SQLITE=该路径，或 rm -f data/fundly.db.seed-snapshot.db 后重做。
-# SKIP_FILES 按快照内 ORDER BY 主键后的真实打包结果跳过前 N 个文件。
-bun run import:d1                 # 之后增量
-bun run import:d1 path/to/db      # 指定 sqlite
-```
-
-规则：
-
-- 首次：`INSERT OR IGNORE` 写成 SQL 文件，走 D1 execute/import，不是 193 万次 HTTP POST
-- 增量 `fund_basic_info` / `fund_performance` / `fund_trend_extra`：`ON CONFLICT DO UPDATE`
-- 增量 `fund_nav`：按基金取远端 `MAX(nav_date)`，只上传更新的日期
-- `fetch_log`：按主键追加
-- Token：`CLOUDFLARE_API_TOKEN`，没有再跑 `wrangler auth token`
-
-发布探活需要 GitHub secrets `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`，校验 `/api/live` 的 `status=ok` 和版本号。Access 302 不算成功。
-
-首次全量净值仍会走很长时间；重跑只补水位之后的行。
-
 ### 本机 API：`dev-api.ts`
 
 ```bash
@@ -204,7 +173,7 @@ bun run dev:api                   # 只起 API http://127.0.0.1:7045
 FUNDLY_SQLITE=/path bun run dev:api
 ```
 
-Vite 把 `/api/*` 代理到这里。默认读 sqlite；请求头 `X-Fundly-Source: d1` 改打远端 D1。`dev:all` 任一子进程退出会停掉另一个。
+Vite 把 `/api/*` 代理到这里，只读本机 sqlite。`dev:all` 任一子进程退出会停掉另一个。
 
 ## 🛠 工具脚本
 

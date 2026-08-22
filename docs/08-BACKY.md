@@ -6,7 +6,7 @@
 > - [01-ARCHITECTURE.md](./01-ARCHITECTURE.md) — 采集写 `data/fundly.db`
 > - [02-SCHEMA.md](./02-SCHEMA.md) — 表结构
 > - [03-SCRIPTS.md](./03-SCRIPTS.md) — CLI 入口（实现后补 `backup` / `restore`）
-> - [06-ARCH-UI.md](./06-ARCH-UI.md) — 浏览层；本文件不改 Worker / D1
+> - [06-ARCH-UI.md](./06-ARCH-UI.md) — 浏览层
 
 已实现：`bun run backup` / `bun run restore`，设置页只读本机 API。
 
@@ -14,7 +14,7 @@
 
 ## 问题
 
-生产浏览可以继续用或不走 D1，但 **4GB 写库不搬上云当查询引擎**。换电脑、磁盘坏了，必须能从 R2 把同一份 SQLite 拉回来。
+**4GB 写库不搬上云当查询引擎**。换电脑、磁盘坏了，必须能从 R2 把同一份 SQLite 拉回来。
 
 Backy 项目名 `fundly`，webhook 已开通。Pull 未开，也不开：采集机不是 24 小时在线，由本机 Push。
 
@@ -196,7 +196,7 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 | **L3** | 手测：`bun run backup` → `bun run restore --id <prod> --to /tmp/fundly-restore.db` → `assertFundlyDb`。覆盖已有库时再测 `--force`（先停 `dev:all`）。不进 CI。 |
 | **G1** | `bun run typecheck`、`typecheck:scripts`、`lint`。提交前 `bun run test:coverage`（仓库规定 ≥ 95%）。 |
 | **G2** | token 只进本机 `app_settings`。提交前 `gitleaks`；文档禁止粘贴 Bearer。 |
-| **D1** | 本功能不新建 Cloudflare 资源。单测只用进程内临时 sqlite / mock fetch。 |
+| **隔离** | 单测只用进程内临时 sqlite / mock fetch。 |
 
 本迭代最高 **Tier B**（L1 + G1）。不要为了刷 Tier 去打生产 webhook。
 
@@ -216,7 +216,6 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 ## 实现时不要做
 
 - 不分片、不写清单 JSON、不启用 Pull
-- 不改 D1 导入、不改 Worker
 - 不把探测备份当默认恢复源（`--id` 显式指定除外）
 - 不在成功路径保留 `*.backy-snap.db*` / 下载中的 `.backy-dl.gz`
 - 不调用 `openDb()` 去打开备份源

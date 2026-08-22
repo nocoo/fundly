@@ -67,7 +67,7 @@
 库已接但零行：
 
 - 指标为 `0` 和 `— → —`
-- 先跑 `bun run fetch:list`，再 `bun run import:d1`
+- 先跑 `bun run fetch:list`
 
 ---
 

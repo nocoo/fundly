@@ -2,16 +2,15 @@
 
 > 中国公募基金浏览、排名与全市场数据采集工具
 
-**Fundly** 把中国公募基金（不含股票）爬回本地，再在私人 Web 里浏览、筛选、排名。采集是 CLI + SQLite；浏览是 Vite SPA，部署在 Cloudflare Worker，登录走 Cloudflare Access。
+**Fundly** 把中国公募基金（不含股票）爬回本地，再在私人 Web 里浏览、筛选、排名。采集是 CLI + SQLite；浏览是本机 Vite SPA。
 
 ## 🎯 项目定位
 
 - 📊 **数据源**：东方财富 / 天天基金公开接口（无需 API Key）
 - 🎯 **范围**：MVP 期只覆盖**主动权益基金**（股票型 + 混合型偏股 + 指数型）
-- 🖥️ **浏览**：基金列表、详情、仪表盘读本机 SQLite 或生产 D1
-- 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono Worker + Biome
+- 🖥️ **浏览**：基金列表、详情、仪表盘读本机 SQLite
+- 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono 本机 API + Biome
 - 🧪 **质量**：单元测试覆盖率 ≥ 95%，Biome lint 零告警
-- 🔒 **登录**：Cloudflare Access（Google OAuth），生产域 `fundly.hexly.ai`
 
 给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。完整规约见 [`CLAUDE.md`](CLAUDE.md)。
 
@@ -39,7 +38,7 @@ fundly/
 │   └── 08-BACKY.md        # Backy 备份 / 换机恢复
 ├── apps/
 │   ├── web/               # Vite + React SPA（MVVM）
-│   └── worker/            # Hono Worker + 静态资源
+│   └── worker/            # 本机 Hono API（dev-api）
 ├── data/                  # SQLite 数据库（gitignore）
 ├── scripts/               # 爬取、初始化
 ├── src/                   # 采集核心库
@@ -95,20 +94,9 @@ bun run dev:all         # 同时起 API :7045 + Vite :7044
 # https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044 → API :7045
 ```
 
-分开起：`bun run dev:api`（默认读 `data/fundly.db`）和 `bun run dev:web`。
+分开起：`bun run dev:api`（读 `data/fundly.db`）和 `bun run dev:web`。
 
-生产 Worker 只读 D1。把本机库同步上去：
-
-```bash
-bun run migrate:d1      # 先建表
-bun run import:d1:seed  # 空库首次：wrangler d1 execute --file
-bun run import:d1       # 之后增量：可变表 upsert，净值按水位追加
-bun run deploy:web      # 构建 SPA 并发布到 Cloudflare Worker
-```
-
-可选：`bun run dev:worker` 走本地 Worker + 本地 D1（无 sqlite 切换）。本机设置页可把 `X-Fundly-Source` 切到远端 `d1`。
-
-生产：`https://fundly.hexly.ai`（Cloudflare Access）。架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。
+架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。备份见 [`docs/08-BACKY.md`](docs/08-BACKY.md)。
 
 ### 开发
 
