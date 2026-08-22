@@ -69,14 +69,11 @@ function BackToList({
   variant?: 'ghost' | 'outline';
 }) {
   return (
-    <div className="mb-4">
-      <Button variant={variant} size="sm" asChild>
-        <Link to={listHref(origin)}>
-          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          {listBackLabel(origin)}
-        </Link>
-      </Button>
-    </div>
+    <Button variant={variant} size="icon-sm" className="mt-0.5 shrink-0" asChild>
+      <Link to={listHref(origin)} aria-label={listBackLabel(origin)}>
+        <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+      </Link>
+    </Button>
   );
 }
 
@@ -144,8 +141,10 @@ export default function FundDetailPage() {
   if (isLoading) {
     return (
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
-        <BackToList origin={listOrigin} />
-        <p className="text-sm text-muted-foreground">加载中…</p>
+        <div className="flex items-center gap-2">
+          <BackToList origin={listOrigin} />
+          <p className="text-sm text-muted-foreground">加载中…</p>
+        </div>
       </AppShell>
     );
   }
@@ -153,7 +152,9 @@ export default function FundDetailPage() {
     const missing = !error || error.message === 'Not found';
     return (
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
-        <BackToList origin={listOrigin} variant="outline" />
+        <div className="mb-4">
+          <BackToList origin={listOrigin} variant="outline" />
+        </div>
         <EmptyState
           icon={CircleOff}
           tone="error"
@@ -213,13 +214,15 @@ export default function FundDetailPage() {
 
   return (
     <AppShell breadcrumbs={[listCrumb, { label: String(name) }]}>
-      <BackToList origin={listOrigin} />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">
-            {name} <span className="text-muted-foreground text-base">{code}</span>
-          </h1>
-          {fundType ? <FundTypeBadges type={fundType} wrap className="mt-2" /> : null}
+        <div className="flex min-w-0 items-start gap-2">
+          <BackToList origin={listOrigin} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold">
+              {name} <span className="text-muted-foreground text-base">{code}</span>
+            </h1>
+            {fundType ? <FundTypeBadges type={fundType} wrap className="mt-2" /> : null}
+          </div>
         </div>
         <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-muted p-0.5 ring-1 ring-border/70">
           <legend className="sr-only">时间范围</legend>
