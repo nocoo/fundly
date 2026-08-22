@@ -23,6 +23,18 @@ Fundly 站在开源社区的肩膀上，特别向以下项目致敬。
 - Fundly 是**纯后端 CLI + 数据库工具**，不含前端可视化
 - Fundly 用 **bun:sqlite** 单文件存储，架构更轻
 
+### [基估宝 real-time-fund](https://github.com/hzm0321/real-time-fund)
+
+作者：[@hzm0321](https://github.com/hzm0321) · License: 见上游仓库 · 本地对照：`/Users/nocoo/workspace/references/real-time-fund`
+
+持仓估值与记账前端（JSONP 直连天天基金 / 东财 / 腾讯）。**Fundly 只借鉴方法论，不抄前端：**
+
+- 搜索要认 ETF / 联接 / 份额，而不是只 `LIKE`
+- pingzhong `Data_grandTotal` 是相对沪深300 / 同类平均的现成序列，不该抓完就扔
+- 季报前十大、规模、股票仓位、机构占比已经在库里，可以进选基过滤
+
+**明确不抄**：盘中估值、重仓股实时行情、交易记账、定投计划生成、OCR、Fuse.js、浏览器 JSONP。
+
 ### [AKShare](https://github.com/akfamily/akshare)
 
 作者：[@albertandking](https://github.com/albertandking) · License: MIT · Stars: 10k+
