@@ -90,7 +90,8 @@ export function searchScore(query: SearchSignals, candidate: SearchCandidate): n
   else if (
     abbr === query.normalized ||
     full === query.normalized ||
-    abbr.startsWith(query.normalized)
+    abbr.startsWith(query.normalized) ||
+    full.startsWith(query.normalized)
   )
     score = 2;
   else if (query.core && name.includes(query.core)) score = 3;

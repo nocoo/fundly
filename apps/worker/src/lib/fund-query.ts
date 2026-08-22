@@ -262,8 +262,18 @@ const SHARE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] as const;
 const SHARE_CURRENCIES = ['人民币', '美元现汇', '美元现钞', '美元汇', '美元'] as const;
 
 function nameShareLetterSql(nameExpr: string): string {
-  const blockedF = `(${nameExpr} LIKE '%ETF' OR ${nameExpr} LIKE '%LOF' OR ${nameExpr} LIKE '%FOF')`;
-  const blockedI = `${nameExpr} LIKE '%QDII'`;
+  const productTails = ['ETF', 'LOF', 'FOF'].flatMap((tag) => [
+    `'%${tag}'`,
+    `'%${tag}类'`,
+    ...SHARE_CURRENCIES.flatMap((cur) => [`'%${tag}${cur}'`, `'%${tag}类${cur}'`]),
+  ]);
+  const qdiiTails = [
+    "'%QDII'",
+    "'%QDII类'",
+    ...SHARE_CURRENCIES.flatMap((cur) => [`'%QDII${cur}'`, `'%QDII类${cur}'`]),
+  ];
+  const blockedF = `(${productTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
+  const blockedI = `(${qdiiTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
   const branches = SHARE_LETTERS.map((letter) => {
     const tails = [
       `'%${letter}'`,
@@ -313,7 +323,7 @@ function searchScoreSql(
     CASE
       WHEN ${code} = ? THEN 0
       WHEN ${code} LIKE ? THEN 1
-      WHEN ${abbr} = ? OR ${full} = ? OR ${abbr} LIKE ? THEN 2
+      WHEN ${abbr} = ? OR ${full} = ? OR ${abbr} LIKE ? OR ${full} LIKE ? THEN 2
       WHEN ? != '' AND ${name} LIKE ? THEN 3
       WHEN ${q.tokens.length > 0 ? '1' : '0'} THEN 4
       ELSE 6
@@ -331,6 +341,7 @@ function searchScoreSql(
     `${q.normalized}%`,
     q.normalized,
     q.normalized,
+    `${q.normalized}%`,
     `${q.normalized}%`,
     q.core,
     q.core ? `%${q.core}%` : '',
@@ -417,7 +428,7 @@ export function buildFundListClauses(
     }
     if (signals.length) where.push(`(${signals.join(' AND ')})`);
   } else if (parsed && kind === 'share') {
-    where.push(`${shareLetterExpr(Boolean(opts.select), flat, opts.selectCols)} = ?`);
+    where.push(`${nameShareLetterSql(qualify('b.fund_name', flat))} = ?`);
     filterParams.push(parsed.shareLetter);
   }
   if (query.typeL1 && query.typeL2) {
@@ -450,10 +461,12 @@ export function buildFundListClauses(
       );
     } else if (query.sort === 'all_in_fee_pct') {
       where.push(
-        qualify(
-          '(s.all_in_fee_pct IS NOT NULL OR (f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL))',
-          flat,
-        ),
+        opts.fees
+          ? qualify(
+              '(s.all_in_fee_pct IS NOT NULL OR (f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL))',
+              flat,
+            )
+          : `${qualify('s.all_in_fee_pct', flat)} IS NOT NULL`,
       );
     } else {
       where.push(`${qualify(SORT_COLUMNS[query.sort], flat)} IS NOT NULL`);
@@ -486,6 +499,8 @@ export function buildFundListClauses(
   let orderSql: string;
   if (query.sort === 'recovery_days_1y') {
     orderSql = `ORDER BY CASE ${qualify("IFNULL(s.recovery_status_1y, 'insufficient')", flat)} WHEN 'recovered' THEN 0 WHEN 'open' THEN 1 ELSE 2 END, ${qualify('s.recovery_days_1y', flat)} ASC, ${codeOrd} ASC`;
+  } else if (query.sort === 'all_in_fee_pct') {
+    orderSql = `ORDER BY CASE WHEN ${qualify('s.all_in_fee_pct', flat)} IS NULL THEN 1 ELSE 0 END, ${qualify('fee_shown_pct', true)} ASC, ${codeOrd} ASC`;
   } else if (query.sort === 'fund_code') {
     orderSql = `ORDER BY ${codeOrd} ${dirSql}`;
   } else {
@@ -655,7 +670,11 @@ export function fundListSql(
       sampleCol?.startsWith('r.') &&
         opts.riskCols &&
         !opts.riskCols.has(sampleCol.replace(/^r\./, '')),
-    );
+    ) ||
+    Boolean(query.feePeer != null && opts.selectCols && !opts.selectCols.has('all_in_fee_pct')) ||
+    Boolean(query.ddPeer != null && opts.riskCols && !opts.riskCols.has('max_drawdown_1y')) ||
+    Boolean(query.scalePeer != null && opts.selectCols && !opts.selectCols.has('scale_yi')) ||
+    Boolean(query.top10Max != null && opts.selectCols && !opts.selectCols.has('top10_weight_pct'));
   if (
     (needSelect && !opts.select) ||
     (needRisk && !opts.risk) ||

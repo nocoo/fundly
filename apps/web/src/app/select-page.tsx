@@ -306,21 +306,25 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
                       <FundTypeBadges type={row.fund_type} />
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col items-end gap-0.5">
-                        <Metric
-                          value={
-                            dim.key === 'all_in_fee_pct'
-                              ? (row.all_in_fee_pct ?? row.fee_shown_pct)
-                              : row[dim.key]
-                          }
-                          kind={dim.kind}
-                          signed={dim.signed}
-                          align="end"
-                        />
-                        {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
-                          <span className="text-[11px] text-muted-foreground">销服未知</span>
-                        ) : null}
-                      </div>
+                      {dim.key === 'recovery_days_1y' && row.recovery_status_1y === 'open' ? (
+                        <p className="text-right text-sm text-muted-foreground">未收复</p>
+                      ) : (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <Metric
+                            value={
+                              dim.key === 'all_in_fee_pct'
+                                ? (row.all_in_fee_pct ?? row.fee_shown_pct)
+                                : row[dim.key]
+                            }
+                            kind={dim.kind}
+                            signed={dim.signed}
+                            align="end"
+                          />
+                          {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
+                            <span className="text-[11px] text-muted-foreground">销服未知</span>
+                          ) : null}
+                        </div>
+                      )}
                     </TableCell>
                     {dim.rankPct ? (
                       <TableCell>

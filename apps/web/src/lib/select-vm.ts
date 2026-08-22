@@ -368,9 +368,7 @@ function migrateLegacyRanking(): void {
   const legacy = readStoredJson(RANKING_FILTERS_KEY) as { dim?: string; pass4433?: unknown } | null;
   if (!legacy) return;
   const target: SelectLens =
-    typeof legacy.dim === 'string' && /sharpe|drawdown|volatility|calmar/.test(legacy.dim)
-      ? 'risk'
-      : 'return';
+    typeof legacy.dim === 'string' && RANKING_RISK_DIMS.has(legacy.dim) ? 'risk' : 'return';
   if (!readStoredJson(storageKey(target))) {
     writeStoredJson(storageKey(target), {
       ...legacy,

@@ -266,6 +266,28 @@ describe('fundListSql', () => {
     expect(built.listSql).toContain('share_class');
   });
 
+  it('returns empty when peer filters reference missing columns', () => {
+    const built = fundListSql(
+      parseFundListQuery({ lens: 'picks', ddPeer: '50', sort: 'select_score' }),
+      {
+        select: true,
+        risk: true,
+        riskCols: new Set(['sharpe_1y']),
+        selectCols: new Set(['select_score']),
+      },
+    );
+    expect(built.listSql).toContain('WHERE 0=1');
+  });
+
+  it('sorts unknown sales fees after known all-in fees', () => {
+    const built = fundListSql(parseFundListQuery({ sort: 'all_in_fee_pct', dir: 'asc' }), {
+      select: true,
+      fees: true,
+    });
+    expect(built.listSql).toContain('s.all_in_fee_pct IS NULL THEN 1 ELSE 0 END');
+    expect(built.listSql).toContain('fee_shown_pct');
+  });
+
   it('keeps top10Max above 100 and does not floor fractions', () => {
     expect(parseFundListQuery({ top10Max: '120' }).top10Max).toBe(120);
     expect(parseFundListQuery({ top10Max: '60.9' }).top10Max).toBe(60.9);

@@ -133,6 +133,15 @@ async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
     );
     out.seven_day_yield = Boolean(row?.n);
   }
+  if (!out.all_in_fee_pct && (await hasTable(exec, 'fund_fees'))) {
+    const row = await exec.first<{ n: number }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM fund_fees
+         WHERE mgmt_fee_pct IS NOT NULL AND custodian_fee_pct IS NOT NULL
+       ) AS n`,
+    );
+    out.all_in_fee_pct = Boolean(row?.n);
+  }
   return out;
 }
 
