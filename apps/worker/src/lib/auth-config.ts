@@ -30,7 +30,10 @@ export function isEmailAllowed(email: string | null | undefined, allowed: string
   return Boolean(normalized) && allowed.includes(normalized);
 }
 
-export function loadAuthConfig(env: AuthEnv, required = false): AuthConfig {
+export function loadAuthConfig(
+  env: AuthEnv | Record<string, string | undefined>,
+  required = false,
+): AuthConfig {
   const disabled = env.AUTH_DISABLED === '1';
   const clientId = env.GOOGLE_CLIENT_ID?.trim() ?? '';
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim() ?? '';
