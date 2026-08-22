@@ -25,12 +25,12 @@ Fundly 站在开源社区的肩膀上，特别向以下项目致敬。
 
 ### [基估宝 real-time-fund](https://github.com/hzm0321/real-time-fund)
 
-作者：[@hzm0321](https://github.com/hzm0321) · License: 见上游仓库 · 本地对照：`/Users/nocoo/workspace/references/real-time-fund`
+作者：[@hzm0321](https://github.com/hzm0321) · License: **AGPL-3.0** · 本地对照：`/Users/nocoo/workspace/references/real-time-fund`
 
 持仓估值与记账前端（JSONP 直连天天基金 / 东财 / 腾讯）。**Fundly 只借鉴方法论，不抄前端：**
 
 - 搜索要认 ETF / 联接 / 份额，而不是只 `LIKE`
-- pingzhong `Data_grandTotal` 是相对沪深300 / 同类平均的现成序列，不该抓完就扔
+- pingzhong `Data_grandTotal` 可叠进详情，但只有约半年，近一年超额要自己用净值算
 - 季报前十大、规模、股票仓位、机构占比已经在库里，可以进选基过滤
 
 **明确不抄**：盘中估值、重仓股实时行情、交易记账、定投计划生成、OCR、Fuse.js、浏览器 JSONP。
