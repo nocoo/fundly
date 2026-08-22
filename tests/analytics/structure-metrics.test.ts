@@ -9,6 +9,15 @@ describe('computeTop10Weight', () => {
 });
 
 describe('computeExcessHs300', () => {
+  test('nulls asof when the window is too short or stale', () => {
+    const fund = Array.from({ length: 220 }, (_, i) => {
+      const d = new Date(Date.UTC(2025, 0, 1 + i));
+      return { navDate: d.toISOString().slice(0, 10), trNav: 1 + i * 0.01 };
+    });
+    const bench = fund.map((row) => ({ ...row, trNav: 1 }));
+    expect(computeExcessHs300(fund, bench, '2026-08-01')).toEqual({ excess: null, asof: null });
+  });
+
   test('requires aligned dates and 200 samples', () => {
     expect(
       computeExcessHs300(

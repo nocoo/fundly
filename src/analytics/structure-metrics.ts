@@ -72,10 +72,10 @@ export function computeExcessHs300(
   const last = window[window.length - 1];
   if (!first || !last || first.fund <= 0 || first.bench <= 0) return { excess: null, asof: null };
   if (daysBetween(first.navDate, last.navDate) < 0.8 * 365) {
-    return { excess: null, asof: last.navDate };
+    return { excess: null, asof: null };
   }
   if (stale(last.navDate, scoreAsof, STALE_EXCESS_DAYS)) {
-    return { excess: null, asof: last.navDate };
+    return { excess: null, asof: null };
   }
   const fundRet = last.fund / first.fund - 1;
   const benchRet = last.bench / first.bench - 1;

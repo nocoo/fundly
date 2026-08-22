@@ -226,11 +226,18 @@ export function parseGrandTotal(raw: unknown): GrandTotalExtra | null {
   const series = Array.isArray(parsed) ? parsed : null;
   if (!series) return null;
   const byDate = new Map<string, GrandTotalPoint>();
+  let fundName: string | null = null;
   for (const item of series) {
     const rec = asRecord(item);
     if (!rec) continue;
     const name = String(rec.name ?? '').trim();
-    const key = name === '沪深300' ? 'hs300' : name === '同类平均' ? 'peer' : name ? 'fund' : null;
+    let key: 'hs300' | 'peer' | 'fund' | null = null;
+    if (name === '沪深300') key = 'hs300';
+    else if (name === '同类平均') key = 'peer';
+    else if (name) {
+      if (fundName == null) fundName = name;
+      if (name === fundName) key = 'fund';
+    }
     if (!key) continue;
     const data = Array.isArray(rec.data) ? rec.data : [];
     for (const point of data) {
