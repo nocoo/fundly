@@ -32,6 +32,12 @@ function cutoffDate(last: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function prevMonthKey(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  const dt = new Date(Date.UTC(y ?? 0, (m ?? 1) - 2, 1));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): HoldMetrics {
   if (!points || points.length < 2) return { ...EMPTY };
   const last = points[points.length - 1]?.navDate;
@@ -93,14 +99,17 @@ export function computeHoldMetrics(points: readonly TotalReturnPoint[] | null): 
     else cur.last = point.trNav;
   }
   const monthKeys = [...byMonth.keys()].sort();
-  const completeMonths = monthKeys.slice(1, -1).flatMap((key) => {
-    const month = byMonth.get(key);
-    return month && month.first > 0 ? [month] : [];
-  });
+  const monthRets: number[] = [];
+  for (const key of monthKeys.slice(1, -1)) {
+    const prevKey = prevMonthKey(key);
+    const prev = byMonth.get(prevKey);
+    const cur = byMonth.get(key);
+    if (!prev || !cur || !(prev.last > 0)) continue;
+    monthRets.push((cur.last / prev.last - 1) * 100);
+  }
   let worstMonth: number | null = null;
-  if (completeMonths.length >= 10) {
-    for (const month of completeMonths) {
-      const ret = (month.last / month.first - 1) * 100;
+  if (monthRets.length >= 10) {
+    for (const ret of monthRets) {
       if (worstMonth == null || ret < worstMonth) worstMonth = ret;
     }
   }

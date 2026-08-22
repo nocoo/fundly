@@ -22,6 +22,21 @@ describe('computeHoldMetrics', () => {
     expect(got.recovery_days_1y).toBe(50);
   });
 
+  test('uses previous month-end for worst month return', () => {
+    const values: number[] = [];
+    for (let i = 0; i < 400; i++) {
+      const d = new Date(Date.UTC(2025, 0, 1 + i));
+      const day = d.getUTCDate();
+      const month = d.getUTCMonth();
+      let v = 100;
+      if (month === 3 && day === 1) v = 90;
+      else if (month > 3 || (month === 3 && day > 1)) v = 90;
+      values.push(v);
+    }
+    const got = computeHoldMetrics(series('2025-01-01', values));
+    expect(got.worst_month_1y).toBeCloseTo(-10, 5);
+  });
+
   test('keeps open recoveries distinct from insufficient samples', () => {
     const open = computeHoldMetrics(
       series('2025-01-01', [
