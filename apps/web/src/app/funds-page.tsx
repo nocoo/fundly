@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
@@ -19,6 +19,14 @@ import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
 import { listTypeL1, listTypeL2 } from '@/lib/fund-type';
+import {
+  fundsSearchEmpty,
+  fundsUrlState,
+  parseFundsSearch,
+  readStoredFundsFilters,
+  writeStoredFundsFilters,
+} from '@/lib/funds-vm';
+import { fundDetailLink, fundDetailTo, originFromList, writeListOrigin } from '@/lib/list-origin';
 
 interface FundRow {
   fund_code: string;
@@ -52,17 +60,11 @@ const RETURN_KEYS = new Set(['return_1y', 'return_1m', 'return_3m', 'return_6m']
 
 export default function FundsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const q = params.get('q') ?? '';
-  const typeL1 = params.get('typeL1') ?? '';
-  const typeL2 = params.get('typeL2') ?? '';
-  const mvpOnly = params.get('mvpOnly') === '1';
-  const hasNav = params.get('hasNav') === '1';
-  const sort = params.get('sort') ?? 'fund_code';
-  const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
-  const rawPage = Number(params.get('page') ?? 1);
-  const page =
-    Number.isFinite(rawPage) && rawPage >= 1 ? Math.min(100_000, Math.floor(rawPage)) : 1;
+  const hydrated = useRef(false);
+  const filters = useMemo(() => parseFundsSearch(params), [params]);
+  const { q, typeL1, typeL2, mvpOnly, hasNav, sort, dir, page } = filters;
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -86,6 +88,20 @@ export default function FundsPage() {
     fetchAPI,
   );
 
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    if (!fundsSearchEmpty(params)) return;
+    const stored = readStoredFundsFilters();
+    if (!stored) return;
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(fundsUrlState(stored))) {
+      if (value) next.set(key, value);
+    }
+    if ([...next.keys()].length === 0) return;
+    setParams(next, { replace: true });
+  }, [params, setParams]);
+
   const set = useCallback(
     (patch: Record<string, string | null>) => {
       const next = new URLSearchParams(params);
@@ -94,10 +110,21 @@ export default function FundsPage() {
         else next.set(k, v);
       }
       if (!('page' in patch)) next.set('page', '1');
+      writeStoredFundsFilters(parseFundsSearch(next));
       setParams(next, { replace: true });
     },
     [params, setParams],
   );
+
+  const listOrigin = originFromList(location.pathname, location.search) ?? {
+    path: '/funds' as const,
+    search: location.search,
+  };
+
+  const openDetail = (code: string) => {
+    const loc = fundDetailTo(code, listOrigin);
+    navigate(loc.to, { state: loc.state });
+  };
 
   const search = useImeSearch(q, (value) => set({ q: value || null }));
 
@@ -196,35 +223,43 @@ export default function FundsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.items.map((row) => (
-                <TableRow
-                  key={row.fund_code}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/funds/${row.fund_code}`)}
-                >
-                  <TableCell>
-                    <Link className="text-foreground" to={`/funds/${row.fund_code}`}>
-                      {row.fund_code}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{row.fund_name}</TableCell>
-                  <TableCell>
-                    <FundTypeBadges type={row.fund_type} />
-                  </TableCell>
-                  <TableCell>
-                    <Metric value={row.return_1y} kind="percent" signed align="end" />
-                  </TableCell>
-                  <TableCell>
-                    <Metric value={row.return_1m} kind="percent" signed align="end" />
-                  </TableCell>
-                  <TableCell>
-                    <Metric value={row.return_3m} kind="percent" signed align="end" />
-                  </TableCell>
-                  <TableCell>
-                    <Metric value={row.return_6m} kind="percent" signed align="end" />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {data.items.map((row) => {
+                const loc = fundDetailLink(row.fund_code, listOrigin);
+                return (
+                  <TableRow
+                    key={row.fund_code}
+                    className="cursor-pointer"
+                    onClick={() => openDetail(row.fund_code)}
+                  >
+                    <TableCell>
+                      <Link
+                        className="text-foreground"
+                        to={loc.to}
+                        state={loc.state}
+                        onClick={() => writeListOrigin(listOrigin)}
+                      >
+                        {row.fund_code}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{row.fund_name}</TableCell>
+                    <TableCell>
+                      <FundTypeBadges type={row.fund_type} />
+                    </TableCell>
+                    <TableCell>
+                      <Metric value={row.return_1y} kind="percent" signed align="end" />
+                    </TableCell>
+                    <TableCell>
+                      <Metric value={row.return_1m} kind="percent" signed align="end" />
+                    </TableCell>
+                    <TableCell>
+                      <Metric value={row.return_3m} kind="percent" signed align="end" />
+                    </TableCell>
+                    <TableCell>
+                      <Metric value={row.return_6m} kind="percent" signed align="end" />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           <div className="flex gap-2 p-3">

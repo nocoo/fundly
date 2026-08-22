@@ -95,10 +95,10 @@ fundly/
 | 路径 | 页面 | 数据 |
 |------|------|------|
 | `/` | 仪表盘 | `/api/stats`、`/api/fund-types` |
-| `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排 |
-| `/funds/:code` | 基金详情 | `/api/funds/:code` + 最近 400 点净值 |
+| `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排；过滤器进 localStorage |
+| `/funds/:code` | 基金详情 | `/api/funds/:code` + 净值；面包屑回到来源列表（浏览或排名） |
 | `/data` | 数据管理 | 表行数、净值区间、覆盖率 |
-| `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度 |
+| `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度；过滤器进 localStorage |
 | `/backup` | 备份 | 连接 Backy、推送、最近备份列表 |
 | `/settings` | 设置 | 涨跌色、基准 |
 | `/login` | Google 登录 | 工卡页，仿 Gecko；颜色用 Fundly primary |

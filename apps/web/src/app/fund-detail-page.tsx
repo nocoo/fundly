@@ -1,6 +1,6 @@
 import { CircleOff } from 'lucide-react';
 import { useMemo } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useLocation, useParams, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { ChartEmptyMask } from '@/components/charts/chart-empty-mask';
@@ -32,6 +32,7 @@ import {
   scaleChart,
   seriesChartFromCategories,
 } from '@/lib/fund-extra-vm';
+import { LIST_LABEL, listHref, resolveListOrigin } from '@/lib/list-origin';
 import { parseRangeYears, RANGE_YEARS, rangeBounds, utcTs } from '@/lib/time-window';
 import { cn } from '@/lib/utils';
 
@@ -55,7 +56,10 @@ const NAV_PANEL = PANEL * 2;
 
 export default function FundDetailPage() {
   const { code = '' } = useParams();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const listOrigin = resolveListOrigin(location.state);
+  const listCrumb = { label: LIST_LABEL[listOrigin.path], href: listHref(listOrigin) };
   const years = parseRangeYears(params.get('years'));
   const bounds = useMemo(() => rangeBounds(years), [years]);
   const timeDomain = { from: utcTs(bounds.from), to: utcTs(bounds.to) };
@@ -113,7 +117,7 @@ export default function FundDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: code }]}>
+      <AppShell breadcrumbs={[listCrumb, { label: code }]}>
         <p className="text-sm text-muted-foreground">加载中…</p>
       </AppShell>
     );
@@ -121,7 +125,7 @@ export default function FundDetailPage() {
   if (error || !data) {
     const missing = !error || error.message === 'Not found';
     return (
-      <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: code }]}>
+      <AppShell breadcrumbs={[listCrumb, { label: code }]}>
         <EmptyState
           icon={CircleOff}
           tone="error"
@@ -180,7 +184,7 @@ export default function FundDetailPage() {
   ];
 
   return (
-    <AppShell breadcrumbs={[{ label: '基金浏览', href: '/funds' }, { label: String(name) }]}>
+    <AppShell breadcrumbs={[listCrumb, { label: String(name) }]}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">

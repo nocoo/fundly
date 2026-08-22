@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { AppShell } from '@/components/layout';
@@ -17,6 +17,7 @@ import {
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { formatCount } from '@/lib/format-number';
 import { listTypeL1, listTypeL2 } from '@/lib/fund-type';
+import { fundDetailLink, fundDetailTo, originFromList, writeListOrigin } from '@/lib/list-origin';
 import {
   contextReturnKeys,
   DEFAULT_DIM_KEY,
@@ -28,10 +29,13 @@ import {
   RISK_MIN_SAMPLES,
   rankingApiPath,
   rankingSearchDirty,
+  rankingSearchEmpty,
   rankingUrlState,
+  readStoredRanking,
   riskKeysFromCaps,
   TYPE_L1_ALL,
   visibleDims,
+  writeStoredRanking,
 } from '@/lib/ranking-vm';
 
 interface RankRow {
@@ -69,7 +73,9 @@ const CONTEXT_LABEL: Record<'return_1y' | 'return_1m', string> = {
 
 export default function RankingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const hydrated = useRef(false);
   const parsed = useMemo(() => parseRankingSearch(params), [params]);
   const { data: types } = useSWR<{ items: { fund_type: string; n: number }[] }>(
     '/api/fund-types',
@@ -87,6 +93,23 @@ export default function RankingPage() {
   );
 
   useEffect(() => {
+    if (hydrated.current) return;
+    if (!rankingSearchEmpty(params)) {
+      hydrated.current = true;
+      return;
+    }
+    const stored = readStoredRanking();
+    hydrated.current = true;
+    if (!stored) return;
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(rankingUrlState(stored))) {
+      if (value) next.set(key, value);
+    }
+    if ([...next.keys()].length === 0) return;
+    setParams(next, { replace: true });
+  }, [params, setParams]);
+
+  useEffect(() => {
     if (!rankingSearchDirty(params, normalized)) return;
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(rankingUrlState(normalized))) {
@@ -95,6 +118,15 @@ export default function RankingPage() {
     }
     setParams(next, { replace: true });
   }, [normalized, params, setParams]);
+
+  const persistReady = useRef(false);
+  useEffect(() => {
+    if (!persistReady.current) {
+      persistReady.current = true;
+      return;
+    }
+    writeStoredRanking(normalized);
+  }, [normalized]);
 
   const set = useCallback(
     (patch: Record<string, string | null>) => {
@@ -109,6 +141,16 @@ export default function RankingPage() {
     },
     [params, setParams],
   );
+
+  const listOrigin = originFromList(location.pathname, location.search) ?? {
+    path: '/ranking' as const,
+    search: location.search,
+  };
+
+  const openDetail = (code: string) => {
+    const loc = fundDetailTo(code, listOrigin);
+    navigate(loc.to, { state: loc.state });
+  };
 
   const dim = data?.sort && data.sort !== normalized.dim.key ? dimByKey(data.sort) : normalized.dim;
   const l1Options = listTypeL1(types?.items ?? []).map((item) => ({
@@ -224,14 +266,19 @@ export default function RankingPage() {
                     className="cursor-pointer"
                     onClick={(event) => {
                       if ((event.target as HTMLElement).closest('a')) return;
-                      navigate(`/funds/${row.fund_code}`);
+                      openDetail(row.fund_code);
                     }}
                   >
                     <TableCell className="text-right tabular-nums">
                       {formatCount(listRank(data.page, data.pageSize, index))}
                     </TableCell>
                     <TableCell>
-                      <Link className="text-foreground" to={`/funds/${row.fund_code}`}>
+                      <Link
+                        className="text-foreground"
+                        to={fundDetailLink(row.fund_code, listOrigin).to}
+                        state={fundDetailLink(row.fund_code, listOrigin).state}
+                        onClick={() => writeListOrigin(listOrigin)}
+                      >
                         {row.fund_code}
                       </Link>
                     </TableCell>

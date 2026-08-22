@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMe } from '@/hooks/use-me';
+import { readListOrigin } from '@/lib/list-origin';
 import {
   ALL_NAV_ITEMS as ALL_NAV_ITEMS_DEF,
   isItemActive,
@@ -150,13 +151,15 @@ function SidebarUser({
 function NavGroupSection({
   group,
   pathname,
+  listOrigin,
   onNavigate,
 }: {
   group: NavGroup;
   pathname: string;
+  listOrigin: ReturnType<typeof readListOrigin>;
   onNavigate: () => void;
 }) {
-  const [open, setOpen] = useState(shouldGroupBeOpenOnMount(group, pathname));
+  const [open, setOpen] = useState(shouldGroupBeOpenOnMount(group, pathname, listOrigin));
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -177,7 +180,7 @@ function NavGroupSection({
       <CollapsibleContent>
         <div className="flex flex-col gap-0.5 px-3">
           {group.items.map((item) => {
-            const isActive = isItemActive(item.href, pathname);
+            const isActive = isItemActive(item.href, pathname, listOrigin);
             return (
               <Link
                 key={item.href}
@@ -208,6 +211,7 @@ interface SidebarProps {
 
 export function Sidebar({ mobile = false }: SidebarProps) {
   const { pathname } = useLocation();
+  const listOrigin = readListOrigin();
   const { collapsed, toggle, setMobileOpen } = useSidebar();
   const { data: user, error: userError, isLoading: userLoading } = useMe();
   const host = typeof window === 'undefined' ? '' : window.location.host;
@@ -252,7 +256,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
             </Tooltip>
             <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto pt-1">
               {ALL_NAV_ITEMS.map((item) => {
-                const isActive = isItemActive(item.href, pathname);
+                const isActive = isItemActive(item.href, pathname, listOrigin);
                 return (
                   <Tooltip key={item.href}>
                     <TooltipTrigger asChild>
@@ -316,6 +320,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                   key={group.label}
                   group={group}
                   pathname={pathname}
+                  listOrigin={listOrigin}
                   onNavigate={handleNavigate}
                 />
               ))}

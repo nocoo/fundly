@@ -1,6 +1,8 @@
 import type { NumberKind } from './format-number';
 import { listTypeL1, listTypeL2 } from './fund-type';
+import { readStoredJson, writeStoredJson } from './stored-json';
 
+export const RANKING_FILTERS_KEY = 'fundly_ranking_filters';
 export const RANKING_PAGE_SIZE = 50;
 export const DEFAULT_TYPE_L1 = '混合型';
 export const TYPE_L1_ALL = 'all';
@@ -199,6 +201,41 @@ export function rankingUrlState(state: RankingState): Record<string, string | nu
     pass4433: state.pass4433 ? '1' : null,
     page: state.page <= 1 ? null : String(state.page),
   };
+}
+
+export function parseStoredRanking(raw: unknown): RankingState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const rec = raw as Record<string, unknown>;
+  const typeL1Raw = typeof rec.typeL1 === 'string' ? rec.typeL1 : null;
+  const typeL1 = typeL1Raw === TYPE_L1_ALL ? TYPE_L1_ALL : typeL1Raw?.trim() || DEFAULT_TYPE_L1;
+  const rawPage = Number(rec.page ?? 1);
+  const page =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.min(100_000, Math.floor(rawPage)) : 1;
+  return {
+    typeL1,
+    typeL2: typeof rec.typeL2 === 'string' ? rec.typeL2.trim() : '',
+    dim: dimByKey(typeof rec.dim === 'string' ? rec.dim : undefined),
+    pass4433: rec.pass4433 === true || rec.pass4433 === '1',
+    page,
+  };
+}
+
+export function readStoredRanking(): RankingState | null {
+  return parseStoredRanking(readStoredJson(RANKING_FILTERS_KEY));
+}
+
+export function writeStoredRanking(state: RankingState): void {
+  writeStoredJson(RANKING_FILTERS_KEY, {
+    typeL1: state.typeL1,
+    typeL2: state.typeL2,
+    dim: state.dim.key,
+    pass4433: state.pass4433,
+    page: state.page,
+  });
+}
+
+export function rankingSearchEmpty(params: URLSearchParams): boolean {
+  return [...params.keys()].length === 0;
 }
 
 export function rankingSearchDirty(params: URLSearchParams, state: RankingState): boolean {

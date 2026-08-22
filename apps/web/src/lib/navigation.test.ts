@@ -13,6 +13,11 @@ describe('isItemActive', () => {
     expect(isItemActive('/funds', '/funds-old')).toBe(false);
     expect(isItemActive('/ranking', '/funds')).toBe(false);
   });
+
+  it('keeps the originating list active on a fund detail', () => {
+    expect(isItemActive('/ranking', '/funds/000001', { path: '/ranking', search: '' })).toBe(true);
+    expect(isItemActive('/funds', '/funds/000001', { path: '/ranking', search: '' })).toBe(false);
+  });
 });
 
 describe('shouldGroupBeOpenOnMount', () => {

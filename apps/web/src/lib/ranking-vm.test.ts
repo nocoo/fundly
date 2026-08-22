@@ -6,10 +6,12 @@ import {
   listRank,
   normalizeRankingState,
   parseRankingSearch,
+  parseStoredRanking,
   RANKING_PAGE_SIZE,
   RISK_MIN_SAMPLES,
   rankingApiPath,
   rankingSearchDirty,
+  rankingSearchEmpty,
   rankingStatesEqual,
   rankingUrlState,
   TYPE_L1_ALL,
@@ -98,6 +100,23 @@ describe('ranking urls', () => {
     expect(path).toContain(`minSamples=${RISK_MIN_SAMPLES}`);
     expect(path).toContain('page=3');
     expect(path).toContain(`pageSize=${RANKING_PAGE_SIZE}`);
+  });
+});
+
+describe('stored ranking filters', () => {
+  it('parses persisted json and ignores junk', () => {
+    expect(parseStoredRanking(null)).toBeNull();
+    expect(
+      parseStoredRanking({ typeL1: TYPE_L1_ALL, dim: 'sharpe_1y', pass4433: true, page: 4 }),
+    ).toEqual({
+      typeL1: TYPE_L1_ALL,
+      typeL2: '',
+      dim: dimByKey('sharpe_1y'),
+      pass4433: true,
+      page: 4,
+    });
+    expect(rankingSearchEmpty(new URLSearchParams())).toBe(true);
+    expect(rankingSearchEmpty(new URLSearchParams('dim=return_1m'))).toBe(false);
   });
 });
 

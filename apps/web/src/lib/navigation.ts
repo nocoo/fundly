@@ -1,3 +1,5 @@
+import { isFundDetailPath, type ListOrigin } from './list-origin';
+
 export interface NavItemDef {
   href: string;
   label: string;
@@ -37,14 +39,23 @@ export const NAV_GROUPS: NavGroupDef[] = [
 
 export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
-export function isItemActive(href: string, pathname: string): boolean {
-  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+export function isItemActive(
+  href: string,
+  pathname: string,
+  listOrigin: ListOrigin | null = null,
+): boolean {
+  if (href === '/') return pathname === '/';
+  if (isFundDetailPath(pathname)) {
+    return href === (listOrigin?.path ?? '/funds');
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function shouldGroupBeOpenOnMount(
   group: { items: { href: string }[]; defaultOpen?: boolean | undefined },
   pathname: string,
+  listOrigin: ListOrigin | null = null,
 ): boolean {
-  if (group.items.some((item) => isItemActive(item.href, pathname))) return true;
+  if (group.items.some((item) => isItemActive(item.href, pathname, listOrigin))) return true;
   return group.defaultOpen ?? true;
 }
