@@ -34,6 +34,24 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 
 ---
 
+## 对照基估宝
+
+对照仓库：`/Users/nocoo/workspace/references/real-time-fund`（基估宝 / real-time-fund）。它是**持仓估值与记账前端**，不是选基工作台。JSONP 直连天天基金 / 东财 / 腾讯，localStorage 存自选、份额、交易和定投计划。
+
+| 它擅长 | Fundly 已有 | 本方案怎么用 |
+|--------|-------------|--------------|
+| 盘中估值、重仓股实时涨跌、指数看板 | 文档写过 `fundgz` 已 404；库里没有分钟线 | **不做**。选基看日频总回报，不看盘中估算 |
+| Fuse.js + ETF/LOF/联接/份额信号搜名称 | `/funds` 是 `LIKE` 代码/简称/拼音 | **学**：本地打分，不引入 Fuse，不打东财 suggest |
+| 重仓前十 + 资产配置展示 | `fund_portfolio` 25 万行、`fund_trend_extra` 已有规模/仓位/持有人 | **学**：算成可排序字段，不拉股票行情 |
+| 净值图叠「沪深300 / 同类平均」 | pingzhong 已下 `Data_grandTotal`，解析后丢掉 | **学**：落库并抽出近 1 年相对沪深300 超额 |
+| 用户定投计划生成未来买单 | 本方案是历史路径是否适合定投 | **不混**。继续只做历史 `tr_nav` 定投 |
+| OCR / LLM 从截图抠代码 | 无 | **不做** |
+| 五维雷达当卖点 | `performance_5d_json` 仅详情装饰 | **继续不当主分** |
+
+原则：只吸收能写进 SQLite、能进同类百分位的日频事实。不把 Fundly 做成第二个持仓 App。
+
+---
+
 ## 现状缺口
 
 | 已有 | 缺什么 |
@@ -44,6 +62,8 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | `fund_fees` 27,527 行，管理费 27,055、托管 27,526、销服 **22,168** 非空 | 销服 `null` 不能当 0；没有合成持有成本 |
 | `fund_nav` 3,069 万行 | 没有定投路径指标 |
 | `02-SCHEMA` 写了 `fund_screening_rank` | **schema.ts 没有这张表** |
+| `fund_portfolio` 25 万行、`fund_trend_extra` 规模/仓位/持有人 | 选基完全没用；pingzhong `Data_grandTotal` 抓了就扔 |
+| `/funds` 搜索 | `LIKE` 代码/简称/拼音，不认 ETF vs 联接、份额 |
 | `apps/worker/scripts/app.ts` `openReadonlySqlite` | 生产 **`{ readonly: true }`**。现实现文件不存在时会建空库；本需求改为**进程启动失败**（抛错，不是 HTTP 503）。Volume 上活库缺新表时硬 `JOIN` 会炸，必须 `hasTable` |
 
 ---
@@ -89,8 +109,35 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | `minSamples` | 样本门槛 | 风险/持有/精选缺省 `200`；`off` 关闭；或正整数。**不是**百分位 |
 | `feePeer` | 精选：综合费同类百分位上限 | 缺省 `50`；`off` 关闭；或 `1`–`100` |
 | `ddPeer` | 精选：近 1 年回撤同类百分位上限 | 缺省 `50`；`off` 关闭；或 `1`–`100` |
+| `scalePeer` | 精选：规模同类百分位上限 | **缺省关**；`off` 或省略=关；`1`–`100` |
+| `top10Max` | 精选：前十大合计上限 | **缺省关**；正数才开 |
 
 localStorage key：`fundly_select_<lens>`。分页 50。点行进详情，来源记 `/select/<lens>?…`。
+
+### 浏览搜索（学基估宝的信号，不引入 Fuse）
+
+`/funds` 的 `q` 仍走本机 SQL，**禁止**每次按键打 `FundSearchAPI` / JSONP。现网 `LIKE %q%` 对「沪深300联接A / 300ETF / 易方达300」几乎帮不上忙。
+
+规范化（纯函数 `src/metrics/fund-search.ts`，**不新增依赖**）：
+
+1. 去空白、全角括号、`·`；大写 ASCII
+2. 抽出信号：是否含 `ETF` / `LOF` / `联接`；份额字母按本文件份额规则
+3. `core` = 去掉 `基金`、`ETF联接`、`联接`、`ETF`、`LOF`、末尾份额后的剩余
+
+召回仍用现索引：`fund_code` / `fund_name` / `pinyin_abbr` / `pinyin_full` 的前缀或包含。排序加权（越小越好，实现时写成整数分再 `ORDER BY`）：
+
+| 命中 | 分 |
+|------|----|
+| 代码全等 | 0 |
+| 代码前缀 | 1 |
+| 拼音全等 / 前缀 | 2 |
+| 简称包含 `core` | 3 |
+| 仅模糊包含原串 | 6 |
+| 查询有 ETF 而候选没有（或反过来，联接同理） | +4 |
+| 查询带份额且候选 `share_class` 字母相同 | −1 |
+| 查询带份额且候选字母不同 | +3 |
+
+六位数字且全等时只回这一只。选基各榜若带 `q`，同一套打分。不把 suggest 接口当数据源。
 
 ---
 
@@ -277,6 +324,8 @@ suffix   = (CURRENCY CLASS) | (CLASS CURRENCY) | CLASS
 | `nav_samples_1y ≥ 200` | 开 | `minSamples=off` |
 | 综合费同类百分位 ≤ 50（仅 `sales_fee_known=1` 且 fee 非空） | 开 | `feePeer=off` |
 | 近 1 年回撤同类百分位 ≤ 50 | 开 | `ddPeer=off` |
+| 规模同类百分位 ≤ 50（只要 `scale_yi` 非空） | **关** | `scalePeer=50` 才开 |
+| 前十大持仓合计 ≤ 60% | **关** | `top10Max=60` 才开 |
 
 「同类前 50%」在 **完整 `fund_type`** 内算，**先编秩、再套用户过滤**。禁止在已过滤子集上算百分位（否则 `pass4433` 会改变「前 50%」的分母）。
 
@@ -334,6 +383,26 @@ select_score = mean(
 
 API：`GET /api/funds?lens=picks&typeL1=混合型&pass4433=1&feePeer=50&ddPeer=50&sort=select_score&dir=desc&includeCaps=1`。
 
+`scalePeer` / `top10Max` 与 `feePeer` 一样：省略=关；正数才过滤。规模百分位同样在完整 `fund_type` 上、null 隔窗后编。
+
+### 结构与相对基准（库里已有，选基没用上）
+
+`compute:select` 额外写入，不新抓 HTTP：
+
+| 字段 | 来源 | 定义 | 空 |
+|------|------|------|----|
+| `scale_yi` | `fund_trend_extra.scale_history_json` 最新一点 | 规模，亿元 | 解析失败 null |
+| `equity_ratio_pct` | `asset_allocation_json` 最新、名称匹配 `/股票\|权益/` | 占净值 % | 无该系列 null |
+| `inst_holder_pct` | `holder_structure_json` 最新、名称匹配 `/机构/` | 占净值 % | 无该系列 null |
+| `top10_weight_pct` | `fund_portfolio` 该基金**最新** `report_date` 的 `hold_pct` 降序取前 10 求和 | 百分数点 | 无持仓或最新季不足 1 条 null |
+| `excess_hs300_1y` | 新落的 `fund_trend_extra.grand_total_json`（pingzhong `Data_grandTotal`） | 近 1 年本基金累计收益 − 同序列里名称匹配 `/沪深300/` 的累计收益，百分数点 | 缺序列、对不齐、或窗短于 200 交易日 null |
+
+`Data_grandTotal` 现在抓了就扔。升 v3 时 `fund_trend_extra` 补列 `grand_total_json`（`initSchema` `ALTER` 缺列才加）。下次 `fetch:daily` / `fetch:nav` 才有数；没刷过的基金该项保持 null，不阻断其它维。
+
+详情页可用同一 JSON 叠「本基金 / 沪深300 / 同类平均」，**不**把东财同类平均当百分位分母（分母仍是完整 `fund_type`）。
+
+`select_score` **不**并入规模、集中度、超额，避免和收益/风险/体验/费率抢权重。它们只做过滤和可选排序。
+
 ---
 
 ## 数据与迁移
@@ -361,6 +430,11 @@ CREATE TABLE IF NOT EXISTS fund_select_metrics (
   sales_fee_known        INTEGER NOT NULL DEFAULT 0,
   share_class            TEXT NOT NULL DEFAULT '',
   share_group_key        TEXT NOT NULL DEFAULT '',
+  scale_yi               REAL,
+  equity_ratio_pct       REAL,
+  inst_holder_pct        REAL,
+  top10_weight_pct       REAL,
+  excess_hs300_1y        REAL,
   select_score           REAL,
   score_asof             TEXT,
   updated_at             INTEGER NOT NULL,
@@ -378,6 +452,10 @@ CREATE INDEX IF NOT EXISTS idx_select_score
 CREATE INDEX IF NOT EXISTS idx_select_share_group
   ON fund_select_metrics(share_group_key)
   WHERE share_group_key != '';
+CREATE INDEX IF NOT EXISTS idx_select_scale
+  ON fund_select_metrics(scale_yi);
+CREATE INDEX IF NOT EXISTS idx_select_excess
+  ON fund_select_metrics(excess_hs300_1y DESC);
 ```
 
 ### 谁建表、谁只读
@@ -417,7 +495,9 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 | 定投 | `dca_month_win_3y` | desc | percent | 否 | 百分数点 0–100 | 同上 |
 | 定投 | `dca_month_vol_3y` | asc | percent | 否 | 百分数点 | 同上 |
 | 成本 | `all_in_fee_pct` 默认 | asc | percent | 否 | 年化百分数点 | 无 |
+| 收益 | `excess_hs300_1y` | desc | percent | 是 | 百分数点 | 200 个对齐交易日 |
 | 精选 | `select_score` 默认 | desc | ratio | 否 | 0–100 分，不带 % | 200（规则可关） |
+| 精选可选列 | `scale_yi` 升、`top10_weight_pct` 升、`equity_ratio_pct` 降、`inst_holder_pct` 降 | 见左 | percent / scale | 否 | `scale_yi` 用 `kind=scale` 亿元；其余百分数点 | 无 |
 
 整页所有可排列都空 → 该页空态「请跑 `bun run compute:select`」（风险页则「请跑 `compute:risk`」）。
 
@@ -446,7 +526,7 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
       - 核心三表在且 `fund_basic_info`/`fund_nav` 非空
       - **v2 列契约**：`fund_basic_info` / `fund_performance` / `fund_nav` / `schema_version` 的列集合不少于 `SCHEMA_VERSION=2` 时 `SCHEMA_DDL` 的列（实现时导出一份冻结的 v2 列清单，缺列即拒绝）
       - 已是 3 且 `fund_select_metrics` 表及上表 DDL 列都在 → 跳过迁移，走步骤 4
-   3. 打开**读写**，`initSchema`（只补 `fund_select_metrics` + 插入 version=3，不改净值）
+   3. 打开**读写**，`initSchema`（补 `fund_select_metrics`、`fund_trend_extra.grand_total_json` 缺列、插入 version=3，不改净值）
    4. `assertFundlyDb`（`MAX===3` + 新表存在 + v3 列契约）
    5. 再替换正式路径
 
@@ -473,7 +553,7 @@ bun run compute:select "$path"
 
 禁止继承 mvp 默认池。Railway Volume 靠 `FUNDLY_SQLITE=/data/fundly.db`，不传 path 时包装器必须读这个环境变量，不能落到仓库内 `data/fundly.db`。
 
-`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk。
+`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk + `fund_trend_extra` + `fund_portfolio`。
 
 发布协议（禁止 `ALTER RENAME`，它不会带走索引/FK）：
 
@@ -500,7 +580,10 @@ bun run compute:select "$path"
 | `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复；输入 `tr_nav` |
 | `src/analytics/dca-metrics.ts` | 月定投；输入必须是 `tr_nav`；lump = N 元 @ D0 |
 | `src/analytics/cost-metrics.ts` | 综合费、销服是否已知、份额与 group key（有兄弟才入组） |
+| `src/analytics/structure-metrics.ts` | 规模 / 股票仓位 / 机构占比 / 前十大 / 相对沪深300 |
+| `src/metrics/fund-search.ts` | 浏览与选基 `q` 规范化 + 打分，无新依赖 |
 | `src/metrics/select-score.ts` | 用现网 `rankPct` 翻成 `select_score` |
+| `src/fetchers/eastmoney.ts` | 把 `Data_grandTotal` 写入 `grand_total_json` |
 | `scripts/compute-select-metrics.ts` | `initSchema` + 批算写入 |
 | `scripts/refresh-select.ts` | 四步包装，fail-fast |
 | `package.json` | `compute:select`、`refresh:select` |
@@ -516,7 +599,7 @@ bun run compute:select "$path"
 | DDL + 版本校验 | `src/db/schema.ts`、`src/db/repo.ts`、`src/backup/snapshot.ts`、`src/backup/run.ts`（先只读验 v2，再 migrate，再 assert v3） |
 | 只读打开 | `apps/worker/scripts/app.ts` `openReadonlySqlite`：缺文件抛错，进程不起，不再建空库 |
 | 文档 | `02-SCHEMA.md`（删 `fund_screening_rank`）、`03-SCRIPTS.md`、`06-ARCH-UI.md`、`08-BACKY.md`（restore-then-migrate） |
-| 列表 SQL | `fund-query.ts` 新 sort / picks 两层 CTE / 货基最新七日+7 日新鲜度 / 按维切换 `minSamples`；`funds-service.ts` 做 `hasTable` + 分维 EXISTS capability |
+| 列表 SQL | `fund-query.ts` 新 sort / 搜索打分 / picks 两层 CTE / 货基最新七日+7 日新鲜度 / 按维切换 `minSamples`；`funds-service.ts` 做 `hasTable` + 分维 EXISTS capability |
 | 详情兄弟份额 | `funds-service.ts` + `app.ts` `GET /api/funds/:code/siblings` + 详情字段映射 + 详情页 |
 | 导航/路由 | `navigation.ts`、`App.tsx`：`/select/:lens`；`/ranking` 按 dim 分组跳转，保留 `pass4433` |
 | VM/页 | `select-vm.ts`、`select-page.tsx`；`ranking-vm` 只留重定向/存储迁移 |
@@ -541,7 +624,7 @@ bun run compute:select "$path"
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F` |
+| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、ETF vs 联接、代码全等优先、grandTotal 缺沪深300 |
 | **L2** | fund-query 新 sort / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3（可含 version=2 行）上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待） |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
@@ -578,3 +661,6 @@ bun run compute:select "$path"
 - 用 `recovery_days_1y is null` 同时表示未收复和样本不足
 - `fetch:daily` 用空值覆盖本地 `return_2y/3y/5y`
 - 用 `ALTER RENAME` 发布选基表
+- 盘中估值刷新、重仓股实时行情、持仓盈亏、交易记账、OCR/LLM 搜基
+- 引入 Fuse.js 或每次按键打东财 `FundSearchAPI`
+- 把规模 / 集中度 / 超额并进 `select_score`
