@@ -107,8 +107,8 @@ export default function BackupPage() {
         ) : null}
       </section>
 
-      <section className="rounded-card bg-secondary ring-1 ring-border/40">
-        <div className="flex items-center justify-between px-4 pt-4">
+      <section className="rounded-card bg-secondary pb-2 ring-1 ring-border/40">
+        <div className="flex items-center justify-between px-3 pt-3">
           <div>
             <h2 className="text-sm font-semibold">最近备份</h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -126,7 +126,7 @@ export default function BackupPage() {
             刷新
           </Button>
         </div>
-        <Table>
+        <Table className="[&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
           <TableHeader>
             <TableRow>
               <TableHead>时间</TableHead>
