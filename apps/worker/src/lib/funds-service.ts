@@ -3,11 +3,15 @@ import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
 import {
   EMPTY_RISK_DIMS,
+  EMPTY_SELECT_DIMS,
   type FundListQuery,
   fundListSql,
   isRiskSortKey,
+  isSelectSortKey,
   type RiskDimCaps,
   resolveFundListQuery,
+  SELECT_SORT_KEYS,
+  type SelectDimCaps,
 } from './fund-query';
 import {
   formatRankTriple,
@@ -21,12 +25,42 @@ import {
   resolveFundReturns,
 } from './period-returns';
 
+export async function listFundSiblings(exec: QueryExec, code: string) {
+  if (!(await hasTable(exec, 'fund_select_metrics'))) return [];
+  const self = await exec.first<{ share_group_key: string }>(
+    'SELECT share_group_key FROM fund_select_metrics WHERE fund_code = ?',
+    [code],
+  );
+  if (!self?.share_group_key) return [];
+  return exec.all<Record<string, unknown>>(
+    `SELECT b.fund_code, b.fund_name, s.share_class, s.all_in_fee_pct, s.sales_fee_known
+     FROM fund_select_metrics s
+     JOIN fund_basic_info b ON b.fund_code = s.fund_code
+     WHERE s.share_group_key = ? AND s.fund_code != ?
+     ORDER BY s.share_class, b.fund_code`,
+    [self.share_group_key, code],
+  );
+}
+
 export async function listFunds(exec: QueryExec, query: FundListQuery) {
-  const needCaps = Boolean(query.includeCaps || isRiskSortKey(query.sort));
+  const needCaps = Boolean(
+    query.includeCaps || isRiskSortKey(query.sort) || isSelectSortKey(query.sort),
+  );
   const riskDims = needCaps ? await riskDimCaps(exec) : EMPTY_RISK_DIMS;
+  const selectDims = needCaps ? await selectDimCaps(exec) : EMPTY_SELECT_DIMS;
   const risk = riskSortEnabledAny(riskDims);
-  const resolved = resolveFundListQuery(query, riskDims);
-  const built = fundListSql(resolved, { risk: isRiskSortKey(resolved.sort) && risk });
+  const select = selectSortEnabledAny(selectDims);
+  const resolved = resolveFundListQuery(query, riskDims, selectDims);
+  const built = fundListSql(resolved, {
+    risk: risk && (isRiskSortKey(resolved.sort) || query.ddPeer != null || query.lens === 'picks'),
+    select:
+      select &&
+      (isSelectSortKey(resolved.sort) ||
+        query.lens === 'picks' ||
+        query.feePeer != null ||
+        query.scalePeer != null ||
+        query.top10Max != null),
+  });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),
     exec.first<{ n: number }>(built.countSql, built.countParams),
@@ -37,7 +71,7 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
     page: resolved.page,
     pageSize: resolved.pageSize,
     sort: resolved.sort,
-    capabilities: { risk, riskDims },
+    capabilities: { risk, riskDims, select, selectDims },
   };
 }
 
@@ -50,7 +84,25 @@ async function hasTable(exec: QueryExec, name: string): Promise<boolean> {
 }
 
 function riskSortEnabledAny(caps: RiskDimCaps): boolean {
-  return caps.sharpe_1y || caps.max_drawdown_1y || caps.volatility_1y || caps.calmar_1y;
+  return Object.values(caps).some(Boolean);
+}
+
+function selectSortEnabledAny(caps: SelectDimCaps): boolean {
+  return Object.values(caps).some(Boolean);
+}
+
+async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
+  if (!(await hasTable(exec, 'fund_select_metrics'))) return EMPTY_SELECT_DIMS;
+  const parts = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield').map(
+    (key) => `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
+  );
+  const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
+  const out = { ...EMPTY_SELECT_DIMS };
+  for (const key of SELECT_SORT_KEYS) {
+    if (key === 'seven_day_yield') continue;
+    out[key] = Boolean(row?.[key]);
+  }
+  return out;
 }
 
 async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
@@ -68,6 +120,7 @@ async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
         EXISTS(SELECT 1 FROM fund_risk_metrics WHERE calmar_1y IS NOT NULL) AS calmar_1y`,
   );
   return {
+    ...EMPTY_RISK_DIMS,
     sharpe_1y: Boolean(row?.sharpe_1y),
     max_drawdown_1y: Boolean(row?.max_drawdown_1y),
     volatility_1y: Boolean(row?.volatility_1y),

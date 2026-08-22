@@ -3,9 +3,41 @@ import type { SqlBinding } from './executor';
 export const RETURN_SORT_KEYS = ['return_1y', 'return_1m', 'return_3m', 'return_6m'] as const;
 export const RISK_SORT_KEYS = [
   'sharpe_1y',
+  'sharpe_3y',
+  'sharpe_5y',
   'max_drawdown_1y',
+  'max_drawdown_3y',
+  'max_drawdown_5y',
+  'max_drawdown_all',
   'volatility_1y',
+  'volatility_3y',
+  'volatility_5y',
   'calmar_1y',
+  'calmar_3y',
+  'sortino_1y',
+  'sortino_3y',
+] as const;
+
+export const SELECT_SORT_KEYS = [
+  'ulcer_1y',
+  'underwater_ratio_1y',
+  'max_underwater_days_1y',
+  'max_consec_down_1y',
+  'down_day_ratio_1y',
+  'worst_month_1y',
+  'recovery_days_1y',
+  'dca_cagr_3y',
+  'dca_vs_lump_3y',
+  'dca_month_win_3y',
+  'dca_month_vol_3y',
+  'all_in_fee_pct',
+  'select_score',
+  'excess_hs300_1y',
+  'scale_yi',
+  'top10_weight_pct',
+  'equity_ratio_pct',
+  'inst_holder_pct',
+  'seven_day_yield',
 ] as const;
 
 export type FundSortKey =
@@ -14,7 +46,8 @@ export type FundSortKey =
   | 'fund_type'
   | 'data_date'
   | (typeof RETURN_SORT_KEYS)[number]
-  | (typeof RISK_SORT_KEYS)[number];
+  | (typeof RISK_SORT_KEYS)[number]
+  | (typeof SELECT_SORT_KEYS)[number];
 
 export type SortDir = 'asc' | 'desc';
 
@@ -29,6 +62,11 @@ export interface FundListQuery {
   metricNotNull?: boolean;
   minSamples?: number;
   includeCaps?: boolean;
+  lens?: 'picks';
+  feePeer?: number;
+  ddPeer?: number;
+  scalePeer?: number;
+  top10Max?: number;
   sort: FundSortKey;
   dir: SortDir;
   page: number;
@@ -48,9 +86,39 @@ const SORT_COLUMNS: Record<FundSortKey, string> = {
   max_drawdown_1y: 'r.max_drawdown_1y',
   volatility_1y: 'r.volatility_1y',
   calmar_1y: 'r.calmar_1y',
+  sharpe_3y: 'r.sharpe_3y',
+  sharpe_5y: 'r.sharpe_5y',
+  max_drawdown_3y: 'r.max_drawdown_3y',
+  max_drawdown_5y: 'r.max_drawdown_5y',
+  max_drawdown_all: 'r.max_drawdown_all',
+  volatility_3y: 'r.volatility_3y',
+  volatility_5y: 'r.volatility_5y',
+  calmar_3y: 'r.calmar_3y',
+  sortino_1y: 'r.sortino_1y',
+  sortino_3y: 'r.sortino_3y',
+  ulcer_1y: 's.ulcer_1y',
+  underwater_ratio_1y: 's.underwater_ratio_1y',
+  max_underwater_days_1y: 's.max_underwater_days_1y',
+  max_consec_down_1y: 's.max_consec_down_1y',
+  down_day_ratio_1y: 's.down_day_ratio_1y',
+  worst_month_1y: 's.worst_month_1y',
+  recovery_days_1y: 's.recovery_days_1y',
+  dca_cagr_3y: 's.dca_cagr_3y',
+  dca_vs_lump_3y: 's.dca_vs_lump_3y',
+  dca_month_win_3y: 's.dca_month_win_3y',
+  dca_month_vol_3y: 's.dca_month_vol_3y',
+  all_in_fee_pct: 's.all_in_fee_pct',
+  select_score: 's.select_score',
+  excess_hs300_1y: 's.excess_hs300_1y',
+  scale_yi: 's.scale_yi',
+  top10_weight_pct: 's.top10_weight_pct',
+  equity_ratio_pct: 's.equity_ratio_pct',
+  inst_holder_pct: 's.inst_holder_pct',
+  seven_day_yield: 'y.seven_day_yield',
 };
 
 const RISK_SORT_SET = new Set<string>(RISK_SORT_KEYS);
+const SELECT_SORT_SET = new Set<string>(SELECT_SORT_KEYS);
 
 export function isFundSortKey(value: string): value is FundSortKey {
   return Object.hasOwn(SORT_COLUMNS, value);
@@ -58,6 +126,17 @@ export function isFundSortKey(value: string): value is FundSortKey {
 
 export function isRiskSortKey(value: string): value is (typeof RISK_SORT_KEYS)[number] {
   return RISK_SORT_SET.has(value);
+}
+
+export function isSelectSortKey(value: string): value is (typeof SELECT_SORT_KEYS)[number] {
+  return SELECT_SORT_SET.has(value);
+}
+
+function peerCap(raw: string | number | null | undefined): number | undefined {
+  if (raw == null || raw === '' || raw === 'off') return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1 || n > 100) return undefined;
+  return Math.floor(n);
 }
 
 export const DEFAULT_PAGE_SIZE = 200;
@@ -77,6 +156,11 @@ export function parseFundListQuery(input: {
   metricNotNull?: string | boolean | null;
   minSamples?: string | number | null;
   includeCaps?: string | boolean | null;
+  lens?: string | null;
+  feePeer?: string | number | null;
+  ddPeer?: string | number | null;
+  scalePeer?: string | number | null;
+  top10Max?: string | number | null;
   sort?: string | null;
   dir?: string | null;
   page?: string | number | null;
@@ -109,6 +193,11 @@ export function parseFundListQuery(input: {
     pass4433: flag(input.pass4433),
     metricNotNull: flag(input.metricNotNull),
     includeCaps: flag(input.includeCaps),
+    lens: input.lens === 'picks' ? 'picks' : undefined,
+    feePeer: peerCap(input.feePeer),
+    ddPeer: peerCap(input.ddPeer),
+    scalePeer: peerCap(input.scalePeer),
+    top10Max: peerCap(input.top10Max),
     minSamples,
     sort,
     dir,
@@ -121,29 +210,64 @@ export type RiskDimCaps = Record<(typeof RISK_SORT_KEYS)[number], boolean>;
 
 export const EMPTY_RISK_DIMS: RiskDimCaps = {
   sharpe_1y: false,
+  sharpe_3y: false,
+  sharpe_5y: false,
   max_drawdown_1y: false,
+  max_drawdown_3y: false,
+  max_drawdown_5y: false,
+  max_drawdown_all: false,
   volatility_1y: false,
+  volatility_3y: false,
+  volatility_5y: false,
   calmar_1y: false,
+  calmar_3y: false,
+  sortino_1y: false,
+  sortino_3y: false,
 };
+
+export type SelectDimCaps = Record<(typeof SELECT_SORT_KEYS)[number], boolean>;
+
+export const EMPTY_SELECT_DIMS = Object.fromEntries(
+  SELECT_SORT_KEYS.map((key) => [key, false]),
+) as SelectDimCaps;
 
 export function riskSortEnabled(sort: string, caps: RiskDimCaps | boolean): boolean {
   if (!isRiskSortKey(sort)) return false;
   return typeof caps === 'boolean' ? caps : Boolean(caps[sort]);
 }
 
+export function selectSortEnabled(sort: string, caps: SelectDimCaps | boolean): boolean {
+  if (!isSelectSortKey(sort)) return false;
+  return typeof caps === 'boolean' ? caps : Boolean(caps[sort]);
+}
+
 export function resolveFundListQuery(
   query: FundListQuery,
   risk: RiskDimCaps | boolean,
+  select: SelectDimCaps | boolean = false,
 ): FundListQuery {
   if (isRiskSortKey(query.sort) && !riskSortEnabled(query.sort, risk)) {
     return { ...query, sort: 'return_1y', dir: 'desc', minSamples: undefined };
   }
+  if (isSelectSortKey(query.sort) && !selectSortEnabled(query.sort, select)) {
+    return { ...query, sort: 'return_1y', dir: 'desc' };
+  }
   return query;
+}
+
+function searchTokens(q: string): string[] {
+  return (q.toUpperCase().match(/[\u4e00-\u9fff]{2,}|[A-Z]{2,}|\d{2,}/g) ?? []).filter(Boolean);
+}
+
+function samplesColumn(sort: FundSortKey): string {
+  if (sort.includes('_5y')) return 'r.nav_samples_5y';
+  if (sort.includes('_3y')) return 'r.nav_samples_3y';
+  return 'r.nav_samples_1y';
 }
 
 export function buildFundListClauses(
   query: FundListQuery,
-  opts: { risk: boolean } = { risk: false },
+  opts: { risk?: boolean; select?: boolean } = {},
 ): {
   whereSql: string;
   orderSql: string;
@@ -154,9 +278,15 @@ export function buildFundListClauses(
   const where: string[] = [];
   const filterParams: SqlBinding[] = [];
   if (query.q) {
-    where.push("(b.fund_code LIKE ? OR b.fund_name LIKE ? OR IFNULL(b.pinyin_abbr, '') LIKE ?)");
-    const like = `%${query.q}%`;
-    filterParams.push(like, like, like);
+    const tokens = searchTokens(query.q);
+    const parts = tokens.length > 0 ? tokens : [query.q];
+    for (const token of parts) {
+      where.push(
+        "(b.fund_code LIKE ? OR b.fund_name LIKE ? OR IFNULL(b.pinyin_abbr, '') LIKE ? OR IFNULL(b.pinyin_full, '') LIKE ?)",
+      );
+      const like = `%${token}%`;
+      filterParams.push(like, like, like, like);
+    }
   }
   if (query.typeL1 && query.typeL2) {
     where.push('b.fund_type = ?');
@@ -181,8 +311,24 @@ export function buildFundListClauses(
     where.push(`${SORT_COLUMNS[query.sort]} IS NOT NULL`);
   }
   if (opts.risk && isRiskSortKey(query.sort) && query.minSamples != null) {
-    where.push('r.nav_samples_1y >= ?');
+    where.push(`${samplesColumn(query.sort)} >= ?`);
     filterParams.push(query.minSamples);
+  }
+  if (query.top10Max != null) {
+    where.push('s.top10_weight_pct IS NOT NULL AND s.top10_weight_pct <= ?');
+    filterParams.push(query.top10Max);
+  }
+  if (query.feePeer != null) {
+    where.push('fee_pct IS NOT NULL AND fee_pct <= ?');
+    filterParams.push(query.feePeer);
+  }
+  if (query.ddPeer != null) {
+    where.push('dd_pct IS NOT NULL AND dd_pct <= ?');
+    filterParams.push(query.ddPeer);
+  }
+  if (query.scalePeer != null) {
+    where.push('scale_pct IS NOT NULL AND scale_pct <= ?');
+    filterParams.push(query.scalePeer);
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const dirSql = query.dir === 'desc' ? 'DESC' : 'ASC';
@@ -200,20 +346,42 @@ export function buildFundListClauses(
   };
 }
 
-export function fundListFromSql(opts: { risk: boolean } = { risk: false }): string {
+export function fundListFromSql(opts: { risk?: boolean; select?: boolean } = {}): string {
   const riskJoin = opts.risk ? ' LEFT JOIN fund_risk_metrics r ON r.fund_code = b.fund_code' : '';
+  const selectJoin = opts.select
+    ? ' LEFT JOIN fund_select_metrics s ON s.fund_code = b.fund_code'
+    : '';
   return `FROM fund_basic_info b
-    LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}`;
+    LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}${selectJoin}`;
 }
 
-export function fundListSelectSql(opts: { risk: boolean } = { risk: false }): string {
+function peerRankSql(): string {
+  return `
+    CASE WHEN s.all_in_fee_pct IS NULL THEN NULL
+    ELSE 100.0 * RANK() OVER (PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL ORDER BY s.all_in_fee_pct ASC)
+      / COUNT(s.all_in_fee_pct) OVER (PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL)
+    END AS fee_pct,
+    CASE WHEN r.max_drawdown_1y IS NULL THEN NULL
+    ELSE 100.0 * RANK() OVER (PARTITION BY b.fund_type, r.max_drawdown_1y IS NOT NULL ORDER BY r.max_drawdown_1y ASC)
+      / COUNT(r.max_drawdown_1y) OVER (PARTITION BY b.fund_type, r.max_drawdown_1y IS NOT NULL)
+    END AS dd_pct,
+    CASE WHEN s.scale_yi IS NULL THEN NULL
+    ELSE 100.0 * RANK() OVER (PARTITION BY b.fund_type, s.scale_yi IS NOT NULL ORDER BY s.scale_yi ASC)
+      / COUNT(s.scale_yi) OVER (PARTITION BY b.fund_type, s.scale_yi IS NOT NULL)
+    END AS scale_pct`;
+}
+
+export function fundListSelectSql(opts: { risk?: boolean; select?: boolean } = {}): string {
   const riskCols = opts.risk
     ? 'r.sharpe_1y, r.max_drawdown_1y, r.volatility_1y, r.calmar_1y, r.nav_samples_1y'
     : 'NULL AS sharpe_1y, NULL AS max_drawdown_1y, NULL AS volatility_1y, NULL AS calmar_1y, NULL AS nav_samples_1y';
+  const selectCols = opts.select
+    ? 's.ulcer_1y, s.dca_cagr_3y, s.all_in_fee_pct, s.select_score, s.excess_hs300_1y, s.scale_yi, s.top10_weight_pct, s.equity_ratio_pct, s.inst_holder_pct, s.sales_fee_known'
+    : 'NULL AS ulcer_1y, NULL AS dca_cagr_3y, NULL AS all_in_fee_pct, NULL AS select_score, NULL AS excess_hs300_1y, NULL AS scale_yi, NULL AS top10_weight_pct, NULL AS equity_ratio_pct, NULL AS inst_holder_pct, NULL AS sales_fee_known';
   return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.in_mvp_pool,
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
-      ${riskCols}
+      ${riskCols}, ${selectCols}
     ${fundListFromSql(opts)}`;
 }
 
@@ -221,17 +389,37 @@ export const FUND_LIST_SELECT = fundListSelectSql({ risk: false });
 
 export function fundListSql(
   query: FundListQuery,
-  opts: { risk: boolean } = { risk: false },
+  opts: { risk?: boolean; select?: boolean } = {},
 ): {
   listSql: string;
   countSql: string;
   listParams: SqlBinding[];
   countParams: SqlBinding[];
 } {
-  const joinRisk = Boolean(opts.risk && isRiskSortKey(query.sort));
-  const sqlOpts = { risk: joinRisk };
+  const joinRisk = Boolean(
+    opts.risk && (isRiskSortKey(query.sort) || query.ddPeer != null || query.lens === 'picks'),
+  );
+  const joinSelect = Boolean(
+    opts.select &&
+      (isSelectSortKey(query.sort) ||
+        query.lens === 'picks' ||
+        query.feePeer != null ||
+        query.scalePeer != null ||
+        query.top10Max != null),
+  );
+  const sqlOpts = { risk: joinRisk, select: joinSelect };
   const c = buildFundListClauses(query, sqlOpts);
   const from = fundListFromSql(sqlOpts);
+  const needPeer = query.feePeer != null || query.ddPeer != null || query.scalePeer != null;
+  if (needPeer) {
+    const inner = `${fundListSelectSql(sqlOpts).replace('SELECT ', `SELECT ${peerRankSql()}, `)} `;
+    return {
+      listSql: `SELECT * FROM (${inner}) ranked ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
+      countSql: `SELECT COUNT(*) AS n FROM (${inner}) ranked ${c.whereSql}`,
+      listParams: [...c.filterParams, ...c.limitParams],
+      countParams: [...c.filterParams],
+    };
+  }
   return {
     listSql: `${fundListSelectSql(sqlOpts)} ${c.whereSql} ${c.orderSql} ${c.limitSql}`,
     countSql: `SELECT COUNT(*) AS n ${from} ${c.whereSql}`,

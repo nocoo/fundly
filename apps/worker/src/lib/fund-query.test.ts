@@ -86,7 +86,7 @@ describe('fundListSql', () => {
     expect(built.listParams.at(-1)).toBe(400);
     expect(built.countSql).toContain('COUNT(*)');
     expect(built.countSql).toContain('LEFT JOIN fund_performance p ON p.fund_code = b.fund_code');
-    expect(built.countParams).toHaveLength(4);
+    expect(built.countParams).toHaveLength(5);
   });
 
   it('filters L1 as prefix and L2 as exact joined type', () => {
@@ -137,5 +137,21 @@ describe('fundListSql', () => {
     const built = fundListSql(resolved, { risk: false });
     expect(built.listSql).not.toContain('fund_risk_metrics');
     expect(built.listSql).toContain('NULL AS sharpe_1y');
+  });
+
+  it('builds peer percentiles before user filters for picks', () => {
+    const q = parseFundListQuery({
+      lens: 'picks',
+      typeL1: '混合型',
+      feePeer: '50',
+      ddPeer: '50',
+      sort: 'select_score',
+      dir: 'desc',
+    });
+    const built = fundListSql(q, { risk: true, select: true });
+    expect(built.listSql).toContain('AS fee_pct');
+    expect(built.listSql).toContain('FROM (');
+    expect(built.listSql).toContain('fee_pct <= ?');
+    expect(q.feePeer).toBe(50);
   });
 });

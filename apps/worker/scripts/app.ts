@@ -19,6 +19,7 @@ import {
   getDataStats,
   getFundDetail,
   getFundNav,
+  listFundSiblings,
   listFunds,
   listFundTypes,
 } from '../src/lib/funds-service.ts';
@@ -177,6 +178,11 @@ export function createApi(
       metricNotNull: c.req.query('metricNotNull'),
       minSamples: c.req.query('minSamples'),
       includeCaps: c.req.query('includeCaps'),
+      lens: c.req.query('lens'),
+      feePeer: c.req.query('feePeer'),
+      ddPeer: c.req.query('ddPeer'),
+      scalePeer: c.req.query('scalePeer'),
+      top10Max: c.req.query('top10Max'),
       sort: c.req.query('sort'),
       dir: c.req.query('dir'),
       page: c.req.query('page'),
@@ -195,6 +201,9 @@ export function createApi(
       }),
     }),
   );
+  app.get('/api/funds/:code/siblings', async (c) => {
+    return c.json({ items: await listFundSiblings(sqlite, c.req.param('code')) });
+  });
   app.get('/api/funds/:code', async (c) => {
     const detail = await getFundDetail(sqlite, c.req.param('code'));
     if (!detail) return c.json({ error: 'Not found' }, 404);
