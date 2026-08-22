@@ -68,7 +68,7 @@ describe('assertFundlyDb', () => {
     db.exec(
       'CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at INTEGER, description TEXT)',
     );
-    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (1, 1)');
+    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (2, 1)');
     db.exec('CREATE TABLE fund_basic_info (fund_code TEXT)');
     db.exec('CREATE TABLE fund_performance (fund_code TEXT)');
     db.exec('CREATE TABLE fund_nav (fund_code TEXT)');
