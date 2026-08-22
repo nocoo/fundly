@@ -12,6 +12,8 @@ import {
   saveBackyConfig,
 } from '../../../src/backup/settings.ts';
 import { initSchema } from '../../../src/db/repo.ts';
+import { type AuthConfig, loadAuthConfig } from '../src/lib/auth-config.ts';
+import { registerAuthRoutes, requireSession } from '../src/lib/auth-routes.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
@@ -50,11 +52,12 @@ export function openReadonlySqlite(sqlitePath: string): QueryExec {
 
 export function createApi(
   sqlitePath: string,
-  opts: { staticDir?: string; component?: string } = {},
+  opts: { staticDir?: string; component?: string; auth?: AuthConfig } = {},
 ): Hono {
   const sqlite = openReadonlySqlite(sqlitePath);
   const app = new Hono();
   const repoRoot = resolve(import.meta.dirname, '../../..');
+  const auth = opts.auth ?? loadAuthConfig(process.env, opts.component === 'railway');
 
   app.use('/api/*', async (c, next) => {
     c.header('access-control-allow-origin', c.req.header('origin') ?? '*');
@@ -72,10 +75,10 @@ export function createApi(
     }),
   );
 
+  registerAuthRoutes(app, auth);
+  app.use('/api/*', (c, next) => requireSession(c, auth, next));
+
   app.get('/api/source', (c) => c.json({ source: 'sqlite', allowed: ['sqlite'], rejected: false }));
-  app.get('/api/me', (c) =>
-    c.json({ email: null, name: null, avatar: null, authenticated: false }),
-  );
 
   app.get('/api/backy', async (c) => {
     let config: ReturnType<typeof readBackyConfig>;

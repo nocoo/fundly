@@ -3,6 +3,7 @@ export interface UserInfo {
   name: string | null;
   avatar: string | null;
   authenticated: boolean;
+  authRequired?: boolean;
 }
 
 export type SidebarUserState =

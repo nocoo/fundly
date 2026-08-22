@@ -101,6 +101,7 @@ fundly/
 | `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度 |
 | `/backup` | 备份 | 连接 Backy、推送、最近备份列表 |
 | `/settings` | 设置 | 涨跌色、基准 |
+| `/login` | Google 登录 | 工卡页，仿 Gecko；颜色用 Fundly primary |
 
 导航数据在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。
 
@@ -108,7 +109,9 @@ fundly/
 
 ## 鉴权
 
-本机 `fundly.dev.hexly.ai` 不走 Access。侧栏用户区本地显示「本地开发」。
+生产走 Google OAuth + `ALLOWED_EMAILS`，见 [10-AUTH.md](./10-AUTH.md)。Cloudflare Access 已拆除。
+
+本机没配 `GOOGLE_CLIENT_*` 时侧栏仍显示「本地开发」。配齐后与生产同一套登录页。
 
 ---
 

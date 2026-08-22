@@ -3,6 +3,7 @@ import {
   Cloud,
   Database,
   LayoutDashboard,
+  LogOut,
   type LucideIcon,
   PanelLeft,
   Search,
@@ -67,18 +68,27 @@ function resolveNavGroup(group: NavGroupDef): NavGroup {
 const NAV_GROUPS: NavGroup[] = NAV_GROUPS_DEF.map(resolveNavGroup);
 const ALL_NAV_ITEMS: NavItem[] = ALL_NAV_ITEMS_DEF.map(resolveNavItem);
 
+async function signOut() {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(
+    () => undefined,
+  );
+  window.location.assign('/login');
+}
+
 function SidebarUser({
   collapsed = false,
   name,
   initial,
   email,
   avatar,
+  canSignOut,
 }: {
   collapsed?: boolean;
   name: string;
   initial: string;
   email: string | null;
   avatar: string | null;
+  canSignOut: boolean;
 }) {
   const face = (
     <Avatar className={cn('h-9 w-9', !collapsed && 'shrink-0')}>
@@ -90,7 +100,23 @@ function SidebarUser({
   );
 
   if (collapsed) {
-    return <div className="flex w-full justify-center py-3">{face}</div>;
+    if (!canSignOut) {
+      return <div className="flex w-full justify-center py-3">{face}</div>;
+    }
+    return (
+      <div className="flex w-full justify-center py-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" onClick={() => void signOut()} className="cursor-pointer">
+              {face}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            {name} — Sign out
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
   }
 
   return (
@@ -101,6 +127,21 @@ function SidebarUser({
           <p className="truncate text-sm font-medium text-foreground">{name}</p>
           {email ? <p className="truncate text-xs text-muted-foreground">{email}</p> : null}
         </div>
+        {canSignOut ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                aria-label="Sign out"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Sign out</TooltipContent>
+          </Tooltip>
+        ) : null}
       </div>
     </div>
   );
@@ -243,6 +284,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
               initial={userInitial}
               email={userEmail}
               avatar={userAvatar}
+              canSignOut={Boolean(user?.authenticated)}
             />
           </div>
         ) : (
@@ -283,6 +325,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
               initial={userInitial}
               email={userEmail}
               avatar={userAvatar}
+              canSignOut={Boolean(user?.authenticated)}
             />
           </div>
         )}

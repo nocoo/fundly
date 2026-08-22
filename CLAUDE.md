@@ -49,10 +49,11 @@ fundly/
 | **03** | `03-SCRIPTS.md` | 所有 CLI 脚本的用途 + 使用姿势 |
 | **04** | `04-DATA_SOURCES.md` | 数据源清单、URL、请求头、限流约定 |
 | **05** | `05-CREDITS.md` | 致敬与参考项目（GoFundBot、AKShare 等） |
-| **06** | `06-ARCH-UI.md` | UI / Worker 架构、Access、本地域名 |
+| **06** | `06-ARCH-UI.md` | UI / Worker 架构、本地域名 |
 | **07** | `07-DASHBOARD.md` | 仪表盘 `/api/stats` 与空态 |
 | **08** | `08-BACKY.md` | 本机 SQLite → Backy / R2 备份与换机恢复 |
 | **09** | `09-RAILWAY.md` | Railway 单服务 + Volume 挂 sqlite |
+| **10** | `10-AUTH.md` | Google 登录、白名单、回调 URL |
 
 **新增文档规则**：
 - 数字**顺延**（下一份文档用 `10-`）
