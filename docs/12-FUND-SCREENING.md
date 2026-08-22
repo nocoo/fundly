@@ -111,9 +111,14 @@ pct  = 100 * rank / n           -- 即 (betterCount + 1) / n * 100
 
 ### 收益页
 
-**只展示库里有数的窗口**：`return_1m/3m/6m/1y` 及对应 `rank_pct_*`。不把空的 `return_3y/5y/ytd` 画成列。
+**只展示抓取短窗**：`return_1m/3m/6m/1y` 及对应 `rank_pct_*`。第一期**不画** `return_2y/3y/5y/ytd` 列。
 
-3y/5y 若以后要上：在 `rank:refresh` **写回** `fund_performance.return_3y/5y`（今日只写了百分位），再开列。YTD 要么从当年首个净值算并落列，要么继续不做。第一期都不做。
+长窗列仍要在库里算，只是不上收益页：
+
+- `return_2y/3y/5y` **由 `rank:refresh` 独占**，用 `tr_nav` 比写入，并在**同一事务**更新 `rank_pct_2y/3y/5y` 与 `pass_4433`
+- `upsertPerformance`（`fetch:daily`）ON CONFLICT **不得覆盖**这三列（现网会用抓取空值把本地结果洗掉，百分位和 4433 却留着）
+- 详情页对 2y/3y/5y **禁止**再用 `acc_nav`/`unit_nav` 现场回填；空就空。短窗 1m/3m/6m/1y 维持现网 crawled fallback
+- YTD 第一期仍不做
 
 货币基金：默认 L1 不是货币。进入 `typeL1=货币型` 时：
 
@@ -151,7 +156,7 @@ nav_samples_* 仍写实际样本数
 
 `windowDays` 与现实现一致：1y=365，3y=1095，5y=1825。即 3y 至少约 2.4 年、5y 至少约 4.0 年。此门写进 `src/analytics/risk-metrics.ts`，下次 `compute:risk` 覆盖旧值。选基页不再另算跨度。
 
-**风险路径必须改用 `tr_nav`**（见下节），不能继续在 `unit_nav` 上算回撤：除息日单位净值下跳会被当成亏损，卡玛、`ddPeer`、`select_score` 一并脏掉。实测如 015141 近窗 `unit_nav` 回撤 4.52%，总回报链只有 1.51%。`compute:risk` 的波动 / 回撤 / 夏普 / 索提诺 / 卡玛 / 年化、以及 `max_drawdown_all`，全部改走 `tr_nav`（日收益优先 `daily_return`）。`rank:refresh` 给 2y/3y/5y 编秩时用 `tr_nav` 比，不再用 `acc_nav` 比，并**写回** `return_2y/3y/5y`（今日这三列全空）。收益页第一期仍只展示抓取列 1m/3m/6m/1y，避免和本地长窗口径混排。YTD 第一期仍不做。
+**风险路径必须改用 `tr_nav`**（见下节），不能继续在 `unit_nav` 上算回撤：除息日单位净值下跳会被当成亏损，卡玛、`ddPeer`、`select_score` 一并脏掉。实测如 015141 近窗 `unit_nav` 回撤 4.52%，总回报链只有 1.51%。`compute:risk` 的波动 / 回撤 / 夏普 / 索提诺 / 卡玛 / 年化、以及 `max_drawdown_all`，全部改走 `tr_nav`。脚本 `scripts/compute-risk-metrics.ts` 必须读 `fund_dividend`，先构造 `tr_nav` 再传入 `computeRiskMetrics`（今日只 `readNav` 单位净值+日收益）。长窗收益写入规则见收益页，不在风险页展示。
 
 ### 持有体验（新算）
 
@@ -182,7 +187,7 @@ nav_samples_* 仍写实际样本数
 
 按 `recovery_days_1y` 排序：`recovered` 按天数升序 → `open`（未收复视为最差体验，排已收复之后）→ `insufficient` 最后。`metricNotNull` 不得把 `open` 当无数据丢掉。
 
-### 总回报指数（持有 + 定投共用）
+### 总回报指数（风险 / 长窗收益 / 持有 / 定投共用）
 
 东财 `acc_nav` 是「单位净值 + 历史现金分红简单加总」，**不是**可成交价格，也**不是**分红再投资后的财富路径。禁止 `1/acc_nav` 当份额。
 
@@ -239,13 +244,13 @@ nav_samples_* 仍写实际样本数
 对 `fund_name` 去首尾空白，只匹配**一次**末尾：
 
 ```
-/^(.+?)(?:人民币|美元现汇|美元现钞|美元)?([ABCDEHI])类?$/
+/^(.+?)((?:人民币|美元现汇|美元现钞|美元)?[ABCDEHI])类?$/
 ```
 
-- 候选 `share_class` = 捕获的字母
+- 候选 `share_class` = **整段份额身份**（含币种），如 `A`、`C`、`人民币A`、`美元现汇A`。禁止只留下字母，否则「人民币A」和「美元现汇A」会被当成同一个 class，无法互为兄弟
 - 候选 `base` = 去掉该末尾后 `trim`，长度必须 ≥ 2
 - **写入 `share_group_key = base` 的前提**：库里另有至少一只基金，用同一规则得到相同 `base`、不同 `share_class`
-- 否则 `share_class=''`、`share_group_key=''`，**不猜**。这样「指数A / 混合A / 股票A / (FOF)A」能成组；末尾碰巧是字母、但没有兄弟的名称不会误入组
+- 否则 `share_class=''`、`share_group_key=''`，**不猜**。这样「指数A / 混合A / 股票A / (FOF)A」以及「人民币A / 美元现汇C」能成组；末尾碰巧是字母、但没有兄弟的名称不会误入组
 
 兄弟份额：`GET /api/funds/:code/siblings`（`funds-service.ts` + 详情字段映射 + 详情页消费）返回 `share_group_key` 相同且非空、`fund_code` 不同的全部行（代码、简称、份额、综合费、销服是否已知）。不靠当前列表页拼盘。
 
@@ -315,7 +320,7 @@ select_score = mean(
 
 这里的 `*_pct` 与现网一样是 **0–100、越小越靠前**。缺维跳过，少于两维 → `select_score` null，排在有分的后面。默认 **降序**。
 
-API：`GET /api/funds?lens=picks&typeL1=混合型&pass4433=1&feePeer=50&ddPeer=50&sort=select_score&dir=desc`。
+API：`GET /api/funds?lens=picks&typeL1=混合型&pass4433=1&feePeer=50&ddPeer=50&sort=select_score&dir=desc&includeCaps=1`。
 
 ---
 
@@ -372,33 +377,35 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 | `rank:refresh` | 读写 | **不**调 `initSchema`，也不依赖新表 |
 | `restore` | 先只读验源，再读写迁移 | 见下方顺序 |
 
-能力探测放在 **`funds-service.ts`**（现网 `hasTable` / `riskDimCaps` 已在这里，不在 `fund-query.ts`）。对 `fund_select_metrics`：
+能力探测放在 **`funds-service.ts`**（现网 `hasTable` / `riskDimCaps` 已在这里，不在 `fund-query.ts`）。**沿用现网门控**：只在 `includeCaps=1` 或当前 `sort` 属于风险/选基维时跑 EXISTS，普通 `/api/funds` 浏览不得扫卫星表。选基页请求一律带 `includeCaps=1`。
+
+对 `fund_select_metrics`：
 
 - 表不存在 → 禁止 JOIN
 - 表在但**该排序列**全空 → 该列 capability = false
 - 用户点到不可用列：留在当前页，提示「该维尚未计算」，**不要**改排 `return_1y` 或该页默认列以外的无关指标
 
-每页维度元数据（实现写成常量，VM 与 SQL 共用）：
+存储单位与现网 `formatMetric` 对齐：**`kind=percent` 的列按百分数点存放**（`12.34` 显示 `12.34%`），禁止存 0–1 再交给 percent formatter。`kind` / `signed` 与现 `RankDim` 同义。
 
-| 页 | `dim` | 默认方向 | capability | `minSamples` 列 |
-|----|-------|----------|------------|-----------------|
-| 收益 | `return_1y`（默认）/`1m`/`3m`/`6m` | 降 | 该列非空 | 无 |
-| 收益 | `seven_day_yield` | 降 | 货基且未过期 | 无 |
-| 风险 | `max_drawdown_1y`（默认）/`3y`/`5y` | 升 | 该列非空 | 对应 `nav_samples_*` |
-| 风险 | `max_drawdown_all` | 升 | 该列非空 | 无（全历史；值 null 排最后） |
-| 风险 | `volatility_1y/3y/5y` | 升 | 该列非空 | 对应 `nav_samples_*` |
-| 风险 | `sharpe_1y/3y/5y` | 降 | 该列非空 | 对应 `nav_samples_*` |
-| 风险 | `sortino_1y/3y`、`calmar_1y/3y` | 降 | 该列非空 | 对应 `nav_samples_*` |
-| 持有 | `ulcer_1y`（默认） | 升 | `ulcer_1y` 非空 | `nav_samples_1y` 200 |
-| 持有 | `underwater_ratio_1y`、`max_underwater_days_1y` | 升 | 该列非空 | 200 |
-| 持有 | `max_consec_down_1y`、`down_day_ratio_1y` | 升 | 该列非空 | 60 |
-| 持有 | `worst_month_1y` | **降**（没那么负更好） | 该列非空 | 10 个完整月 |
-| 持有 | `recovery_days_1y` | 升，且 `open` 在已收复之后 | `recovery_status_1y != 'insufficient'` | 200 |
-| 定投 | `dca_cagr_3y`（默认） | 降 | 该列非空 | 无（计算侧已要求 N≥30） |
-| 定投 | `dca_vs_lump_3y`、`dca_month_win_3y` | 降 | 该列非空 | 无 |
-| 定投 | `dca_month_vol_3y` | 升 | 该列非空 | 无 |
-| 成本 | `all_in_fee_pct`（默认） | 升 | 该列非空 | 无 |
-| 精选 | `select_score`（默认） | 降 | 该列非空 | 200（规则可关） |
+| 页 | `dim`（完整 key） | dir | kind | signed | 单位 | minSamples |
+|----|-------------------|-----|------|--------|------|------------|
+| 收益 | `return_1y` 默认、`return_1m`、`return_3m`、`return_6m` | desc | percent | 是 | 百分数点 | 无 |
+| 收益 | `seven_day_yield` | desc | percent | 是 | 百分数点 | 无 |
+| 风险 | `max_drawdown_1y` 默认、`max_drawdown_3y`、`max_drawdown_5y` | asc | percent | 否 | 百分数点，正数=回撤幅度 | 对应 `nav_samples_*` ≥200 |
+| 风险 | `max_drawdown_all` | asc | percent | 否 | 同上 | 无 |
+| 风险 | `volatility_1y`、`volatility_3y`、`volatility_5y` | asc | percent | 否 | 百分数点 | 对应 `nav_samples_*` ≥200 |
+| 风险 | `sharpe_1y`、`sharpe_3y`、`sharpe_5y` | desc | ratio | 否 | 无量纲 | 对应 `nav_samples_*` ≥200 |
+| 风险 | `sortino_1y`、`sortino_3y`、`calmar_1y`、`calmar_3y` | desc | ratio | 否 | 无量纲 | 对应 `nav_samples_*` ≥200 |
+| 持有 | `ulcer_1y` 默认 | asc | percent | 否 | `100 * RMS`，百分数点 | 200 |
+| 持有 | `underwater_ratio_1y`、`down_day_ratio_1y` | asc | percent | 否 | 百分数点 0–100，不是 0–1 | 200 / 60 |
+| 持有 | `max_underwater_days_1y`、`max_consec_down_1y` | asc | count | 否 | 交易日 | 200 / 60 |
+| 持有 | `worst_month_1y` | desc | percent | 是 | 百分数点 | 10 个完整月 |
+| 持有 | `recovery_days_1y` | asc，`open` 在已收复后 | count | 否 | 交易日 | 200；capability = status≠insufficient |
+| 定投 | `dca_cagr_3y` 默认、`dca_vs_lump_3y` | desc | percent | 是 | 百分数点 | 计算侧 N≥30 |
+| 定投 | `dca_month_win_3y` | desc | percent | 否 | 百分数点 0–100 | 同上 |
+| 定投 | `dca_month_vol_3y` | asc | percent | 否 | 百分数点 | 同上 |
+| 成本 | `all_in_fee_pct` 默认 | asc | percent | 否 | 年化百分数点 | 无 |
+| 精选 | `select_score` 默认 | desc | ratio | 否 | 0–100 分，不带 % | 200（规则可关） |
 
 整页所有可排列都空 → 该页空态「请跑 `bun run compute:select`」（风险页则「请跑 `compute:risk`」）。
 
@@ -437,7 +444,7 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 
 ### 刷新顺序
 
-现网 `fetch:daily` **不会**跑风险或排名，且默认 `FUNDLY_DAILY_POOL=mvp`（权益白名单，不含债券/货币）。选基页默认 **没有** `mvpOnly=1`。三个子脚本都只认 `argv[2]` / 各自默认路径，**不读** `FUNDLY_SQLITE`。包装脚本必须**解析一次目标库**并显式传给每一步：
+现网 `fetch:daily` **不会**跑风险或排名，且默认 `FUNDLY_DAILY_POOL=mvp`（权益白名单，不含债券/货币）。选基页默认 **没有** `mvpOnly=1`。下面四个步骤都只认 `argv[2]` / 各自默认路径，**不读** `FUNDLY_SQLITE`。包装脚本必须**解析一次目标库**并显式传给每一步：
 
 ```
 path = argv[2] ?? FUNDLY_SQLITE ?? DEFAULT_DB_PATH
@@ -454,7 +461,16 @@ bun run compute:select "$path"
 
 禁止继承 mvp 默认池。Railway Volume 靠 `FUNDLY_SQLITE=/data/fundly.db`，不传 path 时包装器必须读这个环境变量，不能落到仓库内 `data/fundly.db`。
 
-`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk。先在内存或临时表算完全市场，再**一个事务**替换 `fund_select_metrics`（`DELETE` + `INSERT`，或 staging 表 `ALTER RENAME`）。中途失败保留旧快照；capability 只在提交成功后为真。`score_asof` = 本批开始时 `MAX(fund_nav.nav_date)`，全表同一天，不是单基金日期、也不是墙钟。
+`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk。
+
+发布协议（禁止 `ALTER RENAME`，它不会带走索引/FK）：
+
+1. 打开只读连接，`BEGIN` 固定读快照，本批所有基金都从该快照读
+2. 在内存算完全市场行
+3. 写连接 `BEGIN IMMEDIATE`；`DELETE FROM fund_select_metrics`；一次性 `INSERT` 全部新行；`COMMIT`
+4. 只读连接结束。中途失败回滚写事务，旧快照完整；capability 只在提交成功后为真
+
+`score_asof` = 读快照上的 `MAX(fund_nav.nav_date)`，全表同一天，不是单基金日期、也不是墙钟。
 
 单独重跑后三步可以，但日常只跑包装脚本。失败不回滚已成功的前步。实现时写入 `docs/03-SCRIPTS.md` 与 `package.json`。现有 crontab 里的 `FUNDLY_DAILY_POOL=mvp bun run fetch:daily` 只刷权益净值，**不能**代替本包装脚本。
 
@@ -464,8 +480,10 @@ bun run compute:select "$path"
 
 | 文件 | 职责 |
 |------|------|
-| `src/analytics/risk-metrics.ts` | 改走 `tr_nav`；补 3y/5y 日历跨度门（0.8 × 窗长） |
-| `src/metrics/nav-return.ts` / `src/db/ranks.ts` | 2y/3y/5y 用 `tr_nav` 比并写回 `return_*` |
+| `src/analytics/risk-metrics.ts` | 窗口指标改吃 `tr_nav`；补 3y/5y 日历跨度门 |
+| `scripts/compute-risk-metrics.ts` + `src/db/repo.ts` | 读 dividend/split，先 `tr_nav` 再算风险；覆盖单测 |
+| `src/db/repo.ts` `upsertPerformance` | ON CONFLICT 不再覆盖 `return_2y/3y/5y` |
+| `src/metrics/nav-return.ts` / `src/db/ranks.ts` | 2y/3y/5y 用 `tr_nav` 比，同一事务写收益+百分位+4433 |
 | `src/analytics/total-return.ts` | 由 unit_nav + daily_return + dividend/split 构造 `tr_nav` |
 | `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复；输入 `tr_nav` |
 | `src/analytics/dca-metrics.ts` | 月定投；输入必须是 `tr_nav`；lump = N 元 @ D0 |
@@ -546,3 +564,5 @@ bun run compute:select "$path"
 - 继续在 `unit_nav` 上算最大回撤
 - `refresh:select` 继承 mvp 默认池、或不传库路径
 - 用 `recovery_days_1y is null` 同时表示未收复和样本不足
+- `fetch:daily` 用空值覆盖本地 `return_2y/3y/5y`
+- 用 `ALTER RENAME` 发布选基表
