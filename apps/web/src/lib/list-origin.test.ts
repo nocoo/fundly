@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   fundDetailLink,
   isFundDetailPath,
+  listBackLabel,
   listHref,
   originFromList,
   parseListHref,
@@ -17,6 +18,8 @@ describe('list origin', () => {
       to: '/funds/000001',
       state: { list: '/ranking?dim=sharpe_1y' },
     });
+    expect(listBackLabel(origin)).toBe('返回基金排名');
+    expect(listBackLabel({ path: '/funds', search: '' })).toBe('返回基金浏览');
   });
 
   it('parses stored origin and router state', () => {

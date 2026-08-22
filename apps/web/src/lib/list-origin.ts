@@ -28,6 +28,10 @@ export function listHref(origin: ListOrigin): string {
   return origin.search ? `${origin.path}${origin.search}` : origin.path;
 }
 
+export function listBackLabel(origin: ListOrigin): string {
+  return `返回${LIST_LABEL[origin.path]}`;
+}
+
 export function parseListOrigin(raw: unknown): ListOrigin | null {
   if (!raw || typeof raw !== 'object') return null;
   const rec = raw as { path?: unknown; search?: unknown; list?: unknown };

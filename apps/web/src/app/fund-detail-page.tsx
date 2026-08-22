@@ -1,6 +1,6 @@
-import { CircleOff } from 'lucide-react';
+import { ArrowLeft, CircleOff } from 'lucide-react';
 import { useMemo } from 'react';
-import { useLocation, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { ChartEmptyMask } from '@/components/charts/chart-empty-mask';
@@ -8,6 +8,7 @@ import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { SharePie } from '@/components/charts/share-pie';
 import { AppShell } from '@/components/layout';
+import { Button } from '@/components/ui/button';
 import { CopyField } from '@/components/ui/copy-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
@@ -32,7 +33,13 @@ import {
   scaleChart,
   seriesChartFromCategories,
 } from '@/lib/fund-extra-vm';
-import { LIST_LABEL, listHref, resolveListOrigin } from '@/lib/list-origin';
+import {
+  LIST_LABEL,
+  type ListOrigin,
+  listBackLabel,
+  listHref,
+  resolveListOrigin,
+} from '@/lib/list-origin';
 import { parseRangeYears, RANGE_YEARS, rangeBounds, utcTs } from '@/lib/time-window';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +60,25 @@ interface DetailResponse {
 const HEADER_FIELD_KEYS = new Set(['fund_type']);
 const PANEL = 176;
 const NAV_PANEL = PANEL * 2;
+
+function BackToList({
+  origin,
+  variant = 'ghost',
+}: {
+  origin: ListOrigin;
+  variant?: 'ghost' | 'outline';
+}) {
+  return (
+    <div className="mb-4">
+      <Button variant={variant} size="sm" asChild>
+        <Link to={listHref(origin)}>
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+          {listBackLabel(origin)}
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
 export default function FundDetailPage() {
   const { code = '' } = useParams();
@@ -118,6 +144,7 @@ export default function FundDetailPage() {
   if (isLoading) {
     return (
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
+        <BackToList origin={listOrigin} />
         <p className="text-sm text-muted-foreground">加载中…</p>
       </AppShell>
     );
@@ -126,6 +153,7 @@ export default function FundDetailPage() {
     const missing = !error || error.message === 'Not found';
     return (
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
+        <BackToList origin={listOrigin} variant="outline" />
         <EmptyState
           icon={CircleOff}
           tone="error"
@@ -185,6 +213,7 @@ export default function FundDetailPage() {
 
   return (
     <AppShell breadcrumbs={[listCrumb, { label: String(name) }]}>
+      <BackToList origin={listOrigin} />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">
