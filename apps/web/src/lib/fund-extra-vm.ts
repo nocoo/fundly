@@ -33,12 +33,24 @@ export type ScoreExtra = {
   items: { name: string; value: number }[];
 };
 
+export type GrandTotalPoint = {
+  date: string;
+  fund: number | null;
+  hs300: number | null;
+  peer: number | null;
+};
+
+export type GrandTotalExtra = {
+  points: GrandTotalPoint[];
+};
+
 export type FundExtras = {
   allocation: AllocationExtra | null;
   scale: ScaleExtra | null;
   holders: HolderExtra | null;
   ranking: RankingPoint[];
   scores: ScoreExtra | null;
+  grandTotal: GrandTotalExtra | null;
 };
 
 export function seriesChartFromCategories(
@@ -93,9 +105,41 @@ export function clipTimePoints(points: ChartPoint[], from: string, to: string): 
   });
 }
 
+export function grandTotalChart(grand: GrandTotalExtra): {
+  points: ChartPoint[];
+  series: ChartSeries[];
+  from: string;
+  to: string;
+} {
+  const points: ChartPoint[] = grand.points.map((item) => {
+    const point: ChartPoint = { name: item.date };
+    if (item.fund != null) point.fund = item.fund;
+    if (item.hs300 != null) point.hs300 = item.hs300;
+    if (item.peer != null) point.peer = item.peer;
+    return point;
+  });
+  const first = grand.points[0]?.date ?? '';
+  const last = grand.points[grand.points.length - 1]?.date ?? '';
+  return {
+    points,
+    series: [
+      { key: 'fund', label: '本基金' },
+      { key: 'hs300', label: '沪深300' },
+      { key: 'peer', label: '同类平均' },
+    ],
+    from: first,
+    to: last,
+  };
+}
+
 export function hasFundExtras(extras: FundExtras | null | undefined): boolean {
   if (!extras) return false;
   return Boolean(
-    extras.allocation || extras.scale || extras.holders || extras.scores || extras.ranking.length,
+    extras.allocation ||
+      extras.scale ||
+      extras.holders ||
+      extras.scores ||
+      extras.grandTotal ||
+      extras.ranking.length,
   );
 }

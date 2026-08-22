@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  grandTotalChart,
   hasFundExtras,
   rankingChart,
   scaleChart,
@@ -50,6 +51,7 @@ describe('fund extra view models', () => {
         holders: null,
         ranking: [],
         scores: null,
+        grandTotal: null,
       }),
     ).toBe(false);
     expect(
@@ -59,7 +61,17 @@ describe('fund extra view models', () => {
         holders: null,
         ranking: [],
         scores: null,
+        grandTotal: null,
       }),
     ).toBe(true);
+    const chart = grandTotalChart({
+      points: [
+        { date: '2026-01-01', fund: 0, hs300: 0, peer: 0 },
+        { date: '2026-06-01', fund: 5, hs300: 3, peer: 2 },
+      ],
+    });
+    expect(chart.from).toBe('2026-01-01');
+    expect(chart.to).toBe('2026-06-01');
+    expect(chart.points[1]).toMatchObject({ fund: 5, hs300: 3 });
   });
 });

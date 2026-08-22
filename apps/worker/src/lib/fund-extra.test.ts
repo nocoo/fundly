@@ -39,6 +39,7 @@ describe('parseFundExtras', () => {
       holders: null,
       ranking: [],
       scores: null,
+      grandTotal: null,
     });
   });
 
@@ -98,6 +99,40 @@ describe('parseFundExtras', () => {
     expect(extras.ranking).toHaveLength(400);
     expect(extras.ranking[0]?.rank).toBe(0);
     expect(extras.ranking[399]?.rank).toBe(799);
+  });
+
+  it('parses grand total percent series and ignores regex-like names', () => {
+    const extras = parseFundExtras({
+      grand_total_json: JSON.stringify([
+        {
+          name: '本基金',
+          data: [
+            [1_700_000_000_000, 0],
+            [1_701_000_000_000, 5.2],
+          ],
+        },
+        {
+          name: '沪深300',
+          data: [
+            [1_700_000_000_000, 0],
+            [1_701_000_000_000, 3.1],
+          ],
+        },
+        { name: '跟踪沪深300指数', data: [[1_700_000_000_000, 9]] },
+        {
+          name: '同类平均',
+          data: [
+            [1_700_000_000_000, 0],
+            [1_701_000_000_000, 2.4],
+          ],
+        },
+      ]),
+    });
+    expect(extras.grandTotal?.points).toHaveLength(2);
+    expect(extras.grandTotal?.points[0]?.hs300).toBe(0);
+    expect(extras.grandTotal?.points[1]?.fund).toBe(5.2);
+    expect(extras.grandTotal?.points[0]?.peer).toBe(0);
+    expect(parseFundExtras({ grand_total_json: '{' }).grandTotal).toBeNull();
   });
 });
 

@@ -29,6 +29,7 @@ import {
 import {
   clipTimePoints,
   type FundExtras,
+  grandTotalChart,
   rankingChart,
   scaleChart,
   seriesChartFromCategories,
@@ -90,6 +91,15 @@ export default function FundDetailPage() {
     code ? `/api/funds/${code}` : null,
     fetchAPI,
   );
+  const { data: siblings } = useSWR<{
+    items: Array<{
+      fund_code: string;
+      fund_name: string;
+      share_class: string;
+      all_in_fee_pct: number | null;
+      sales_fee_known: number | null;
+    }>;
+  }>(code ? `/api/funds/${code}/siblings` : null, fetchAPI);
   const navKey = code ? `/api/funds/${code}/nav?from=${bounds.from}&limit=3000` : null;
   const { data: nav, error: navError } = useSWR<{
     items: Array<{
@@ -189,6 +199,8 @@ export default function FundDetailPage() {
     bounds.from,
     bounds.to,
   );
+  const grand = extras.grandTotal ? grandTotalChart(extras.grandTotal) : null;
+  const grandDomain = grand ? { from: utcTs(grand.from), to: utcTs(grand.to) } : timeDomain;
 
   const growthSeries: ChartSeries[] = [
     { key: 'nav', label: String(name), color: GROWTH_STROKE.fund },
@@ -222,6 +234,23 @@ export default function FundDetailPage() {
               {name} <span className="text-muted-foreground text-base">{code}</span>
             </h1>
             {fundType ? <FundTypeBadges type={fundType} wrap className="mt-2" /> : null}
+            {siblings?.items.length ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                兄弟份额{' '}
+                {siblings.items.map((item, index) => (
+                  <span key={item.fund_code}>
+                    {index > 0 ? ' · ' : ''}
+                    <Link className="text-foreground" to={`/funds/${item.fund_code}`}>
+                      {item.share_class || item.fund_code}
+                    </Link>
+                    {item.all_in_fee_pct != null
+                      ? ` ${formatMetric(item.all_in_fee_pct, 'percent')}`
+                      : ''}
+                    {item.sales_fee_known === 0 ? ' 销服未知' : ''}
+                  </span>
+                ))}
+              </p>
+            ) : null}
           </div>
         </div>
         <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-muted p-0.5 ring-1 ring-border/70">
@@ -296,6 +325,21 @@ export default function FundDetailPage() {
               rightYDomain={growthDomain?.right}
             />
           )}
+          {grand ? (
+            <TimeCard
+              title="半年累计收益"
+              empty={grand.points.length < 2}
+              points={grand.points}
+              series={grand.series.map((item, index) => ({
+                ...item,
+                color: index === 0 ? GROWTH_STROKE.fund : refStroke(index - 1),
+                dashed: item.key !== 'fund',
+              }))}
+              timeDomain={grandDomain}
+              format={(value) => formatMetric(value, 'percent', { signed: true })}
+              axisFormat={(value) => formatAxisMetric(value, 'percent')}
+            />
+          ) : null}
           <TimeCard
             title="同类排名"
             empty={ranking.length < 2}

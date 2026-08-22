@@ -31,18 +31,37 @@ export type ScoreExtra = {
   items: { name: string; value: number }[];
 };
 
+export type GrandTotalPoint = {
+  date: string;
+  fund: number | null;
+  hs300: number | null;
+  peer: number | null;
+};
+
+export type GrandTotalExtra = {
+  points: GrandTotalPoint[];
+};
+
 export type FundExtras = {
   allocation: AllocationExtra | null;
   scale: ScaleExtra | null;
   holders: HolderExtra | null;
   ranking: RankingPoint[];
   scores: ScoreExtra | null;
+  grandTotal: GrandTotalExtra | null;
 };
 
 const RANK_POINTS = 400;
 
 export function emptyFundExtras(): FundExtras {
-  return { allocation: null, scale: null, holders: null, ranking: [], scores: null };
+  return {
+    allocation: null,
+    scale: null,
+    holders: null,
+    ranking: [],
+    scores: null,
+    grandTotal: null,
+  };
 }
 
 export function parseFundExtras(row: Record<string, unknown> | null): FundExtras {
@@ -53,6 +72,7 @@ export function parseFundExtras(row: Record<string, unknown> | null): FundExtras
     holders: parseHolders(row.holder_structure_json),
     ranking: parseRanking(row.ranking_trend_json),
     scores: parseScores(row.performance_5d_json),
+    grandTotal: parseGrandTotal(row.grand_total_json),
   };
 }
 
@@ -199,6 +219,34 @@ function parseScores(raw: unknown): ScoreExtra | null {
     avr: Number.isFinite(avr) ? avr : null,
     items: names.map((name, i) => ({ name, value: values[i] as number })),
   };
+}
+
+export function parseGrandTotal(raw: unknown): GrandTotalExtra | null {
+  const parsed = parseJson(raw);
+  const series = Array.isArray(parsed) ? parsed : null;
+  if (!series) return null;
+  const byDate = new Map<string, GrandTotalPoint>();
+  for (const item of series) {
+    const rec = asRecord(item);
+    if (!rec) continue;
+    const name = String(rec.name ?? '').trim();
+    const key = name === '沪深300' ? 'hs300' : name === '同类平均' ? 'peer' : name ? 'fund' : null;
+    if (!key) continue;
+    const data = Array.isArray(rec.data) ? rec.data : [];
+    for (const point of data) {
+      const pair = Array.isArray(point) ? point : null;
+      const obj = asRecord(point);
+      const ts = pair ? Number(pair[0]) : Number(obj?.x);
+      const value = pair ? Number(pair[1]) : Number(obj?.y);
+      const date = tsToDate(ts);
+      if (!date || !Number.isFinite(value)) continue;
+      const cur = byDate.get(date) ?? { date, fund: null, hs300: null, peer: null };
+      cur[key] = value;
+      byDate.set(date, cur);
+    }
+  }
+  const points = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return points.length > 0 ? { points } : null;
 }
 
 export function tsToDate(ts: number): string | null {
