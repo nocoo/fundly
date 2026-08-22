@@ -54,9 +54,10 @@ fundly/
 | **08** | `08-BACKY.md` | 本机 SQLite → Backy / R2 备份与换机恢复 |
 | **09** | `09-RAILWAY.md` | Railway 单服务 + Volume 挂 sqlite |
 | **10** | `10-AUTH.md` | Google 登录、白名单、回调 URL |
+| **11** | `11-PHASE2-REPORT.md` | Phase 2 卫星表实测覆盖 |
 
 **新增文档规则**：
-- 数字**顺延**（下一份文档用 `10-`）
+- 数字**顺延**（下一份文档用 `12-`）
 - 文件名**大写字母 + 短横线**（`10-BACKTEST-ENGINE.md`）
 - 主标题第一行必须写 `# NN · 中文标题`（示例：`# 03 · 脚本手册`）
 - 内容以**中文为主**，代码/命令保持英文
@@ -121,10 +122,10 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ Phase 1 MVP 完成：3.7GB 数据库、27,527 只基金、3069 万净值行
 - ✅ 覆盖率 99.15% 行 / 92.86% 函数、50/50 单测通过
 - ✅ 每日增量脚本 `fetch:daily` 上线
-- ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页
+- ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页、Google 登录
 - ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
-- 📋 Phase 2 待办：4433 法则筛选、多因子打分、Reits ETF 补齐
-- 📋 Phase 3 待办：回测引擎、Discord 推送
+- ✅ Phase 2 卫星数据：风险指标/分红/费率/经理履历/持仓
+- 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
 
 ## Retrospective
 

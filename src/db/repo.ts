@@ -344,3 +344,351 @@ export function writeFetchLog(db: Database, entry: FetchLogEntry): void {
     Date.now(),
   );
 }
+
+// ============================================================
+// fund_risk_metrics
+// ============================================================
+
+export interface RiskMetricsRow {
+  fundCode: string;
+  dataDate: string | null;
+  volatility1y: number | null;
+  volatility3y: number | null;
+  volatility5y: number | null;
+  maxDrawdown1y: number | null;
+  maxDrawdown3y: number | null;
+  maxDrawdown5y: number | null;
+  maxDrawdownAll: number | null;
+  sharpe1y: number | null;
+  sharpe3y: number | null;
+  sharpe5y: number | null;
+  sortino1y: number | null;
+  sortino3y: number | null;
+  calmar1y: number | null;
+  calmar3y: number | null;
+  annualReturn1y: number | null;
+  annualReturn3y: number | null;
+  annualReturn5y: number | null;
+  navSamples1y: number;
+  navSamples3y: number;
+  navSamples5y: number;
+}
+
+const UPSERT_RISK = `
+  INSERT INTO fund_risk_metrics (
+    fund_code, data_date,
+    volatility_1y, volatility_3y, volatility_5y,
+    max_drawdown_1y, max_drawdown_3y, max_drawdown_5y, max_drawdown_all,
+    sharpe_1y, sharpe_3y, sharpe_5y,
+    sortino_1y, sortino_3y,
+    calmar_1y, calmar_3y,
+    annual_return_1y, annual_return_3y, annual_return_5y,
+    nav_samples_1y, nav_samples_3y, nav_samples_5y,
+    updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code) DO UPDATE SET
+    data_date          = excluded.data_date,
+    volatility_1y      = excluded.volatility_1y,
+    volatility_3y      = excluded.volatility_3y,
+    volatility_5y      = excluded.volatility_5y,
+    max_drawdown_1y    = excluded.max_drawdown_1y,
+    max_drawdown_3y    = excluded.max_drawdown_3y,
+    max_drawdown_5y    = excluded.max_drawdown_5y,
+    max_drawdown_all   = excluded.max_drawdown_all,
+    sharpe_1y          = excluded.sharpe_1y,
+    sharpe_3y          = excluded.sharpe_3y,
+    sharpe_5y          = excluded.sharpe_5y,
+    sortino_1y         = excluded.sortino_1y,
+    sortino_3y         = excluded.sortino_3y,
+    calmar_1y          = excluded.calmar_1y,
+    calmar_3y          = excluded.calmar_3y,
+    annual_return_1y   = excluded.annual_return_1y,
+    annual_return_3y   = excluded.annual_return_3y,
+    annual_return_5y   = excluded.annual_return_5y,
+    nav_samples_1y     = excluded.nav_samples_1y,
+    nav_samples_3y     = excluded.nav_samples_3y,
+    nav_samples_5y     = excluded.nav_samples_5y,
+    updated_at         = excluded.updated_at
+`;
+
+export function upsertRiskMetrics(db: Database, row: RiskMetricsRow): void {
+  db.prepare(UPSERT_RISK).run(
+    row.fundCode,
+    row.dataDate,
+    row.volatility1y,
+    row.volatility3y,
+    row.volatility5y,
+    row.maxDrawdown1y,
+    row.maxDrawdown3y,
+    row.maxDrawdown5y,
+    row.maxDrawdownAll,
+    row.sharpe1y,
+    row.sharpe3y,
+    row.sharpe5y,
+    row.sortino1y,
+    row.sortino3y,
+    row.calmar1y,
+    row.calmar3y,
+    row.annualReturn1y,
+    row.annualReturn3y,
+    row.annualReturn5y,
+    row.navSamples1y,
+    row.navSamples3y,
+    row.navSamples5y,
+    Date.now(),
+  );
+}
+
+export interface NavRow {
+  navDate: string;
+  unitNav: number;
+  dailyReturn: number | null;
+}
+
+/** 拉某只基金的净值序列（升序） */
+export function readNav(db: Database, fundCode: string): NavRow[] {
+  const rows = db
+    .query(
+      `SELECT nav_date as navDate, unit_nav as unitNav, daily_return as dailyReturn
+       FROM fund_nav WHERE fund_code = ? ORDER BY nav_date ASC`,
+    )
+    .all(fundCode) as NavRow[];
+  return rows;
+}
+
+/** 列出所有有净值序列的基金 code */
+export function listFundCodesWithNav(db: Database): string[] {
+  const rows = db.query('SELECT DISTINCT fund_code FROM fund_nav ORDER BY fund_code').all() as {
+    fund_code: string;
+  }[];
+  return rows.map((r) => r.fund_code);
+}
+
+/** 列出所有基金 code（供卫星抓取遍历用） */
+export function listAllFundCodes(db: Database): string[] {
+  const rows = db.query('SELECT fund_code FROM fund_basic_info ORDER BY fund_code').all() as {
+    fund_code: string;
+  }[];
+  return rows.map((r) => r.fund_code);
+}
+
+// ============================================================
+// fund_dividend
+// ============================================================
+
+export interface DividendRow {
+  fundCode: string;
+  eventDate: string;
+  eventType: 'dividend' | 'split';
+  dividendPerShare: number | null;
+  splitRatio: number | null;
+  remark: string;
+}
+
+const UPSERT_DIVIDEND = `
+  INSERT INTO fund_dividend (fund_code, event_date, event_type,
+    dividend_per_share, split_ratio, remark, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, event_date, event_type) DO UPDATE SET
+    dividend_per_share = excluded.dividend_per_share,
+    split_ratio        = excluded.split_ratio,
+    remark             = excluded.remark,
+    updated_at         = excluded.updated_at
+`;
+
+export function upsertDividends(db: Database, rows: readonly DividendRow[]): number {
+  const stmt = db.prepare(UPSERT_DIVIDEND);
+  const tx = db.transaction((batch: readonly DividendRow[]) => {
+    let count = 0;
+    for (const r of batch) {
+      stmt.run(
+        r.fundCode,
+        r.eventDate,
+        r.eventType,
+        r.dividendPerShare,
+        r.splitRatio,
+        r.remark,
+        Date.now(),
+      );
+      count += 1;
+    }
+    return count;
+  });
+  return tx(rows);
+}
+
+export function countDividends(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_dividend').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+// ============================================================
+// fund_fees
+// ============================================================
+
+export interface FeesRow {
+  fundCode: string;
+  mgmtFeePct: number | null;
+  custodianFeePct: number | null;
+  salesServiceFeePct: number | null;
+  subscriptionFeeMax: number | null;
+  redemptionFeeMax: number | null;
+  minSubscribeAmount: number | null;
+  rawJson: string;
+}
+
+const UPSERT_FEES = `
+  INSERT INTO fund_fees (fund_code, mgmt_fee_pct, custodian_fee_pct,
+    sales_service_fee_pct, subscription_fee_max, redemption_fee_max,
+    min_subscribe_amount, raw_json, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code) DO UPDATE SET
+    mgmt_fee_pct         = excluded.mgmt_fee_pct,
+    custodian_fee_pct    = excluded.custodian_fee_pct,
+    sales_service_fee_pct= excluded.sales_service_fee_pct,
+    subscription_fee_max = excluded.subscription_fee_max,
+    redemption_fee_max   = excluded.redemption_fee_max,
+    min_subscribe_amount = excluded.min_subscribe_amount,
+    raw_json             = excluded.raw_json,
+    updated_at           = excluded.updated_at
+`;
+
+export function upsertFees(db: Database, row: FeesRow): void {
+  db.prepare(UPSERT_FEES).run(
+    row.fundCode,
+    row.mgmtFeePct,
+    row.custodianFeePct,
+    row.salesServiceFeePct,
+    row.subscriptionFeeMax,
+    row.redemptionFeeMax,
+    row.minSubscribeAmount,
+    row.rawJson,
+    Date.now(),
+  );
+}
+
+export function countFees(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_fees').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+// ============================================================
+// fund_manager + fund_manager_link
+// ============================================================
+
+export interface ManagerLinkRow {
+  fundCode: string;
+  managerName: string;
+  startDate: string;
+  endDate: string | null;
+  tenureDays: number | null;
+  returnDuring: number | null;
+}
+
+const UPSERT_MANAGER = `
+  INSERT INTO fund_manager (manager_id, name, company, updated_at)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(manager_id) DO UPDATE SET
+    name       = excluded.name,
+    company    = excluded.company,
+    updated_at = excluded.updated_at
+`;
+
+const UPSERT_LINK = `
+  INSERT INTO fund_manager_link (fund_code, manager_id, start_date,
+    end_date, tenure_days, return_during, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, manager_id, start_date) DO UPDATE SET
+    end_date      = excluded.end_date,
+    tenure_days   = excluded.tenure_days,
+    return_during = excluded.return_during,
+    updated_at    = excluded.updated_at
+`;
+
+/** 一次性写入某基金的所有经理任期 */
+export function upsertManagerLinks(db: Database, rows: readonly ManagerLinkRow[]): number {
+  const stmtMgr = db.prepare(UPSERT_MANAGER);
+  const stmtLink = db.prepare(UPSERT_LINK);
+  const tx = db.transaction((batch: readonly ManagerLinkRow[]) => {
+    let n = 0;
+    for (const r of batch) {
+      const managerId = r.managerName; // 简易稳定键：仅名字
+      stmtMgr.run(managerId, r.managerName, null, Date.now());
+      stmtLink.run(
+        r.fundCode,
+        managerId,
+        r.startDate,
+        r.endDate,
+        r.tenureDays,
+        r.returnDuring,
+        Date.now(),
+      );
+      n += 1;
+    }
+    return n;
+  });
+  return tx(rows);
+}
+
+export function countManagers(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_manager').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+export function countManagerLinks(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_manager_link').get() as { n: number } | null;
+  return row?.n ?? 0;
+}
+
+// ============================================================
+// fund_portfolio
+// ============================================================
+
+export interface PortfolioRow {
+  fundCode: string;
+  reportDate: string;
+  stockCode: string;
+  stockName: string;
+  holdPct: number | null;
+  holdShares: number | null;
+  holdValueWan: number | null;
+}
+
+const UPSERT_PORTFOLIO = `
+  INSERT INTO fund_portfolio (fund_code, report_date, stock_code, stock_name,
+    hold_pct, hold_shares, hold_value_wan, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(fund_code, report_date, stock_code) DO UPDATE SET
+    stock_name      = excluded.stock_name,
+    hold_pct        = excluded.hold_pct,
+    hold_shares     = excluded.hold_shares,
+    hold_value_wan  = excluded.hold_value_wan,
+    updated_at      = excluded.updated_at
+`;
+
+export function upsertPortfolio(db: Database, rows: readonly PortfolioRow[]): number {
+  const stmt = db.prepare(UPSERT_PORTFOLIO);
+  const tx = db.transaction((batch: readonly PortfolioRow[]) => {
+    let n = 0;
+    for (const r of batch) {
+      stmt.run(
+        r.fundCode,
+        r.reportDate,
+        r.stockCode,
+        r.stockName,
+        r.holdPct,
+        r.holdShares,
+        r.holdValueWan,
+        Date.now(),
+      );
+      n += 1;
+    }
+    return n;
+  });
+  return tx(rows);
+}
+
+export function countPortfolio(db: Database): number {
+  const row = db.query('SELECT COUNT(*) as n FROM fund_portfolio').get() as { n: number } | null;
+  return row?.n ?? 0;
+}

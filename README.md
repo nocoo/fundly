@@ -27,7 +27,7 @@
 
 ```
 fundly/
-├── docs/                  # 项目文档（编号 01-10，详见 CLAUDE.md）
+├── docs/                  # 项目文档（编号 01-11，详见 CLAUDE.md）
 │   ├── 01-ARCHITECTURE.md # 采集架构
 │   ├── 02-SCHEMA.md       # 数据表
 │   ├── 03-SCRIPTS.md      # CLI 手册
@@ -37,7 +37,8 @@ fundly/
 │   ├── 07-DASHBOARD.md    # 仪表盘
 │   ├── 08-BACKY.md        # Backy 备份 / 换机恢复
 │   ├── 09-RAILWAY.md      # Railway + Volume
-│   └── 10-AUTH.md         # Google 登录
+│   ├── 10-AUTH.md         # Google 登录
+│   └── 11-PHASE2-REPORT.md # Phase 2 卫星表实测
 ├── apps/
 │   ├── web/               # Vite + React SPA（MVVM）
 │   └── worker/            # 本机 / Railway Hono API

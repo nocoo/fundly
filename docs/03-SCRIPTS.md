@@ -14,6 +14,11 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `fetch-daily.ts` | `bun run fetch:daily` | **每日增量刷新净值+业绩** | ~50 分钟 |
 | `fetch-all.ts` | `bun run fetch:all` | 一键：init → list → nav（等价前 3 步串行） | ~95 分钟 |
 | `refresh-ranks.ts` | `bun run rank:refresh` | **按同类重算排名百分位 + 4433，写入库** | 全市场 27,527 只实测 4 秒 |
+| `fetch-dividend.ts` | `bun run fetch:dividend` | 抓分红事件 → `fund_dividend` | ~92 分钟 |
+| `fetch-fees.ts` | `bun run fetch:fees` | 抓费率结构 → `fund_fees` | ~92 分钟 |
+| `fetch-manager.ts` | `bun run fetch:manager` | 抓经理履历 → `fund_manager` + `fund_manager_link` | ~92 分钟 |
+| `fetch-portfolio.ts` | `bun run fetch:portfolio` | 抓最新季持仓 → `fund_portfolio` | ~98 分钟 |
+| `compute-risk-metrics.ts` | `bun run compute:risk` | **本地计算风险指标**（零请求） | ~10 秒 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，读 sqlite | 常驻 |
 | `dev-all.ts` | `bun run dev:all` | 并行起 `dev:api` + `dev:web` | 常驻 |
 
