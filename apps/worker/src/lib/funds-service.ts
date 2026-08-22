@@ -50,16 +50,12 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   const selectDims = needCaps ? await selectDimCaps(exec) : EMPTY_SELECT_DIMS;
   const risk = riskSortEnabledAny(riskDims);
   const select = selectSortEnabledAny(selectDims);
+  const money = await hasTable(exec, 'fund_money_yield');
   const resolved = resolveFundListQuery(query, riskDims, selectDims);
   const built = fundListSql(resolved, {
-    risk: risk && (isRiskSortKey(resolved.sort) || query.ddPeer != null || query.lens === 'picks'),
-    select:
-      select &&
-      (isSelectSortKey(resolved.sort) ||
-        query.lens === 'picks' ||
-        query.feePeer != null ||
-        query.scalePeer != null ||
-        query.top10Max != null),
+    risk,
+    select,
+    money,
   });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),
@@ -92,40 +88,43 @@ function selectSortEnabledAny(caps: SelectDimCaps): boolean {
 }
 
 async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
-  if (!(await hasTable(exec, 'fund_select_metrics'))) return EMPTY_SELECT_DIMS;
-  const parts = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield').map(
-    (key) => `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
-  );
-  const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
   const out = { ...EMPTY_SELECT_DIMS };
-  for (const key of SELECT_SORT_KEYS) {
-    if (key === 'seven_day_yield') continue;
-    out[key] = Boolean(row?.[key]);
+  if (await hasTable(exec, 'fund_select_metrics')) {
+    const parts = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield').map((key) =>
+      key === 'recovery_days_1y'
+        ? `EXISTS(SELECT 1 FROM fund_select_metrics WHERE recovery_status_1y IN ('recovered', 'open')) AS ${key}`
+        : `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
+    );
+    const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
+    for (const key of SELECT_SORT_KEYS) {
+      if (key === 'seven_day_yield') continue;
+      out[key] = Boolean(row?.[key]);
+    }
+  }
+  if (await hasTable(exec, 'fund_money_yield')) {
+    const row = await exec.first<{ n: number }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM fund_money_yield
+         WHERE seven_day_yield IS NOT NULL
+           AND nav_date >= date((SELECT MAX(nav_date) FROM fund_money_yield), '-7 day')
+       ) AS n`,
+    );
+    out.seven_day_yield = Boolean(row?.n);
   }
   return out;
 }
 
 async function riskDimCaps(exec: QueryExec): Promise<RiskDimCaps> {
   if (!(await hasTable(exec, 'fund_risk_metrics'))) return EMPTY_RISK_DIMS;
-  const row = await exec.first<{
-    sharpe_1y: number;
-    max_drawdown_1y: number;
-    volatility_1y: number;
-    calmar_1y: number;
-  }>(
-    `SELECT
-        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE sharpe_1y IS NOT NULL) AS sharpe_1y,
-        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE max_drawdown_1y IS NOT NULL) AS max_drawdown_1y,
-        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE volatility_1y IS NOT NULL) AS volatility_1y,
-        EXISTS(SELECT 1 FROM fund_risk_metrics WHERE calmar_1y IS NOT NULL) AS calmar_1y`,
+  const parts = Object.keys(EMPTY_RISK_DIMS).map(
+    (key) => `EXISTS(SELECT 1 FROM fund_risk_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
   );
-  return {
-    ...EMPTY_RISK_DIMS,
-    sharpe_1y: Boolean(row?.sharpe_1y),
-    max_drawdown_1y: Boolean(row?.max_drawdown_1y),
-    volatility_1y: Boolean(row?.volatility_1y),
-    calmar_1y: Boolean(row?.calmar_1y),
-  };
+  const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
+  const out = { ...EMPTY_RISK_DIMS };
+  for (const key of Object.keys(EMPTY_RISK_DIMS) as Array<keyof RiskDimCaps>) {
+    out[key] = Boolean(row?.[key]);
+  }
+  return out;
 }
 
 async function satelliteColumns(exec: QueryExec): Promise<string> {

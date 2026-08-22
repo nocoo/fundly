@@ -68,6 +68,16 @@ export function searchRecalls(query: SearchSignals, candidate: SearchCandidate):
   return false;
 }
 
+export function searchQueryKind(
+  query: SearchSignals,
+): 'empty' | 'code' | 'tokens' | 'signal' | 'share' {
+  if (/^\d{6}$/.test(query.normalized)) return 'code';
+  if (query.tokens.length > 0) return 'tokens';
+  if (query.hasEtf || query.hasLof || query.hasLink) return 'signal';
+  if (query.shareLetter) return 'share';
+  return 'empty';
+}
+
 export function searchScore(query: SearchSignals, candidate: SearchCandidate): number {
   if (!searchRecalls(query, candidate)) return Number.POSITIVE_INFINITY;
   const code = candidate.fundCode.toUpperCase();
@@ -85,13 +95,18 @@ export function searchScore(query: SearchSignals, candidate: SearchCandidate): n
     score = 2;
   else if (query.core && name.includes(query.core)) score = 3;
   else if (query.tokens.length > 0) score = 4;
-  if (query.hasEtf && !name.includes('ETF')) score += 4;
-  if (query.hasLof && !name.includes('LOF')) score += 4;
-  if (query.hasLink && !name.includes('联接') && !name.includes('聯接')) score += 4;
-  if (query.shareLetter) {
-    const letter = candidate.shareLetter || parseShareClass(candidate.fundName).letter;
-    if (letter === query.shareLetter) score -= 1;
-    else if (letter) score += 3;
+  if (score > 0) {
+    const candEtf = name.includes('ETF');
+    const candLof = name.includes('LOF');
+    const candLink = name.includes('联接') || name.includes('聯接');
+    if (query.hasEtf !== candEtf) score += 4;
+    if (query.hasLof !== candLof) score += 4;
+    if (query.hasLink !== candLink) score += 4;
+    if (query.shareLetter) {
+      const letter = candidate.shareLetter || parseShareClass(candidate.fundName).letter;
+      if (letter === query.shareLetter) score -= 1;
+      else if (letter) score += 3;
+    }
   }
   return score;
 }
