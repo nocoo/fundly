@@ -10,7 +10,7 @@ mkdirSync(dirname(dbPath), { recursive: true });
 const db = openDb(dbPath);
 initSchema(db);
 const started = Date.now();
-const result = replaceSelectMetrics(db);
+const result = replaceSelectMetrics(db, dbPath);
 db.close();
 logger.info('compute select done', {
   dbPath,

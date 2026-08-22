@@ -30,11 +30,11 @@ describe('replaceSelectMetrics', () => {
       { navDate: '2024-01-01', unitNav: 1, accNav: 1, dailyReturn: null },
       { navDate: '2026-08-01', unitNav: 1.2, accNav: 1.2, dailyReturn: 0.1 },
     ]);
-    const first = replaceSelectMetrics(db);
+    const first = replaceSelectMetrics(db, path);
     expect(first.funds).toBe(2);
     const n = db.query('SELECT COUNT(*) AS n FROM fund_select_metrics').get() as { n: number };
     expect(n.n).toBe(2);
-    replaceSelectMetrics(db);
+    replaceSelectMetrics(db, path);
     const again = db.query('SELECT COUNT(*) AS n FROM fund_select_metrics').get() as { n: number };
     expect(again.n).toBe(2);
     db.close();

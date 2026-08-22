@@ -1,4 +1,4 @@
-import type { Database } from 'bun:sqlite';
+import { Database } from 'bun:sqlite';
 import { computeCostMetrics } from '../analytics/cost-metrics.ts';
 import { computeDcaMetrics } from '../analytics/dca-metrics.ts';
 import { computeHoldMetrics } from '../analytics/hold-metrics.ts';
@@ -88,12 +88,9 @@ function namedLatest(
   return { date, latest };
 }
 
-export function replaceSelectMetrics(db: Database): { funds: number } {
+function computeSelectRows(db: Database): SelectMetricRow[] {
   const scoreAsof = latestNavDate(db);
-  if (!scoreAsof) {
-    db.exec('DELETE FROM fund_select_metrics');
-    return { funds: 0 };
-  }
+  if (!scoreAsof) return [];
   const names = db
     .query(
       'SELECT fund_code AS fundCode, fund_name AS fundName, fund_type AS fundType FROM fund_basic_info',
@@ -250,6 +247,10 @@ export function replaceSelectMetrics(db: Database): { funds: number } {
     }
   }
 
+  return rows;
+}
+
+function writeSelectRows(db: Database, rows: readonly SelectMetricRow[]): void {
   const insert = db.prepare(
     `INSERT INTO fund_select_metrics (
       fund_code, ulcer_1y, underwater_ratio_1y, max_underwater_days_1y, max_consec_down_1y,
@@ -261,7 +262,8 @@ export function replaceSelectMetrics(db: Database): { funds: number } {
     ) VALUES (${Array.from({ length: 30 }, () => '?').join(',')})`,
   );
   const now = Date.now();
-  db.transaction(() => {
+  db.exec('BEGIN IMMEDIATE');
+  try {
     db.exec('DELETE FROM fund_select_metrics');
     for (const row of rows) {
       insert.run(
@@ -297,6 +299,26 @@ export function replaceSelectMetrics(db: Database): { funds: number } {
         now,
       );
     }
-  })();
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+export function replaceSelectMetrics(db: Database, path?: string): { funds: number } {
+  let rows: SelectMetricRow[];
+  if (path && path !== ':memory:') {
+    const snapshot = new Database(path, { readonly: true });
+    try {
+      snapshot.exec('BEGIN');
+      rows = computeSelectRows(snapshot);
+    } finally {
+      snapshot.close();
+    }
+  } else {
+    rows = computeSelectRows(db);
+  }
+  writeSelectRows(db, rows);
   return { funds: rows.length };
 }
