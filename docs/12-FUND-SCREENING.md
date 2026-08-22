@@ -4,16 +4,20 @@
 >
 > 相关文档：
 > - [02-SCHEMA.md](./02-SCHEMA.md) — 已有表
-> - [06-ARCH-UI.md](./06-ARCH-UI.md) — 现路由
+> - [03-SCRIPTS.md](./03-SCRIPTS.md) — 实现时同步 `compute:select` 与刷新顺序
+> - [06-ARCH-UI.md](./06-ARCH-UI.md) — 现路由（实现时改掉 `/ranking`）
+> - [08-BACKY.md](./08-BACKY.md) — schema 升级必须能过 `assertFundlyDb`
 > - [11-PHASE2-REPORT.md](./11-PHASE2-REPORT.md) — 卫星表实测覆盖
 
 ---
 
 ## 产品立场
 
-Fundly 是**私人选基工作台**，不是投顾。页面回答的是「在给定约束下，谁在哪一个维度更好」，不输出买卖建议、目标仓位或收益承诺。
+Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约束下，谁在哪一个维度更好」，不输出买卖建议或收益承诺。
 
-同类比较必须**先分域再排名**：股票/偏股、纯债、货币、QDII、商品不能混在一张「全市场收益榜」里当同一比赛。现网 `/ranking` 默认大类「混合型」是对的；未选大类时货币与股票同榜，页面已有警告，新体系里默认禁止跨大类比收益。
+**比较域（peer）= 完整 `fund_type`**（如 `混合型-偏股`），与现网 `rank_pct_*`、`pass_4433`（`src/metrics/ranks.ts`）一致。侧栏「大类」是 **L1 过滤器**（`splitFundType` 的前半段），用来收窄列表，**不改变百分位分母**。禁止把 L1 说成和 `rank_pct_*` 同一口径。
+
+默认必须带一个 L1（见下表），URL 不得默认为 `typeL1=all`。用户显式选「全部」时，收益/精选页继续显示跨类型警告。
 
 ---
 
@@ -21,202 +25,222 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答的是「在给
 
 | 已有 | 缺什么 |
 |------|--------|
-| `/funds` 浏览、`/ranking` 单表切维度 | 「选基」被改成「排名」，数据管理已进设置；没有按决策问题拆开的下属页 |
-| `fund_performance` 阶段收益 + 同类百分位 + `pass_4433` | 4433 只是一个 0/1，没有「质量」页把过线原因摊开 |
-| `fund_risk_metrics`：波动、回撤、夏普、索提诺、卡玛（1y/3y/5y），26,072 只 / 10 秒算完 | 没有水下时间、溃疡指数、连跌、最差月——这些才是「持有体验」 |
-| `fund_fees`：管理/托管/销服/申赎上限，27,055 只有效费率 | 没有合成「持有成本」，A/C 份额没有对照 |
-| `fund_nav` 3,069 万行 | 没有定投路径指标（月定投 IRR、定投 vs 一次性） |
-| `fund_manager_link` 在任任期 | 经理稳定性没进榜 |
-| `02-SCHEMA` 写了 `fund_screening_rank` | **schema.ts 里没有这张表**，不能当已交付 |
-
-`/ranking` 已有收益四档 + 夏普/回撤/波动/卡玛，但是**一个页面堆所有维度**，用户无法按「我怕回撤 / 我要定投 / 我嫌贵」进门。
+| `/funds` 浏览、`/ranking` 单表切维度 | 分组名叫「排名」，没有按决策问题拆开的下属页 |
+| `fund_performance` 阶段收益 + 同类百分位 + `pass_4433` | 库里 `return_3y` / `return_5y` / `return_ytd` **实测全空**；`rank:refresh` 只临时算 3y/5y 百分位；YTD 抓取固定为空 |
+| `fund_risk_metrics` 26,072 只 / 10 秒 | 有 1y/3y/5y 的波动、回撤、夏普、年化；**没有** `sortino_5y`、`calmar_5y`。没有溃疡、水下、连跌 |
+| `fund_fees` 27,527 行，管理费 27,055、托管 27,526、销服 **22,168** 非空 | 销服 `null` 不能当 0；没有合成持有成本 |
+| `fund_nav` 3,069 万行 | 没有定投路径指标 |
+| `02-SCHEMA` 写了 `fund_screening_rank` | **schema.ts 没有这张表** |
 
 ---
 
 ## 信息架构
 
-侧栏分组名改回 **选基**。下属页面按**决策问题**而不是按数据表：
+侧栏分组改回 **选基**。
 
-| 路径 | 页面 | 回答的问题 | 默认排序 |
-|------|------|------------|----------|
-| `/funds` | 浏览 | 这只基金叫什么、属哪类 | 代码 |
-| `/select/return` | 收益 | 同类里谁赚得多、是否稳定领先 | `return_1y` 降序 |
-| `/select/risk` | 风险 | 谁波动小、回撤浅、回撤后恢复赚 | `max_drawdown_1y` 升序 |
-| `/select/hold` | 持有体验 | 谁让人少熬、少长期套、少连阴 | `ulcer_1y` 升序 |
-| `/select/dca` | 定投 | 谁更适合每月固定买入 | `dca_cagr_3y` 降序 |
-| `/select/cost` | 成本 | 持有一年大概要付多少、A/C 谁便宜 | `all_in_fee_pct` 升序 |
-| `/select/picks` | 精选 | 多条件同时过线的短名单 | 综合分降序 |
+| 路径 | 页面 | 问题 | 默认 L1 | 默认排序 |
+|------|------|------|---------|----------|
+| `/funds` | 浏览 | 叫什么、哪一类 | （无，检索页） | `fund_code` 升 |
+| `/select/return` | 收益 | 谁赚得多、同类是否领先 | 混合型 | `return_1y` 降 |
+| `/select/risk` | 风险 | 谁回撤浅、波动低、回撤后还能赚 | 混合型 | `max_drawdown_1y` 升 |
+| `/select/hold` | 持有体验 | 谁少熬、少长期套、少连阴 | 混合型 | `ulcer_1y` 升 |
+| `/select/dca` | 定投 | 谁更适合每月定额买 | 混合型 | `dca_cagr_3y` 降 |
+| `/select/cost` | 成本 | 一年持有大概付多少 | 混合型 | `all_in_fee_pct` 升 |
+| `/select/picks` | 精选 | 多条件同时过线 | 混合型 | `select_score` **降**（分高更好） |
 
-现网 `/ranking` **删除**，能力拆进收益/风险两页（默认维度不同）。`list-origin` 的合法来源从 `/ranking` 改为 `/select/*` + `/funds`。
+`/ranking` **不再作为页面**：路由 `Navigate` 到 `/select/return`（保留 query）。`list-origin` 读到旧 `/ranking` 时改写成 `/select/return`。localStorage `fundly_ranking_filters` 读一次后写入 `fundly_select_return`，再删旧 key。
 
-导航写在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。建议：
+各榜 URL 参数（`select-vm` 规范化，与现 `ranking-vm` 同套路）：
 
-```
-选基
-  浏览      /funds
-  收益      /select/return
-  风险      /select/risk
-  持有体验  /select/hold
-  定投      /select/dca
-  成本      /select/cost
-  精选      /select/picks
-```
+| 参数 | 含义 |
+|------|------|
+| `typeL1` | 大类，缺省=该页默认，禁止默默变成 all |
+| `typeL2` | 细类，完整 `fund_type` |
+| `mvpOnly` | `1` 只看 MVP 池 |
+| `dim` | 该页可排序列，缺省=上表默认排序列 |
+| `page` | 从 1 |
+| 精选另加 | `pass4433` `feePeer` `ddPeer` `minSamples`，值 `off` 或百分位上限（默认 50） |
 
-系统组仍是备份、设置。仪表盘 `/` 只做库况，不承担选基。
-
-各榜共用：大类（默认该页主域，禁止「全部」当默认）、细类、仅 MVP、分页 50、点行进详情并记住来源。过滤器继续进 localStorage，key 按页拆开。
+localStorage key：`fundly_select_<lens>`。分页 50。点行进详情，来源记 `/select/<lens>?…`。
 
 ---
 
 ## 指标口径
 
-比较域 = `fund_type` 的 L1（`splitFundType`）。百分位一律 **同类内、越小越靠前**（与现 `rank_pct_*` 一致）。样本不足则该维 `null`，不参与该维排序，不编造 0。
+**百分位**：在完整 `fund_type` 内，**越小越靠前**（与现列一致）。样本不足 → `null`，不排序、不当 0。
 
-无风险利率与现风险模块一致：**2%**，年化交易日 **252**。见 `src/analytics/risk-metrics.ts`。
+无风险利率 **2%**，年化 **252** 日。见 `src/analytics/risk-metrics.ts`。
 
 ### 收益页
 
-直接读 `fund_performance`：`return_1m/3m/6m/1y/3y/5y/ytd` + 已有 `rank_pct_*`。展示「收益 + 同类%」两列，避免只看绝对收益。
+**只展示库里有数的窗口**：`return_1m/3m/6m/1y` 及对应 `rank_pct_*`。不把空的 `return_3y/5y/ytd` 画成列。
 
-货币基金用 `fund_money_yield.seven_day_yield` 近端，不把万份收益假装成净值涨跌。
+3y/5y 若以后要上：在 `rank:refresh` **写回** `fund_performance.return_3y/5y`（今日只写了百分位），再开列。YTD 要么从当年首个净值算并落列，要么继续不做。第一期都不做。
+
+货币基金：默认 L1 不是货币，进「货币型」时收益列改用**每只最新** `fund_money_yield.seven_day_yield`（`/api/funds` 增加该字段与 sort key `seven_day_yield`；SQL 用按 `fund_code` 取 `MAX(nav_date)` 的一行，禁止扫全表无索引）。无单位净值路径时不显示 `return_*`。
 
 ### 风险页
 
-读 `fund_risk_metrics`：
+只用**现有列**：
 
-| 列 | 含义 | 好方向 |
+| 列 | 周期 | 好方向 |
 |----|------|--------|
-| `volatility_*` | 年化波动 % | 低 |
-| `max_drawdown_*` | 最大回撤 %（正数=亏多少） | 低 |
-| `sharpe_*` | (年化 − 2%) / 年化波动 | 高 |
-| `sortino_*` | 只罚下行波动 | 高 |
-| `calmar_*` | 年化 / 最大回撤 | 高 |
+| `volatility_1y/3y/5y` | 有 | 低 |
+| `max_drawdown_1y/3y/5y` + `max_drawdown_all` | 有 | 低 |
+| `sharpe_1y/3y/5y` | 有 | 高 |
+| `sortino_1y/3y` | **无 5y** | 高 |
+| `calmar_1y/3y` | **无 5y** | 高 |
+| `nav_samples_*` | 1y/3y/5y | 门槛 |
 
-默认近 1 年回撤。样本：现网风险榜要求 `nav_samples_1y ≥ 200`（`RISK_MIN_SAMPLES`），本体系沿用。
+默认 `max_drawdown_1y`。切到 3y 维时门槛改用对应 `nav_samples_3y ≥ 200`，不要永远绑 `nav_samples_1y`（实现时改 `fund-query.ts`）。
 
-### 持有体验页（新算）
+### 持有体验（新算）
 
-回撤深度已经在风险页。体验描述的是**时间折磨**：
+描述时间折磨，不是回撤深度。
 
-| 字段 | 定义 | 窗口 | 最少样本 |
-|------|------|------|----------|
-| `ulcer_1y` | 溃疡指数：相对峰值回撤平方的均方根 | 1y | 200 |
-| `underwater_ratio_1y` | 收盘价低于窗口内滚动峰值的交易日占比 | 1y | 200 |
+| 字段 | 定义 | 窗 | 最少样本 |
+|------|------|----|----------|
+| `ulcer_1y` | 相对峰值回撤平方的均方根 | 1y | 200 |
+| `underwater_ratio_1y` | 低于滚动峰值的交易日占比 | 1y | 200 |
 | `max_underwater_days_1y` | 最长连续水下交易日 | 1y | 200 |
-| `max_consec_down_1y` | 最长连续日跌交易日 | 1y | 60 |
-| `down_day_ratio_1y` | 日收益 < 0 的占比 | 1y | 60 |
+| `max_consec_down_1y` | 最长连续日跌 | 1y | 60 |
+| `down_day_ratio_1y` | 日收益 < 0 占比 | 1y | 60 |
 | `worst_month_1y` | 最差自然月收益 % | 1y | 10 个完整月 |
-| `recovery_days_1y` | 窗口内最大回撤后回到峰值的交易日；未收复则 null | 1y | 200 |
+| `recovery_days_1y` | 窗内最大回撤后回到峰的交易日；未收复 null | 1y | 200 |
 
-峰值用**窗口内累计净值**（优先 `acc_nav`，否则 `unit_nav`）。货币基金不定体验榜（没有可比单位净值路径则整行 null）。
+路径：有 `acc_nav` 用累计净值（含分红再投资近似），否则 `unit_nav`。货基 / 无单位净值：整行 null。
 
-### 定投页（新算）
+### 定投（新算）
 
-模拟：每个月最后一个有净值的交易日买入 1 元，忽略申购费（费放成本页）。
+**财富路径用累计净值 `acc_nav`**（把现金分红近似成再投资）。没有 `acc_nav` 则整段 null，不用 `unit_nav` 冒充总回报。扣款：每月最后一个有净值日投入 1 元到该日 `acc_nav`，忽略申购费。拆分已反映在净值序列里，不再单独调。
 
-| 字段 | 定义 | 窗口 |
-|------|------|------|
-| `dca_cagr_3y` | 月定投内部收益率年化 % | 36 个月 |
-| `dca_vs_lump_3y` | 定投终值 / 同等期初一次性终值 − 1 | 36 个月 |
-| `dca_month_win_3y` | 月收益 > 0 的月份占比 | 36 个月 |
-| `dca_month_vol_3y` | 月收益标准差（年化） | 36 个月 |
+| 字段 | 定义 | 窗 |
+|------|------|----|
+| `dca_cagr_3y` | 月定投 IRR 年化 % | 36 个月 |
+| `dca_vs_lump_3y` | 定投终值 / 期初一次性终值 − 1 | 36 个月 |
+| `dca_month_win_3y` | 月收益 > 0 月份占比 | 36 个月 |
+| `dca_month_vol_3y` | 月收益标准差年化 | 36 个月 |
 
-至少 30 个扣款月才出数。定投友好：**月波动低、月胜率高、路径别太尖**。`dca_vs_lump` 只作解释列（震荡市定投常优于一次性，单边市相反），**不作为默认排序**。
+至少 30 个扣款月。`dca_vs_lump` 只解释，不默认排序。
 
-### 成本页
+### 成本
+
+**只派生、不复制**申赎上限（上限继续 JOIN `fund_fees`）。
 
 | 字段 | 定义 |
 |------|------|
-| `all_in_fee_pct` | `mgmt_fee_pct + custodian_fee_pct + COALESCE(sales_service_fee_pct, 0)` |
-| `subscription_fee_max` / `redemption_fee_max` | 已有上限，展示用 |
-| `share_class` | 从简称解析 A/C/H 等；解析失败为空 |
+| `all_in_fee_pct` | `mgmt_fee_pct + custodian_fee_pct + sales`；管理或托管为 null → **整项 null** |
+| `sales_fee_known` | 销服非空为 1，否则 0 |
+| `share_class` | 简称末尾 `A/C/H/I/E/B` 等，失败为空 |
+| `share_group_key` | 去掉末尾份额记号后的名称规范化字符串，供 A/C 对照 |
 
-C 类通常申购费低、销服年费高；A 类相反。页上按**同一只基金的 A/C 对照**（名称去份额后缀后分组），方便选持有期。
+销服 null **不得当 0**。成本榜与精选费率规则：**排除** `all_in_fee_pct IS NULL`。销服未知时仍展示管理+托管，并标「销服未知」，但不参与「前 50% 便宜」筛选。
 
-不把申赎一次性费用摊进 `all_in_fee_pct`（持有期未知）。文案写明：一年持有成本 ≈ 综合年费；短期还要看赎回费阶梯（`raw_json`，详情页展开，榜上只用上限）。
+A/C 对照：同 `share_group_key` 的兄弟份额用详情 API `GET /api/funds/:code/siblings` 一次返回，不靠当前页拼盘。分组失败则无对照，不猜。
 
-### 精选页
+### 精选
 
-默认规则（可关）：
+默认规则（query 可关）：
 
-1. 大类已选（默认混合型）
-2. `pass_4433 = 1`（现口径，见 `src/db/ranks.ts`）
-3. `nav_samples_1y ≥ 200`
-4. `all_in_fee_pct` 同类不差于前 50%
-5. `max_drawdown_1y` 同类不差于前 50%（回撤更浅）
+| 规则 | 默认 | 关 |
+|------|------|----|
+| L1 已选 | 混合型 | `typeL1=all` |
+| `pass_4433=1` | 开 | `pass4433=off` |
+| `nav_samples_1y ≥ 200` | 开 | `minSamples=off` |
+| 综合费同类百分位 ≤ 50（仅 `sales_fee_known=1` 且 fee 非空） | 开 | `feePeer=off` |
+| 近 1 年回撤同类百分位 ≤ 50 | 开 | `ddPeer=off` |
 
-综合分（0–100，同类分位再等权）：
+「同类前 50%」在 **完整 `fund_type`** 内算。实现：**查询时** SQL 窗口函数（`PERCENT_RANK()` / 自算秩），不另存一张快照表。空值不进分母。
 
-`score = mean(pct_return_1y, pct_calmar_1y, pct_ulcer_1y_inverted, pct_all_in_fee_inverted)`
+**综合分 `select_score`（越高越好，0–100）**：
 
-缺维则该维不进均值，少于两维则不出分。权重写死在 `src/metrics/select-score.ts`，第一期不做用户自定义。
+```
+select_score = mean(
+  100 - rank_pct_1y,
+  100 - calmar_pct_1y,      -- calmar 越高，百分位应越小；窗口按 calmar 降序编秩
+  100 - ulcer_pct_1y,       -- ulcer 越低越好，升序编秩后取「越小越前」的 pct
+  100 - fee_pct             -- 费率越低越好
+)
+```
+
+这里的 `*_pct` 与现网一样是 **0–100、越小越靠前**。综合分先把它们翻成「越大越好」再平均。默认 **降序**。缺维跳过，少于两维 → `select_score` null，排在有分的后面。
+
+API：`GET /api/funds?lens=picks&typeL1=混合型&pass4433=1&feePeer=50&ddPeer=50&sort=select_score&dir=desc`。
+
+并列：秩用竞争名次（1,2,2,4），百分位 `(rank-1)/(n-1)*100`，n=1 则为 0。
 
 ---
 
-## 数据：缺什么就算什么
+## 数据与迁移
 
-### 新表 `fund_select_metrics`（`SCHEMA_VERSION` 2 → 3）
+### `fund_select_metrics`（schema **3**）
 
-主键 `fund_code`。列即上节体验/定投/成本字段 + `share_class` + `score` + `score_asof` + `updated_at`。
+只存派生列：体验 7 项、定投 4 项、`all_in_fee_pct`、`sales_fee_known`、`share_class`、`share_group_key`、`select_score`、`score_asof`、`updated_at`。
 
-不把已有风险列再抄一份。榜查询 `LEFT JOIN fund_risk_metrics` + `fund_select_metrics` + `fund_fees` + `fund_performance`。
+**不要**再抄 `subscription_fee_max`、风险列、`return_*`。
 
-`fund_screening_rank` **不要建**。精选是查询时过滤，不是第三份快照。
+### 升级路径（必须写进实现）
 
-### 计算入口
+现网 `initSchema` 只 `INSERT` 当前 `SCHEMA_VERSION`，旧行仍在；`assertFundlyDb` 用无序 `LIMIT 1` 比版本（`src/backup/snapshot.ts`）。升 v3 时同一提交必须：
 
-新文件：
+1. `CREATE TABLE IF NOT EXISTS fund_select_metrics …`
+2. `schema_version` 写入 3 时 **按 version 定位**（`WHERE version = 3` upsert；校验改为 `MAX(version)` 或 `ORDER BY version DESC LIMIT 1`）
+3. 生产 Volume 已有 v2 库：部署后跑一次 `bun run compute:select`（SSH 或本机），**不要**指望 `serve.ts` 第一次启动建空库
+4. Backy：升级后用新校验跑通 `assertFundlyDb` 单测（夹具 version=3）
+
+部署顺序：先发只建表、查询 `LEFT JOIN` 可空的 API → 再算数 → 再开体验/定投/成本/精选默认排序。收益/风险不依赖新表，可与建表同发。
+
+### 刷新顺序（与现脚本对齐）
+
+现网 `fetch:daily` **不会**跑风险或排名。正确依赖：
+
+```
+bun run fetch:daily
+bun run rank:refresh
+bun run compute:risk
+bun run compute:select
+```
+
+`compute:select` 读 nav + fees + performance + risk，写 select 表并算 `select_score`。失败不回滚前三步。文档实现时写入 `docs/03-SCRIPTS.md`。
+
+算库时打开独立连接、busy_timeout、不要和正在 `VACUUM` 的 backup 并行。WAL 下与只读 API 可共存；写的是小表。
+
+### 计算文件
 
 | 文件 | 职责 |
 |------|------|
-| `src/analytics/hold-metrics.ts` | 溃疡、水下、连跌、最差月、收复 |
-| `src/analytics/dca-metrics.ts` | 月定投路径 |
-| `src/analytics/cost-metrics.ts` | 综合费、份额档 |
-| `src/metrics/select-score.ts` | 精选综合分（纯函数） |
-| `scripts/compute-select-metrics.ts` | 读 nav/fees，写入 `fund_select_metrics` |
+| `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复 |
+| `src/analytics/dca-metrics.ts` | 月定投，输入必须是 acc_nav 序列 |
+| `src/analytics/cost-metrics.ts` | 综合费、销服是否已知、份额与 group key |
+| `src/metrics/select-score.ts` | 把已有百分位翻成 `select_score` |
+| `scripts/compute-select-metrics.ts` | 批算写入 |
 | `package.json` | `compute:select` |
 
-复用 `computeRiskMetrics` 的净值窗口切法。全市场预估与 `compute:risk` 同量级（26,072 只有净值）；定投还要按月抽样，预期仍是分钟内，**以上线后实测回填本文**，不在设计阶段估秒数。
-
-`fetch:daily` 跑完风险后串 `compute:select`。首次：`bun run compute:select`。
-
-货币/无单位净值：体验与定投整行 null，成本仍可算。
-
-### 不爬的数据
-
-- 基金公司全称：`fund_manager.company` 现为空，成本/精选不依赖它
-- 精确赎回阶梯：只在详情展开 `fund_fees.raw_json`
-- 实时申购状态、限额、盘中估值：不做
+货币/无 acc_nav：体验、定投 null；成本仍可算。
 
 ---
 
 ## 代码落点
 
-| 层 | 路径 | 改动 |
-|----|------|------|
-| DDL | `src/db/schema.ts` | v3 + `fund_select_metrics` 及索引（ulcer、dca_cagr、all_in_fee） |
-| 文档 | `docs/02-SCHEMA.md` | 同步 DDL；删掉未实现的 `fund_screening_rank` |
-| 列表 SQL | `apps/worker/src/lib/fund-query.ts` | 新 sort key：`ulcer_1y`、`dca_cagr_3y`、`all_in_fee_pct` 等 |
-| API | `apps/worker/scripts/app.ts` | 仍走 `/api/funds`，靠 query 区分页 |
-| 导航 | `apps/web/src/lib/navigation.ts` | 分组改回选基，七个子项 |
-| 路由 | `apps/web/src/App.tsx` | `/select/:lens`；删除 `/ranking` |
-| 榜 VM | `apps/web/src/lib/select-vm.ts` | 各页默认维、列、空态文案（从 `ranking-vm.ts` 长出来） |
-| 页面 | `apps/web/src/app/select-page.tsx` | 一页多 lens，列配置来自 VM |
-| 来源 | `apps/web/src/lib/list-origin.ts` | `/select/return` 等加入合法列表路径 |
-| 详情 | 成本区展示 `all_in_fee_pct` + A/C 提示 | 只读 |
-
-浏览页 `/funds` 保持检索，不改成榜。
+| 层 | 路径 |
+|----|------|
+| DDL + 版本校验 | `src/db/schema.ts`、`src/db/repo.ts`、`src/backup/snapshot.ts` |
+| 文档 | `02-SCHEMA.md`（删 `fund_screening_rank`）、`03-SCRIPTS.md`、`06-ARCH-UI.md` |
+| 列表 SQL | `apps/worker/src/lib/fund-query.ts`：新 sort、lens=picks 过滤、货基最新七日、按维切换 `minSamples` 列 |
+| 详情兄弟份额 | `apps/worker/scripts/app.ts` `GET /api/funds/:code/siblings` |
+| 导航/路由 | `navigation.ts`、`App.tsx`：`/select/:lens`，`/ranking` → `/select/return` |
+| VM/页 | `select-vm.ts`、`select-page.tsx`；`ranking-vm` 只留重定向/存储迁移 |
+| 来源 | `list-origin.ts` 识别 `/select/*`，兼容旧 `/ranking` |
 
 ---
 
 ## 原子化提交
 
-1. `feat: add select metrics table and compute`
-2. `feat: expose select sort keys on fund list api`
-3. `feat: add select pages and restore nav group`
-4. `docs: sync schema and ui for select system`
-
-每步可 `bun test` / `bun test:web`。算库脚本单独可跑，不进 CI 全量扫 3.7GB。
+1. `fix: compare schema version with max row`（Backy 校验，先于升版）
+2. `feat: add select metrics table and compute`
+3. `feat: expose select sort keys and picks filters`
+4. `feat: add select pages and restore nav group`
+5. `docs: sync schema scripts and ui for select`
 
 ---
 
@@ -224,26 +248,27 @@ C 类通常申购费低、销服年费高；A 类相反。页上按**同一只�
 
 | 维 | 计划 |
 |----|------|
-| **L1** | `hold-metrics` / `dca-metrics` / `cost-metrics` / `select-score` / `select-vm` 纯函数单测，覆盖率与仓库门槛一致。构造含回撤再收复、不足月、货基无净值的夹具。 |
-| **L2** | `fund-query` 新 sort 的 SQL 单测；`getDataStats` 不依赖新表也能跑。不在 CI 打东财。 |
-| **L3** | 手测：选基七页切换、大类默认、从定投进详情再返回、过滤器 localStorage。不进 CI。 |
-| **G1** | `bun run lint` + `typecheck` + `typecheck:web` |
-| **G2** | 不新增依赖；密钥不进新表 |
-| **D1** | 计算脚本只写本机/Volume 的 `fundly.db`，单测用 `:memory:` |
+| **L1** | hold/dca/cost/score/select-vm 纯函数；夹具含回撤再收复、无 acc_nav、销服 null、不足月 |
+| **L2** | fund-query 新 sort / picks 窗口函数 / siblings；`assertFundlyDb` 在 v3 夹具上通过 |
+| **L3** | 手测七页、`/ranking` 跳转、旧 localStorage 迁移、详情返回。不进 CI |
+| **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
+| **G2** | 不新增依赖 |
+| **D1** | 批算只写本机/Volume sqlite；单测 `:memory:` |
 
 ---
 
 ## 验收
 
-- 侧栏看到「选基」及七个子页，没有单独的「排名」分组，没有 `/ranking`
-- 收益/风险用旧表即能排序；体验/定投/成本在 `compute:select` 之后有数
-- 精选默认五条规则可理解、可关；综合分缺维不编造
-- 跨大类比收益不是默认
-- 详情返回仍回到对应 `/select/...` 或 `/funds`
+- 侧栏「选基」七项；`/ranking` 打开即到收益页
+- 收益列只有 1m/3m/6m/1y；风险没有虚构的 5y 索提诺/卡玛
+- 体验/定投/成本在 `compute:select` 之后有数；销服未知不进「最便宜 50%」
+- 精选规则可关；`select_score` 高分在前
+- 默认带 L1；schema 升级后 Backy 校验与 Volume 旧库有明确步骤
 
 ## 不做
 
-- 不做组合优化、再平衡、税收
-- 不做用户自定义因子权重（第一期）
-- 不把东财五维雷达当精选主分（`performance_5d_json` 仅详情）
-- 不在设计里写未实测的全市场计算耗时
+- 组合优化、税收、自定义权重
+- 东财五维雷达当主分
+- 未实测的全市场批算耗时
+- 把销服 null 当 0
+- 新建 `fund_screening_rank`
