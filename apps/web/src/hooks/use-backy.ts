@@ -6,11 +6,9 @@ import {
   unavailableStatus,
   validateBackyForm,
 } from '@/lib/backy-vm';
-import { canToggleSource, readStoredSource } from '@/lib/source';
 
 async function mutateAPI<T>(url: string, method: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (canToggleSource()) headers['X-Fundly-Source'] = readStoredSource();
   const res = await fetch(url, {
     method,
     credentials: 'include',

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/** Local API: sqlite by default, D1 when X-Fundly-Source: d1 */
+/** Local API: reads FUNDLY_SQLITE / data/fundly.db */
 
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
@@ -21,9 +21,7 @@ import {
   listFunds,
   listFundTypes,
 } from '../src/lib/funds-service.ts';
-import { resolveDataSource } from '../src/lib/source.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
-import { cloudflareApiToken } from './cf-token.ts';
 
 const PORT = Number(process.env.FUNDLY_API_PORT ?? 7045);
 const SQLITE_PATH = resolve(
@@ -41,42 +39,7 @@ function sqliteExec(db: Database): QueryExec {
   };
 }
 
-function d1HttpExec(token: string): QueryExec {
-  const account = 'd51a8fde361e4be31db17d8c56737c1f';
-  const databaseId = 'ccc8336d-8c39-489a-a532-2ea856ec69ed';
-  const url = `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${databaseId}/query`;
-  return {
-    async all<T>(sql: string, params: SqlBinding[] = []) {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql, params }),
-      });
-      const body = (await res.json()) as {
-        success: boolean;
-        errors?: { message: string }[];
-        result?: { results?: T[] }[];
-      };
-      if (!res.ok || !body.success) {
-        throw new Error(body.errors?.[0]?.message ?? `D1 query failed ${res.status}`);
-      }
-      return (body.result?.[0]?.results ?? []) as T[];
-    },
-    async first<T>(sql: string, params: SqlBinding[] = []) {
-      const rows = await this.all<T>(sql, params);
-      return rows[0] ?? null;
-    },
-  };
-}
-
 const sqlite = sqliteExec(new Database(SQLITE_PATH, { readonly: true }));
-let d1: QueryExec | null = null;
-
-function execFor(source: 'sqlite' | 'd1'): QueryExec {
-  if (source === 'sqlite') return sqlite;
-  if (!d1) d1 = d1HttpExec(cloudflareApiToken());
-  return d1;
-}
 
 const app = new Hono();
 
@@ -96,13 +59,7 @@ app.get('/api/live', (c) =>
   }),
 );
 
-app.get('/api/source', (c) => {
-  const resolved = resolveDataSource({
-    requested: c.req.header('x-fundly-source') ?? c.req.query('source'),
-    environment: 'development',
-  });
-  return c.json(resolved);
-});
+app.get('/api/source', (c) => c.json({ source: 'sqlite', allowed: ['sqlite'], rejected: false }));
 
 app.get('/api/me', (c) => c.json({ email: null, name: null, avatar: null, authenticated: false }));
 
@@ -196,10 +153,6 @@ app.post('/api/backy/restore', async (c) => {
 });
 
 app.get('/api/funds', async (c) => {
-  const source = resolveDataSource({
-    requested: c.req.header('x-fundly-source'),
-    environment: 'development',
-  }).source;
   const query = parseFundListQuery({
     q: c.req.query('q'),
     fundType: c.req.query('fundType'),
@@ -216,32 +169,20 @@ app.get('/api/funds', async (c) => {
     page: c.req.query('page'),
     pageSize: c.req.query('pageSize'),
   });
-  return c.json(await listFunds(execFor(source), query));
+  return c.json(await listFunds(sqlite, query));
 });
 
 app.get('/api/fund-types', async (c) => {
-  const source = resolveDataSource({
-    requested: c.req.header('x-fundly-source'),
-    environment: 'development',
-  }).source;
-  return c.json({ items: await listFundTypes(execFor(source)) });
+  return c.json({ items: await listFundTypes(sqlite) });
 });
 
 app.get('/api/stats', async (c) => {
-  const source = resolveDataSource({
-    requested: c.req.header('x-fundly-source'),
-    environment: 'development',
-  }).source;
-  return c.json(await getDataStats(execFor(source)));
+  return c.json(await getDataStats(sqlite));
 });
 
 app.get('/api/funds/:code/nav', async (c) => {
-  const source = resolveDataSource({
-    requested: c.req.header('x-fundly-source'),
-    environment: 'development',
-  }).source;
   return c.json({
-    items: await getFundNav(execFor(source), c.req.param('code'), {
+    items: await getFundNav(sqlite, c.req.param('code'), {
       from: c.req.query('from'),
       limit: c.req.query('limit'),
     }),
@@ -249,11 +190,7 @@ app.get('/api/funds/:code/nav', async (c) => {
 });
 
 app.get('/api/funds/:code', async (c) => {
-  const source = resolveDataSource({
-    requested: c.req.header('x-fundly-source'),
-    environment: 'development',
-  }).source;
-  const detail = await getFundDetail(execFor(source), c.req.param('code'));
+  const detail = await getFundDetail(sqlite, c.req.param('code'));
   if (!detail) return c.json({ error: 'Not found' }, 404);
   return c.json(detail);
 });

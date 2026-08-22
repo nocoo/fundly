@@ -20,13 +20,5 @@
   },
   "observability": {
     "enabled": true
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "fundly-db",
-      "database_id": "ccc8336d-8c39-489a-a532-2ea856ec69ed",
-      "migrations_dir": "migrations"
-    }
-  ]
+  }
 }

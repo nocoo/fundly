@@ -13,7 +13,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Breadcrumbs } from './breadcrumbs';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
-import { SourceToggle } from './source-toggle';
 import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
@@ -78,7 +77,6 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
             <Breadcrumbs items={[{ label: '首页', href: '/' }, ...breadcrumbs]} />
           </div>
           <div className="flex items-center gap-1">
-            <SourceToggle />
             <a
               href="https://github.com/nocoo/fundly"
               target="_blank"
