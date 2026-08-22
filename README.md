@@ -27,18 +27,19 @@
 
 ```
 fundly/
-├── docs/                  # 项目文档（编号 01-08，详见 CLAUDE.md）
+├── docs/                  # 项目文档（编号 01-09，详见 CLAUDE.md）
 │   ├── 01-ARCHITECTURE.md # 采集架构
 │   ├── 02-SCHEMA.md       # 数据表
 │   ├── 03-SCRIPTS.md      # CLI 手册
 │   ├── 04-DATA_SOURCES.md # 数据源
 │   ├── 05-CREDITS.md      # 致谢
-│   ├── 06-ARCH-UI.md      # UI / Worker 架构
+│   ├── 06-ARCH-UI.md      # UI / 本机 API 架构
 │   ├── 07-DASHBOARD.md    # 仪表盘
-│   └── 08-BACKY.md        # Backy 备份 / 换机恢复
+│   ├── 08-BACKY.md        # Backy 备份 / 换机恢复
+│   └── 09-RAILWAY.md      # Railway + Volume
 ├── apps/
 │   ├── web/               # Vite + React SPA（MVVM）
-│   └── worker/            # 本机 Hono API（dev-api）
+│   └── worker/            # 本机 / Railway Hono API
 ├── data/                  # SQLite 数据库（gitignore）
 ├── scripts/               # 爬取、初始化
 ├── src/                   # 采集核心库
