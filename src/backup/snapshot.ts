@@ -122,8 +122,8 @@ export function openExisting(path: string, readwrite: boolean): Database {
 export function assertFundlyDb(path: string): void {
   const db = openExisting(path, false);
   try {
-    const version = db.query('SELECT version FROM schema_version LIMIT 1').get() as {
-      version: number;
+    const version = db.query('SELECT MAX(version) AS version FROM schema_version').get() as {
+      version: number | null;
     } | null;
     if (version?.version !== SCHEMA_VERSION) {
       throw new Error(`unexpected schema_version: ${version?.version ?? 'missing'}`);

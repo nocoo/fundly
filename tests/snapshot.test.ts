@@ -81,6 +81,15 @@ describe('assertFundlyDb', () => {
     seedMini(path);
     assertFundlyDb(path);
   });
+
+  test('compares schema version with the max row', () => {
+    const path = tmp('mixed.db');
+    seedMini(path);
+    const db = new Database(path);
+    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (1, 1)');
+    db.close();
+    assertFundlyDb(path);
+  });
 });
 
 describe('locks', () => {

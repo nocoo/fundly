@@ -154,7 +154,7 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 `integrity_check = ok` 不够：空库、错库也能过。备份源和恢复结果都要过这一关：
 
 - 文件存在，且打开时 `{ create: false }`
-- `schema_version` 表有行，且 `version` 等于当前 `SCHEMA_VERSION`
+- `schema_version` 表有行，且 `MAX(version)` 等于当前 `SCHEMA_VERSION`
 - 存在 `fund_basic_info`、`fund_performance`、`fund_nav`
 - `fund_basic_info`、`fund_nav` 行数都 `> 0`
 
