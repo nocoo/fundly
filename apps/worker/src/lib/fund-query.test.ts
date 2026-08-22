@@ -244,6 +244,33 @@ describe('fundListSql', () => {
     expect(built.listSql).not.toContain('nav_samples_1y >=');
   });
 
+  it('returns empty when the sort column is missing from a thin satellite table', () => {
+    const built = fundListSql(parseFundListQuery({ sort: 'sharpe_3y' }), {
+      risk: true,
+      riskCols: new Set(['sharpe_1y', 'nav_samples_1y']),
+    });
+    expect(built.listSql).toContain('WHERE 0=1');
+  });
+
+  it('projects share_class so picks search can score share letters', () => {
+    const built = fundListSql(
+      parseFundListQuery({
+        q: 'A',
+        lens: 'picks',
+        feePeer: '50',
+        sort: 'select_score',
+        dir: 'desc',
+      }),
+      { select: true },
+    );
+    expect(built.listSql).toContain('share_class');
+  });
+
+  it('keeps top10Max above 100 and does not floor fractions', () => {
+    expect(parseFundListQuery({ top10Max: '120' }).top10Max).toBe(120);
+    expect(parseFundListQuery({ top10Max: '60.9' }).top10Max).toBe(60.9);
+  });
+
   it('projects missing risk columns as null instead of selecting them', () => {
     const db = new Database(':memory:');
     db.exec(`
