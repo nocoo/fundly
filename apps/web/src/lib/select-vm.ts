@@ -217,7 +217,7 @@ export function normalizeSelectState(
     typeL2 = '';
   }
   const dim =
-    dimsFor(lens, typeL1).find((item) => item.key === state.dim.key) ?? defaultDim(lens, typeL1);
+    dimsFor(lens, typeL1).find((item) => item.key === state.dim?.key) ?? defaultDim(lens, typeL1);
   return { ...state, typeL1, typeL2, dim, page: Math.floor(state.page) };
 }
 
@@ -316,11 +316,12 @@ export function storageKey(lens: SelectLens): string {
 export function parseStoredSelect(raw: unknown, lens: SelectLens): Partial<SelectState> {
   if (!raw || typeof raw !== 'object') return {};
   const rec = raw as Record<string, unknown>;
+  const typeL1 = typeof rec.typeL1 === 'string' ? rec.typeL1 : undefined;
   const dimKey = typeof rec.dim === 'string' ? rec.dim : undefined;
-  const dim = dimKey ? dimsFor(lens).find((item) => item.key === dimKey) : undefined;
+  const dim = dimKey ? dimsFor(lens, typeL1 ?? '').find((item) => item.key === dimKey) : undefined;
   const page = Number(rec.page ?? 1);
   return {
-    typeL1: typeof rec.typeL1 === 'string' ? rec.typeL1 : undefined,
+    typeL1,
     typeL2: typeof rec.typeL2 === 'string' ? rec.typeL2 : undefined,
     dim,
     pass4433: rec.pass4433 === true || rec.pass4433 === '1',

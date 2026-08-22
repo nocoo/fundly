@@ -121,6 +121,21 @@ describe('select url and stored state', () => {
     expect(selectSearchDirty(new URLSearchParams('pass4433=1'), state, 'picks')).toBe(true);
   });
 
+  it('restores a stored money-fund seven-day dim', () => {
+    const stored = parseStoredSelect(
+      { typeL1: '货币型', dim: 'seven_day_yield', page: 1 },
+      'return',
+    );
+    expect(stored.dim?.key).toBe('seven_day_yield');
+    const base = parseSelectSearch(new URLSearchParams('typeL1=货币型'), 'return');
+    const got = normalizeSelectState(
+      { ...base, ...stored, dim: stored.dim ?? base.dim },
+      [{ fund_type: '货币型', n: 3 }],
+      'return',
+    );
+    expect(got.dim.key).toBe('seven_day_yield');
+  });
+
   it('reads stored json including off peers', () => {
     expect(parseStoredSelect(null, 'picks')).toEqual({});
     const stored = parseStoredSelect(

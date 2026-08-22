@@ -148,9 +148,11 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const dimReady = dimCapability(lens, dim.key, data?.capabilities);
   const emptyHint = !dimReady
-    ? lens === 'risk'
-      ? '该维尚未计算，请跑 bun run compute:risk。'
-      : '该维尚未计算，请跑 bun run compute:select。'
+    ? dim.key === 'seven_day_yield'
+      ? '该维尚未计算，请跑 bun run fetch:daily。'
+      : lens === 'risk'
+        ? '该维尚未计算，请跑 bun run compute:risk。'
+        : '该维尚未计算，请跑 bun run compute:select。'
     : '这一页没有基金。';
 
   return (
