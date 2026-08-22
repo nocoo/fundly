@@ -237,6 +237,48 @@ describe('fundListSql', () => {
     expect(empty.listSql).toContain('0=1');
   });
 
+  it('does not apply minSamples to max_drawdown_all', () => {
+    const built = fundListSql(parseFundListQuery({ sort: 'max_drawdown_all', minSamples: '200' }), {
+      risk: true,
+    });
+    expect(built.listSql).not.toContain('nav_samples_1y >=');
+  });
+
+  it('projects missing risk columns as null instead of selecting them', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+      CREATE TABLE fund_risk_metrics (fund_code TEXT, sharpe_1y REAL, nav_samples_1y INTEGER);
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','测试','混合型-偏股','CS','CESHI',1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_risk_metrics VALUES ('000001',1.2,250)`);
+    const q = parseFundListQuery({ sort: 'sharpe_1y', dir: 'desc' });
+    const built = fundListSql(q, {
+      risk: true,
+      riskCols: new Set(['sharpe_1y', 'nav_samples_1y']),
+    });
+    expect(built.listSql).toContain('NULL AS sharpe_3y');
+    expect(() => db.query(built.listSql).all(...built.listParams)).not.toThrow();
+    db.close();
+  });
+
+  it('still joins risk samples when picks turns ddPeer off', () => {
+    const built = fundListSql(
+      parseFundListQuery({
+        lens: 'picks',
+        minSamples: '200',
+        sort: 'select_score',
+        dir: 'desc',
+      }),
+      { risk: true, select: true },
+    );
+    expect(built.listSql).toContain('fund_risk_metrics');
+    expect(built.listSql).toContain('r.nav_samples_1y >= ?');
+    expect(built.listSql).not.toContain('dd_pct');
+  });
+
   it('keeps peer percentiles at or below 100 when a peer is null', () => {
     const db = new Database(':memory:');
     db.exec(`

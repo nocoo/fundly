@@ -318,10 +318,22 @@ function searchScoreSql(
   return { expr, params: caseParams };
 }
 
-function samplesColumn(sort: FundSortKey): string {
+const HOLD_SAMPLE_KEYS = new Set([
+  'ulcer_1y',
+  'underwater_ratio_1y',
+  'max_underwater_days_1y',
+  'max_consec_down_1y',
+  'down_day_ratio_1y',
+  'recovery_days_1y',
+]);
+
+export function samplesColumn(sort: FundSortKey, lens?: FundListQuery['lens']): string | null {
+  if (sort === 'max_drawdown_all') return null;
   if (sort.includes('_5y')) return 'r.nav_samples_5y';
   if (sort.includes('_3y')) return 'r.nav_samples_3y';
-  return 'r.nav_samples_1y';
+  if (isRiskSortKey(sort) || lens === 'picks' || HOLD_SAMPLE_KEYS.has(sort))
+    return 'r.nav_samples_1y';
+  return null;
 }
 
 function qualify(expr: string, flat: boolean): string {
@@ -416,15 +428,9 @@ export function buildFundListClauses(
       where.push(`${qualify(SORT_COLUMNS[query.sort], flat)} IS NOT NULL`);
     }
   }
-  if (
-    query.minSamples != null &&
-    (isRiskSortKey(query.sort) ||
-      query.lens === 'picks' ||
-      query.sort.startsWith('ulcer') ||
-      query.sort.includes('underwater') ||
-      query.sort.includes('recovery'))
-  ) {
-    where.push(`${qualify(samplesColumn(query.sort), flat)} >= ?`);
+  const sampleCol = query.minSamples != null ? samplesColumn(query.sort, query.lens) : null;
+  if (query.minSamples != null && sampleCol) {
+    where.push(`${qualify(sampleCol, flat)} >= ?`);
     filterParams.push(query.minSamples);
   }
   if (query.top10Max != null) {
@@ -468,18 +474,6 @@ export function buildFundListClauses(
     limitParams: [query.pageSize, offset],
     scoreParams,
   };
-}
-
-export function fundListFromSql(
-  opts: { risk?: boolean; select?: boolean; money?: boolean } = {},
-): string {
-  const riskJoin = opts.risk ? ' LEFT JOIN fund_risk_metrics r ON r.fund_code = b.fund_code' : '';
-  const selectJoin = opts.select
-    ? ' LEFT JOIN fund_select_metrics s ON s.fund_code = b.fund_code'
-    : '';
-  const moneyJoin = opts.money ? ` ${MONEY_YIELD_JOIN}` : '';
-  return `FROM fund_basic_info b
-    LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}${selectJoin}${moneyJoin}`;
 }
 
 function peerRankSql(query: FundListQuery): string {
@@ -548,20 +542,53 @@ const SELECT_RESULT_COLS = [
   'sales_fee_known',
 ] as const;
 
-export function fundListSelectSql(
-  opts: { risk?: boolean; select?: boolean; money?: boolean } = {},
+export type FundListSqlOpts = {
+  risk?: boolean;
+  select?: boolean;
+  money?: boolean;
+  fees?: boolean;
+  riskCols?: ReadonlySet<string>;
+  selectCols?: ReadonlySet<string>;
+};
+
+function projectedCols(
+  prefix: string,
+  names: readonly string[],
+  enabled: boolean,
+  present?: ReadonlySet<string>,
 ): string {
-  const riskCols = opts.risk
-    ? RISK_RESULT_COLS.map((col) => `r.${col}`).join(', ')
-    : RISK_RESULT_COLS.map((col) => `NULL AS ${col}`).join(', ');
-  const selectCols = opts.select
-    ? SELECT_RESULT_COLS.map((col) => `s.${col}`).join(', ')
-    : SELECT_RESULT_COLS.map((col) => `NULL AS ${col}`).join(', ');
+  return names
+    .map((col) =>
+      enabled && (!present || present.has(col)) ? `${prefix}.${col}` : `NULL AS ${col}`,
+    )
+    .join(', ');
+}
+
+export function fundListFromSql(opts: FundListSqlOpts = {}): string {
+  const riskJoin = opts.risk ? ' LEFT JOIN fund_risk_metrics r ON r.fund_code = b.fund_code' : '';
+  const selectJoin = opts.select
+    ? ' LEFT JOIN fund_select_metrics s ON s.fund_code = b.fund_code'
+    : '';
+  const moneyJoin = opts.money ? ` ${MONEY_YIELD_JOIN}` : '';
+  const feeJoin = opts.fees ? ' LEFT JOIN fund_fees f ON f.fund_code = b.fund_code' : '';
+  return `FROM fund_basic_info b
+    LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}${selectJoin}${moneyJoin}${feeJoin}`;
+}
+
+export function fundListSelectSql(opts: FundListSqlOpts = {}): string {
+  const riskCols = projectedCols('r', RISK_RESULT_COLS, Boolean(opts.risk), opts.riskCols);
+  const selectCols = projectedCols('s', SELECT_RESULT_COLS, Boolean(opts.select), opts.selectCols);
   const moneyCols = opts.money ? 'y.seven_day_yield' : 'NULL AS seven_day_yield';
+  const feeShown = opts.fees
+    ? `CASE WHEN s.all_in_fee_pct IS NOT NULL THEN s.all_in_fee_pct
+           WHEN f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL
+             THEN f.mgmt_fee_pct + f.custodian_fee_pct
+           ELSE NULL END AS fee_shown_pct`
+    : 'NULL AS fee_shown_pct';
   return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
-      ${riskCols}, ${selectCols}, ${moneyCols}
+      ${riskCols}, ${selectCols}, ${moneyCols}, ${feeShown}
     ${fundListFromSql(opts)}`;
 }
 
@@ -569,7 +596,7 @@ export const FUND_LIST_SELECT = fundListSelectSql({ risk: false });
 
 export function fundListSql(
   query: FundListQuery,
-  opts: { risk?: boolean; select?: boolean; money?: boolean } = {},
+  opts: FundListSqlOpts = {},
 ): {
   listSql: string;
   countSql: string;
@@ -582,7 +609,9 @@ export function fundListSql(
     query.feePeer != null ||
     query.scalePeer != null ||
     query.top10Max != null;
-  const needRisk = isRiskSortKey(query.sort) || query.ddPeer != null;
+  const sampleCol = query.minSamples != null ? samplesColumn(query.sort, query.lens) : null;
+  const needRisk =
+    isRiskSortKey(query.sort) || query.ddPeer != null || Boolean(sampleCol?.startsWith('r.'));
   const needMoney = query.sort === 'seven_day_yield';
   if ((needSelect && !opts.select) || (needRisk && !opts.risk) || (needMoney && !opts.money)) {
     return {
@@ -592,13 +621,19 @@ export function fundListSql(
       countParams: [],
     };
   }
+  const parsedQ = query.q ? parseSearchQuery(query.q) : null;
   const joinRisk = Boolean(opts.risk && needRisk);
-  const joinSelect = Boolean(
-    opts.select &&
-      (needSelect || Boolean(query.q && searchQueryKind(parseSearchQuery(query.q)) === 'share')),
-  );
+  const joinSelect = Boolean(opts.select && (needSelect || Boolean(parsedQ?.shareLetter)));
   const joinMoney = Boolean(opts.money && needMoney);
-  const sqlOpts = { risk: joinRisk, select: joinSelect, money: joinMoney };
+  const joinFees = Boolean(opts.fees && joinSelect);
+  const sqlOpts: FundListSqlOpts = {
+    risk: joinRisk,
+    select: joinSelect,
+    money: joinMoney,
+    fees: joinFees,
+    riskCols: opts.riskCols,
+    selectCols: opts.selectCols,
+  };
   const c = buildFundListClauses(query, sqlOpts);
   const from = fundListFromSql(sqlOpts);
   const needPeer = query.feePeer != null || query.ddPeer != null || query.scalePeer != null;

@@ -1,3 +1,4 @@
+import { parseSearchQuery } from '../../../../src/metrics/fund-search';
 import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
@@ -50,12 +51,27 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   const selectDims = needCaps ? await selectDimCaps(exec) : EMPTY_SELECT_DIMS;
   const risk = riskSortEnabledAny(riskDims);
   const select = selectSortEnabledAny(selectDims);
-  const money = await hasTable(exec, 'fund_money_yield');
+  const shareSearch = Boolean(query.q && parseSearchQuery(query.q).shareLetter);
+  const [hasRisk, hasSelect, hasMoney, hasFees] = await Promise.all([
+    needCaps ? hasTable(exec, 'fund_risk_metrics') : Promise.resolve(false),
+    needCaps || shareSearch ? hasTable(exec, 'fund_select_metrics') : Promise.resolve(false),
+    needCaps || query.sort === 'seven_day_yield'
+      ? hasTable(exec, 'fund_money_yield')
+      : Promise.resolve(false),
+    needCaps ? hasTable(exec, 'fund_fees') : Promise.resolve(false),
+  ]);
+  const [riskCols, selectCols] = await Promise.all([
+    hasRisk ? columnSet(exec, 'fund_risk_metrics') : Promise.resolve(new Set<string>()),
+    hasSelect ? columnSet(exec, 'fund_select_metrics') : Promise.resolve(new Set<string>()),
+  ]);
   const resolved = resolveFundListQuery(query, riskDims, selectDims);
   const built = fundListSql(resolved, {
-    risk,
-    select,
-    money,
+    risk: hasRisk,
+    select: hasSelect,
+    money: hasMoney,
+    fees: hasFees,
+    riskCols,
+    selectCols,
   });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),
