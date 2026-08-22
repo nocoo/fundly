@@ -97,7 +97,8 @@ fundly/
 | `/` | 仪表盘 | `/api/stats`、`/api/fund-types` |
 | `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排；过滤器进 localStorage |
 | `/funds/:code` | 基金详情 | `/api/funds/:code` + 净值；面包屑和「返回…」按钮回到来源列表 |
-| `/ranking` | 基金排名 | `/api/funds` 现场排序；L1/L2 芯片 + 收益/风险维度；过滤器进 localStorage |
+| `/select/:lens` | 选基六页 | `/api/funds` 按收益/风险/持有/定投/成本/精选排序 |
+| `/ranking` | 旧排名 | 按 dim 重定向到 `/select/return` 或 `/select/risk` |
 | `/backup` | 备份 | 连接 Backy、推送、最近备份列表 |
 | `/settings` | 设置 | 数据统计、涨跌色、基准 |
 | `/login` | Google 登录 | 工卡页，仿 Gecko；颜色用 Fundly primary |

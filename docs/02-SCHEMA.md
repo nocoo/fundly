@@ -209,7 +209,7 @@ CREATE TABLE schema_version (
 - `fund_portfolio` — 持仓明细
 - `fund_dividend` — 分红送配
 - `fund_risk_metrics` — 风险指标（本地计算：夏普/卡玛/波动率/最大回撤）
-- `fund_screening_rank` — 多因子打分与筛选榜单快照
+- `fund_select_metrics` — 选基派生指标（体验/定投/综合费/结构/综合分）
 
 ## ✅ Phase 2 已交付（2026-08-19）
 
@@ -224,4 +224,4 @@ CREATE TABLE schema_version (
 | `fund_manager_link` | 131,732 | `(fund_code, manager_id, start_date)` | jjjl HTML |
 | `fund_portfolio` | 250,658 | `(fund_code, report_date, stock_code)` WITHOUT ROWID | jjcc apidata |
 
-**schema_version 已升到 2**。DDL 见 [`src/db/schema.ts`](../src/db/schema.ts)。
+**schema_version 已升到 3**。DDL 见 [`src/db/schema.ts`](../src/db/schema.ts)。选基派生表与 `grand_total_json` 见 [12-FUND-SCREENING.md](./12-FUND-SCREENING.md)。
