@@ -1,3 +1,125 @@
+## 0.2.0 — 2026-08-22
+
+- fix: bump login page version on release
+- ci: gate railway deploys on github actions
+- fix: require google login on local api
+- feat: add google oauth login page
+- docs: record railway deploy walkthrough
+- docs: record live railway volume seed
+- docs: add railway volume deploy
+- feat: add railway serve and volume image
+- docs: drop cloudflare worker and d1
+- refactor: drop d1 from api and ui
+- chore: remove d1 import scripts
+- docs: note async backup job
+- fix: run backup as background job
+- fix: align backup action column
+- fix: align backup table cell padding
+- fix: accept post for backy config save
+- fix: keep backup form fields enabled
+- docs: document stored backy credentials
+- feat: add dedicated backup page
+- feat: store backy credentials in sqlite
+- docs: mention backy on settings
+- feat: add backy panel on settings
+- test: cover remaining backy http helpers
+- docs: document backup restore commands
+- feat: add backup and restore cli
+- feat: add sqlite gzip snapshot
+- feat: add backy http client
+- docs: fix backy wal and rename races
+- docs: tighten backy restore safety
+- docs: add backy backup design
+- docs: record money-pool fetch timings
+- feat: chart money-fund yield when nav empty
+- feat: persist money-fund yield series
+- fix: probe risk caps with exists
+- fix: ranking url cleanup and row clicks
+- fix: join risk metrics only for risk sorts
+- fix: keep scale axis ticks compact
+- feat: add fund ranking page
+- feat: extend fund list query for ranking
+- feat: add bun run dev:all
+- fix: align growth dual axes and chart padding
+- fix: read manager and fees from satellites
+- fix: drop denormalized basic-info columns
+- fix: invert rank axis and restack info
+- fix: show nav with three decimal places
+- feat: show rank triples and taller nav chart
+- feat: store rank as place, peers, percent
+- refactor: drive detail returns from metrics
+- refactor: extract fund metrics calc package
+- docs: record rank refresh runtime
+- fix: share return math and require acc
+- fix: ignore crawled long-window returns
+- feat: live-fill empty detail return windows
+- feat: add manual peer rank refresh tool
+- feat: dual-axis nav vs comparison growth
+- feat: color growth bench and ref lines
+- feat: add copyable detail field control
+- fix: keep chart origin ticks from overlapping
+- feat: move basic info above detail grid
+- feat: put basic info first in detail
+- fix: center chart legends below plots
+- feat: add detail legends and holder pie
+- feat: backfill since-inception from nav
+- fix: wrap detail field values below labels
+- fix: left-align detail field metrics
+- fix: right-align numbers only in tables
+- fix: drop net assets from allocation %
+- feat: chart latest allocation snapshots
+- feat: widen detail time-series column
+- feat: lay out fund detail in 3 cols
+- feat: add time-scale and radar charts
+- feat: fetch nav by date window
+- feat: lead palette with logo orange
+- feat: mask empty fund growth charts
+- feat: add header github repo link
+- feat: show extras on fund detail
+- fix: omit pinyin from fund detail
+- feat: parse fund extras in detail api
+- feat: browse benchmarks in columns
+- feat: make fund table rows clickable
+- fix: drop emphasized table link color
+- fix: stabilize chart prefs snapshot
+- feat: adopt pew chart badge colors
+- feat: overlay growth reference lines
+- feat: filter funds by type levels
+- feat: split fund types into badges
+- feat: show detail fields in four cols
+- feat: prefix plus on up returns
+- feat: apply unified number display
+- feat: add quote color setting
+- feat: add number format helpers
+- fix: keep fund search ime-safe
+- docs: note four-layer shell tokens
+- fix: restore four-layer luminance
+- feat: restyle source toggle
+- feat: standardize filter controls
+- feat: extract recharts chart helpers
+- fix: refuse implicit seed snapshot reuse
+- fix: reuse existing seed snapshot file
+- fix: seed from immutable sqlite snapshot
+- fix: pin seed resume to sqlite snapshot
+- fix: skip seed files by packed output
+- fix: retry and resume d1 seed files
+- feat: allow seeding a single d1 table
+- fix: keep sql bindings json-safe
+- fix: type query params as sql bindings
+- fix: flush oversized seed rows immediately
+- docs: list script typecheck and local worker
+- fix: parse wrangler token from json
+- fix: type sqlite bindings without never
+- fix: reject fractional pages below one
+- fix: pack seed sql under d1 size limit
+- docs: document seed migrate and local d1
+- fix: surface secondary dashboard nav errors
+- fix: read wrangler token via auth command
+- fix: clamp fund page and mark sort state
+- fix: require access token for live probe
+- fix: typecheck import and local api scripts
+- feat: seed empty d1 from sql files
+
 ## 0.1.2 — 2026-08-19
 
 - docs: document d1 browse and import

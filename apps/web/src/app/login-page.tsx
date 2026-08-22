@@ -6,7 +6,7 @@ import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';
 import { googleStartUrl, loginErrorMessage, loginIdLabel } from '@/lib/login-vm';
 
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.2.0';
 
 const BARCODE = [
   { id: 'a', w: 2 },
