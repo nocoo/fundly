@@ -100,6 +100,8 @@ FUNDLY_SQLITE=data/fundly.db BACKY_ENV=prod bun run backup
 8. `POST {webhook}/uploads/{upload_id}/complete`。201 打印 `id` / `file_size`。
 9. 成功：删 snap、gz、锁。PUT/complete 失败：`DELETE …/uploads/{upload_id}`，删 snap/gz/锁，非零退出。下次从零做。
 
+页面点「立即备份」会另起 `bun run backup`，HTTP 立刻 202，再轮询任务状态。不要把 VACUUM / gzip 堵在本机 API 请求里，否则 Vite 会 502。
+
 不在 `fetch:daily` 结束时自动备份。
 
 ---
