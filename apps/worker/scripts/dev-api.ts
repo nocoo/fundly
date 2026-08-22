@@ -106,7 +106,20 @@ app.get('/api/source', (c) => {
 app.get('/api/me', (c) => c.json({ email: null, name: null, avatar: null, authenticated: false }));
 
 app.get('/api/backy', async (c) => {
-  const config = readBackyConfig(SQLITE_PATH);
+  let config: ReturnType<typeof readBackyConfig>;
+  try {
+    config = readBackyConfig(SQLITE_PATH);
+  } catch (error) {
+    return c.json({
+      available: true,
+      configured: false,
+      webhookUrl: '',
+      hasToken: false,
+      environment: resolveEnvironment(),
+      history: null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
   const base = {
     available: true,
     configured: Boolean(config.webhookUrl && config.hasToken),

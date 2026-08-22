@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { useBacky } from '@/hooks/use-backy';
 import { envBadgeClass, formatFileSize, formatTimeAgo } from '@/lib/backy-format';
-import { canMutateBackups } from '@/lib/backy-vm';
+import { canEditBackyForm, canMutateBackups } from '@/lib/backy-vm';
 import { cn } from '@/lib/utils';
 
 export default function BackupPage() {
@@ -31,6 +31,7 @@ export default function BackupPage() {
     restore,
   } = useBacky();
   const ready = status ? canMutateBackups(status) : false;
+  const editing = canEditBackyForm(busy);
   const rows = status?.history?.recent_backups ?? [];
 
   return (
@@ -53,7 +54,7 @@ export default function BackupPage() {
               value={webhookUrl}
               placeholder="https://backy.hexly.ai/api/webhook/…"
               onChange={(event) => setWebhookUrl(event.target.value)}
-              disabled={!status?.available || busy !== null}
+              disabled={!editing}
               className="h-9 rounded-widget border border-border bg-secondary px-3 text-sm text-foreground"
             />
           </label>
@@ -64,19 +65,14 @@ export default function BackupPage() {
               value={token}
               placeholder={status?.hasToken ? '已保存，留空则不改' : '粘贴 API Key'}
               onChange={(event) => setToken(event.target.value)}
-              disabled={!status?.available || busy !== null}
+              disabled={!editing}
               autoComplete="off"
               className="h-9 rounded-widget border border-border bg-secondary px-3 text-sm text-foreground"
             />
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void saveConfig()}
-            disabled={!status?.available || busy !== null}
-          >
+          <Button variant="outline" size="sm" onClick={() => void saveConfig()} disabled={!editing}>
             {busy === 'save' ? <Loader2 className="animate-spin" /> : null}
             保存
           </Button>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  canEditBackyForm,
   canMutateBackups,
   historyCountLabel,
   unavailableStatus,
@@ -7,10 +8,12 @@ import {
 } from './backy-vm';
 
 describe('backy vm', () => {
-  it('treats worker 404 as unavailable', () => {
+  it('lets the form stay editable when the status probe fails', () => {
     const status = unavailableStatus();
     expect(status.available).toBe(false);
     expect(canMutateBackups(status)).toBe(false);
+    expect(canEditBackyForm(null)).toBe(true);
+    expect(canEditBackyForm('save')).toBe(false);
   });
 
   it('labels history count', () => {

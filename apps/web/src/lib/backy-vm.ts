@@ -54,7 +54,11 @@ export function validateBackyForm(
 }
 
 export function canMutateBackups(status: BackyStatus): boolean {
-  return status.available && status.configured;
+  return status.configured;
+}
+
+export function canEditBackyForm(busy: string | null): boolean {
+  return busy === null;
 }
 
 export function historyCountLabel(history: BackyHistory | null): string {
