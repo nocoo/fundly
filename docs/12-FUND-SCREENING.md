@@ -127,9 +127,11 @@ localStorage key：`fundly_select_<lens>`。分页 50。点行进详情，来源
 
 召回必须是**多段 AND**，不是单段 `LIKE %原串%`（否则「易方达300」在简称/拼音里都不是连续子串，后面打分救不回来）：
 
-- 每个 token 至少命中 `fund_name` / `fund_code` / `pinyin_abbr` / `pinyin_full` 之一
+- `tokens` 非空：每个 token 至少命中 `fund_name` / `fund_code` / `pinyin_abbr` / `pinyin_full` 之一
+- `tokens` 空且只有信号（查询就是 `ETF` / `LOF` / `联接`）：只召回名称带该信号的基金
+- `tokens` 空且无信号：返回空集，**禁止**退化成全表
 - 六位数字全等：只回这一只，不再 AND
-- `LIKE '%token%'` **用不上** 现有 `idx_fund_name` B-tree。2.7 万只全表扫可接受；文档禁止写「仍走现索引」。以后真慢再加 FTS，本方案不加
+- `LIKE '%token%'` **用不上** 现有 `idx_fund_name` B-tree。2.7 万只全表扫可接受；以后真慢再加 FTS，本方案不加
 
 排序加权（越小越好，实现时写成整数分再 `ORDER BY`）：
 
@@ -138,7 +140,8 @@ localStorage key：`fundly_select_<lens>`。分页 50。点行进详情，来源
 | 代码全等 | 0 |
 | 代码前缀 | 1 |
 | 拼音全等 / 前缀 | 2 |
-| 简称包含 `core` | 3 |
+| 简称包含完整 `core` | 3 |
+| 只靠 token AND 命中（`core` 不是连续子串，如「易方达300」） | 4 |
 | 仅模糊包含原串 | 6 |
 | 查询有 ETF 而候选没有（或反过来，联接同理） | +4 |
 | 查询带份额且候选 `share_class` 字母相同 | −1 |
@@ -400,16 +403,18 @@ API：`GET /api/funds?lens=picks&typeL1=混合型&pass4433=1&feePeer=50&ddPeer=5
 |------|------|------|----|
 | `scale_yi` | `scale_history_json` 最新一点 | 规模，亿元 | 解析失败，或该点日期 `< score_asof - 400` 天 → null |
 | `scale_asof` | 同上日期 | `YYYY-MM-DD` | 无点则 null |
-| `equity_ratio_pct` | `asset_allocation_json` 最新、名称匹配 `/股票\|权益/` | 占净值 % | 无该系列 null |
+| `equity_ratio_pct` | `asset_allocation_json` 最新、名称匹配 `/股票\|权益/` | 占净值 % | 无该系列，或 `alloc_asof < score_asof - 400` → null |
+| `alloc_asof` | 资产配置最后一个分类日期 | `YYYY-MM-DD` | 无则 null。**不能**复用 `scale_asof`（活库两日期常不一致） |
 | `inst_holder_pct` | `holder_structure_json` 最新、名称匹配 `/机构/` | 占净值 % | 无该系列 null |
-| `holder_asof` | 持有人序列最后一个分类日期 | `YYYY-MM-DD` | 无则 null；日期 `< score_asof - 400` 则天 `inst_holder_pct` 也 null |
+| `holder_asof` | 持有人序列最后一个分类日期 | `YYYY-MM-DD` | 无则 null；日期 `< score_asof - 400` 则 `inst_holder_pct` 也 null |
 | `top10_weight_pct` | 见下 | 百分数点 | 不完整则 **整项 null**，禁止把空权当 0 |
 | `port_asof` | 所用季报日 | `YYYY-MM-DD` | 无持仓 null；`< score_asof - 400` → `top10_weight_pct` 也 null |
-| `excess_hs300_1y` | 本基金与基准 **同一套 `tr_nav`** | 对齐窗口总回报差，百分数点 | 任一方跨度/样本不够，或基准缺净值 → null |
+| `excess_hs300_1y` | 本基金与基准 **同一套 `tr_nav`** | 对齐窗口总回报差，百分数点 | 窗不够、基准缺净值，或 `excess_asof < score_asof - 14` → null |
+| `excess_asof` | 交集窗口最后一天 | `YYYY-MM-DD` | 算不出超额则 null |
 
 **前十大完整性**：取该基金 `MAX(report_date)` 的全部行。若该季**任意** `hold_pct IS NULL`，或非空行 `< 1`，`top10_weight_pct = null`（活库如 000047 同季 13 行只有 7 行有权，求和会假低估）。全部有权后，按 `hold_pct` 降序取最多 10 条相加。
 
-**近 1 年相对沪深300**：不要用 `Data_grandTotal`。对照项目里这条序列只有约 124 点、半年，参考 UI 也不拿它当 1y/3y 数。基准写死 `510300` 沪深300ETF华泰柏瑞（库里有净值）。两边 `tr_nav` 取交集日期，窗长与风险 1y 相同（跨度 ≥ 0.8×365 且样本 ≥ 200），`excess = 100 * (fund_tr_end/fund_tr_start - bench_tr_end/bench_tr_start)`。
+**近 1 年相对沪深300**：不要用 `Data_grandTotal`。对照项目里这条序列只有约 124 点、半年，参考 UI 也不拿它当 1y/3y 数。基准写死 `510300` 沪深300ETF华泰柏瑞（库里有净值）。两边 `tr_nav` 取交集日期，窗长与风险 1y 相同（跨度 ≥ 0.8×365 且样本 ≥ 200），`excess = 100 * (fund_tr_end/fund_tr_start - bench_tr_end/bench_tr_start)`。`excess_asof` = 交集最后一日；它比 `score_asof` 早超过 14 个日历日则超额作废（停更基金不得靠陈旧窗口继续上榜）。
 
 `Data_grandTotal` 仍然落进 `fund_trend_extra.grand_total_json`（v3 `ALTER` 缺列才加），**只给详情叠约半年官方曲线**。选系列时 `name.trim() === '沪深300'`，禁止 `/沪深300/`（否则 110020「易方达沪深300ETF」会先被当成基准，超额变成 0）。东财「同类平均」同样只展示，不当百分位分母。
 
@@ -445,11 +450,13 @@ CREATE TABLE IF NOT EXISTS fund_select_metrics (
   scale_yi               REAL,
   scale_asof             TEXT,
   equity_ratio_pct       REAL,
+  alloc_asof             TEXT,
   inst_holder_pct        REAL,
   holder_asof            TEXT,
   top10_weight_pct       REAL,
   port_asof              TEXT,
   excess_hs300_1y        REAL,
+  excess_asof            TEXT,
   select_score           REAL,
   score_asof             TEXT,
   updated_at             INTEGER NOT NULL,
@@ -598,7 +605,10 @@ bun run compute:select "$path"
 | `src/analytics/structure-metrics.ts` | 规模 / 股票仓位 / 机构占比 / 前十大 / 相对沪深300 |
 | `src/metrics/fund-search.ts` | 浏览与选基 `q` 规范化 + 打分，无新依赖 |
 | `src/metrics/select-score.ts` | 用现网 `rankPct` 翻成 `select_score` |
-| `src/fetchers/eastmoney.ts` | 把 `Data_grandTotal` 写入 `grand_total_json` |
+| `src/fetchers/eastmoney.ts` | 解析 `Data_grandTotal` |
+| `src/utils/types.ts` `PingzhongData.extra` | 增加 `grandTotalJson` |
+| `src/db/repo.ts` `upsertTrendExtra` | 写入 `grand_total_json` |
+| `apps/worker/src/lib/fund-extra.ts` + 详情图 | 解析并叠「本基金 / 沪深300 / 同类平均」 |
 | `scripts/compute-select-metrics.ts` | `initSchema` + 批算写入 |
 | `scripts/refresh-select.ts` | 四步包装，fail-fast |
 | `package.json` | `compute:select`、`refresh:select` |
@@ -639,8 +649,8 @@ bun run compute:select "$path"
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` 多段召回、ETF vs 联接、代码全等优先、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、规模/持仓日期过期、基准 510300 缺窗 |
-| **L2** | fund-query 新 sort / 多段 AND 搜索 / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 含 `scale_yi` 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3 且含 `grand_total_json` 列上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待） |
+| **L1** | hold/dca/cost/score/search/structure/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支、`指数A`/`A类人民币`/`C类美元汇`/`美元现汇A`/`安悦超短债A/C/F`、`易方达300` token 分=4、纯 `ETF` 只召回带 ETF 的名称、空 tokens 且无信号回空、名称含沪深300 但 `name!=='沪深300'`、同季 hold_pct 混 null、allocation 与 scale 日期不一致各自过期、超额共同末日陈旧、基准 510300 缺窗 |
+| **L2** | fund-query 新 sort / 多段 AND 搜索 / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 含 `scale_yi` 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3 且含 `grand_total_json` 列上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整；`rank:refresh` 之后 `upsertPerformance` **INSERT 与 UPDATE 都不动**长窗三列；详情长窗为空时不再 fallback（改掉现 `funds-service.test.ts` 期待）；`grand_total_json` 从 pingzhong → extra 类型 → upsert → 详情 DTO/图 闭环 |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
 | **G2** | 不新增依赖 |
