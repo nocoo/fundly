@@ -8,7 +8,10 @@ const Funds = lazy(() => import('@/app/funds-page'));
 const Settings = lazy(() => import('@/app/settings-page'));
 const Backup = lazy(() => import('@/app/backup-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
-const Ranking = lazy(() => import('@/app/ranking-page'));
+const Select = lazy(() => import('@/app/select-page'));
+const RankingRedirect = lazy(() =>
+  import('@/app/select-page').then((mod) => ({ default: mod.RankingRedirect })),
+);
 const NotFound = lazy(() => import('@/app/not-found-page'));
 const Login = lazy(() => import('@/app/login-page'));
 
@@ -46,10 +49,18 @@ export function App() {
           }
         />
         <Route
+          path="/select/:lens"
+          element={
+            <Guard>
+              <Select />
+            </Guard>
+          }
+        />
+        <Route
           path="/ranking"
           element={
             <Guard>
-              <Ranking />
+              <RankingRedirect />
             </Guard>
           }
         />

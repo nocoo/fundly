@@ -2,7 +2,16 @@ import { readStoredJson, writeStoredJson } from './stored-json';
 
 export const LIST_ORIGIN_KEY = 'fundly_list_origin';
 
-export const LIST_PATHS = ['/funds', '/ranking'] as const;
+export const LIST_PATHS = [
+  '/funds',
+  '/ranking',
+  '/select/return',
+  '/select/risk',
+  '/select/hold',
+  '/select/dca',
+  '/select/cost',
+  '/select/picks',
+] as const;
 
 export type ListPath = (typeof LIST_PATHS)[number];
 
@@ -14,6 +23,12 @@ export type ListOrigin = {
 export const LIST_LABEL: Record<ListPath, string> = {
   '/funds': '基金浏览',
   '/ranking': '基金排名',
+  '/select/return': '收益',
+  '/select/risk': '风险',
+  '/select/hold': '持有体验',
+  '/select/dca': '定投',
+  '/select/cost': '成本',
+  '/select/picks': '精选',
 };
 
 export function isListPath(path: string): path is ListPath {

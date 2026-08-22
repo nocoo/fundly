@@ -43,6 +43,10 @@ describe('list origin', () => {
       path: '/ranking',
       search: '?pass4433=1',
     });
+    expect(originFromList('/select/return', '?typeL1=混合型')).toEqual({
+      path: '/select/return',
+      search: '?typeL1=混合型',
+    });
     expect(originFromList('/data', '')).toBeNull();
     expect(isFundDetailPath('/funds/000001')).toBe(true);
     expect(isFundDetailPath('/funds')).toBe(false);

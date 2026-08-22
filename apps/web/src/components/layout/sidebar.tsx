@@ -1,13 +1,19 @@
 import {
+  CalendarRange,
   ChevronUp,
   Cloud,
+  HeartPulse,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
   PanelLeft,
   Search,
   Settings,
+  Shield,
+  Sparkles,
+  TrendingUp,
   Trophy,
+  Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -29,11 +35,17 @@ import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
 
 const ICON_MAP: Record<string, LucideIcon> = {
+  CalendarRange,
   Cloud,
+  HeartPulse,
   LayoutDashboard,
   Search,
   Settings,
+  Shield,
+  Sparkles,
+  TrendingUp,
   Trophy,
+  Wallet,
 };
 
 interface NavItem {

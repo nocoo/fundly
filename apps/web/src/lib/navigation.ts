@@ -19,11 +19,16 @@ export const NAV_GROUPS: NavGroupDef[] = [
     items: [{ href: '/', label: '仪表盘', icon: 'LayoutDashboard' }],
   },
   {
-    label: '排名',
+    label: '选基',
     defaultOpen: true,
     items: [
-      { href: '/funds', label: '基金浏览', icon: 'Search' },
-      { href: '/ranking', label: '基金排名', icon: 'Trophy' },
+      { href: '/funds', label: '浏览', icon: 'Search' },
+      { href: '/select/return', label: '收益', icon: 'TrendingUp' },
+      { href: '/select/risk', label: '风险', icon: 'Shield' },
+      { href: '/select/hold', label: '持有体验', icon: 'HeartPulse' },
+      { href: '/select/dca', label: '定投', icon: 'CalendarRange' },
+      { href: '/select/cost', label: '成本', icon: 'Wallet' },
+      { href: '/select/picks', label: '精选', icon: 'Sparkles' },
     ],
   },
   {
