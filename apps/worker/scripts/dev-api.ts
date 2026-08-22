@@ -4,8 +4,13 @@
 import { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 import { Hono } from 'hono';
-import { headWebhook, listBackups, loadBackyCredentials } from '../../../src/backup/backy.ts';
+import { headWebhook, listBackups } from '../../../src/backup/backy.ts';
 import { resolveEnvironment, runBackup, runRestore } from '../../../src/backup/run.ts';
+import {
+  loadStoredBackyCredentials,
+  readBackyConfig,
+  saveBackyConfig,
+} from '../../../src/backup/settings.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
@@ -101,44 +106,44 @@ app.get('/api/source', (c) => {
 app.get('/api/me', (c) => c.json({ email: null, name: null, avatar: null, authenticated: false }));
 
 app.get('/api/backy', async (c) => {
+  const config = readBackyConfig(SQLITE_PATH);
+  const base = {
+    available: true,
+    configured: Boolean(config.webhookUrl && config.hasToken),
+    webhookUrl: config.webhookUrl,
+    hasToken: config.hasToken,
+    environment: resolveEnvironment(),
+    history: null as Awaited<ReturnType<typeof listBackups>> | null,
+    error: undefined as string | undefined,
+  };
+  if (!base.configured) return c.json(base);
   try {
-    const creds = loadBackyCredentials();
-    const history = await listBackups(creds);
     return c.json({
-      available: true,
-      configured: true,
-      environment: resolveEnvironment(),
-      webhookHost: new URL(creds.webhookUrl).host,
-      history,
+      ...base,
+      history: await listBackups(loadStoredBackyCredentials(SQLITE_PATH)),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes('BACKY_WEBHOOK_URL')) {
-      return c.json({
-        available: true,
-        configured: false,
-        environment: 'prod',
-        webhookHost: null,
-        history: null,
-      });
-    }
+    return c.json({
+      ...base,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.put('/api/backy/config', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { webhookUrl?: string; token?: string };
+  try {
     return c.json(
-      {
-        available: true,
-        configured: true,
-        environment: resolveEnvironment(),
-        webhookHost: null,
-        history: null,
-        error: message,
-      },
-      200,
+      saveBackyConfig(SQLITE_PATH, { webhookUrl: body.webhookUrl ?? '', token: body.token }),
     );
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
   }
 });
 
 app.post('/api/backy/test', async (c) => {
   try {
-    const status = await headWebhook(loadBackyCredentials());
+    const status = await headWebhook(loadStoredBackyCredentials(SQLITE_PATH));
     return c.json({ status });
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);

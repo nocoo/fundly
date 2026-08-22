@@ -1,5 +1,6 @@
 import {
   ChevronUp,
+  Cloud,
   Database,
   LayoutDashboard,
   type LucideIcon,
@@ -27,6 +28,7 @@ import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
 
 const ICON_MAP: Record<string, LucideIcon> = {
+  Cloud,
   LayoutDashboard,
   Search,
   Database,

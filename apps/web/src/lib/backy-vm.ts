@@ -17,8 +17,9 @@ export type BackyHistory = {
 export type BackyStatus = {
   available: boolean;
   configured: boolean;
+  webhookUrl: string;
+  hasToken: boolean;
   environment: string;
-  webhookHost: string | null;
   history: BackyHistory | null;
   error?: string;
 };
@@ -27,10 +28,29 @@ export function unavailableStatus(): BackyStatus {
   return {
     available: false,
     configured: false,
+    webhookUrl: '',
+    hasToken: false,
     environment: 'prod',
-    webhookHost: null,
     history: null,
   };
+}
+
+export function validateBackyForm(
+  webhookUrl: string,
+  token: string,
+  hasToken: boolean,
+): string | null {
+  const url = webhookUrl.trim();
+  if (!url) return '请填写 Webhook URL';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+      return 'Webhook URL 需要 http(s)';
+  } catch {
+    return 'Webhook URL 格式无效';
+  }
+  if (!token.trim() && !hasToken) return '请填写 API Key';
+  return null;
 }
 
 export function canMutateBackups(status: BackyStatus): boolean {

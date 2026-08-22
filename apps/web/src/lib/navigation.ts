@@ -28,7 +28,10 @@ export const NAV_GROUPS: NavGroupDef[] = [
   {
     label: '系统',
     defaultOpen: true,
-    items: [{ href: '/settings', label: '设置', icon: 'Settings' }],
+    items: [
+      { href: '/backup', label: '备份', icon: 'Cloud' },
+      { href: '/settings', label: '设置', icon: 'Settings' },
+    ],
   },
 ];
 

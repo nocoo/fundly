@@ -5,6 +5,7 @@ import LoadingScreen from '@/components/loading-screen';
 const Dashboard = lazy(() => import('@/app/dashboard'));
 const Funds = lazy(() => import('@/app/funds-page'));
 const Settings = lazy(() => import('@/app/settings-page'));
+const Backup = lazy(() => import('@/app/backup-page'));
 const DataAdmin = lazy(() => import('@/app/data-admin-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
 const Ranking = lazy(() => import('@/app/ranking-page'));
@@ -19,6 +20,7 @@ export function App() {
         <Route path="/funds/:code" element={<FundDetail />} />
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/data" element={<DataAdmin />} />
+        <Route path="/backup" element={<Backup />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

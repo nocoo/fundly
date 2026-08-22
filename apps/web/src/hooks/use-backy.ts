@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchAPI } from '@/api';
-import { type BackyStatus, unavailableStatus } from '@/lib/backy-vm';
+import { type BackyStatus, unavailableStatus, validateBackyForm } from '@/lib/backy-vm';
 import { canToggleSource, readStoredSource } from '@/lib/source';
 
 async function mutateAPI<T>(url: string, method: string, body?: unknown): Promise<T> {
@@ -21,8 +21,10 @@ async function mutateAPI<T>(url: string, method: string, body?: unknown): Promis
 
 export function useBacky() {
   const [status, setStatus] = useState<BackyStatus | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [token, setToken] = useState('');
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<'test' | 'push' | 'restore' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'test' | 'push' | 'restore' | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -30,6 +32,7 @@ export function useBacky() {
     try {
       const next = await fetchAPI<BackyStatus>('/api/backy');
       setStatus(next);
+      setWebhookUrl(next.webhookUrl);
     } catch {
       setStatus(unavailableStatus());
     } finally {
@@ -40,6 +43,29 @@ export function useBacky() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const saveConfig = useCallback(async () => {
+    const error = validateBackyForm(webhookUrl, token, Boolean(status?.hasToken));
+    if (error) {
+      setMessage({ ok: false, text: error });
+      return;
+    }
+    setBusy('save');
+    setMessage(null);
+    try {
+      await mutateAPI('/api/backy/config', 'PUT', {
+        webhookUrl,
+        token: token.trim() || undefined,
+      });
+      setToken('');
+      setMessage({ ok: true, text: '已保存' });
+      await refresh();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : '保存失败' });
+    } finally {
+      setBusy(null);
+    }
+  }, [refresh, status?.hasToken, token, webhookUrl]);
 
   const testConnection = useCallback(async () => {
     setBusy('test');
@@ -85,5 +111,19 @@ export function useBacky() {
     [refresh],
   );
 
-  return { status, loading, busy, message, refresh, testConnection, push, restore };
+  return {
+    status,
+    webhookUrl,
+    setWebhookUrl,
+    token,
+    setToken,
+    loading,
+    busy,
+    message,
+    refresh,
+    saveConfig,
+    testConnection,
+    push,
+    restore,
+  };
 }
