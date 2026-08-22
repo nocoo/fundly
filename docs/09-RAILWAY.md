@@ -117,3 +117,25 @@ curl -sS https://fundly.hexly.ai/api/stats
 ```
 
 `/api/live` 应含 `"status":"ok"` 和 `"version"`。首次 `/api/stats` 扫 3069 万净值行约 15s，之后约 2.5s。
+
+---
+
+## 实测上线过程（2026-08-22）
+
+按发生顺序记录，数字都是当场测的。
+
+1. **本机 CLI**：`railway` 5.41.3，账号 `lizheng@lizheng.me`，workspace `hexly.ai`。公司网必须 `HTTPS_PROXY=http://127.0.0.1:7890`，否则 `backboard.railway.com/graphql/v2` 会 `tls handshake eof`。
+2. **建项目 / 服务**：项目 `fundly` `c0f17860-907e-40eb-9ae1-d64258f0a6e2`，服务 `fundly` `87995549-a6fc-486a-8613-30d0b8cfc3f8`。根目录 `Dockerfile`（`oven/bun:1.3`）+ `railway.toml`，`railway up --yes --detach`。区域 `asia-southeast1-eqsg3a`，2 vCPU / 8 GB。
+3. **挂盘**：先 `railway service link fundly`，再 `railway volume add --mount-path /data --json`。带 `--service` 会拒或不稳定。得到 `fundly-volume` `64a72912-6250-4aaa-9f8d-d00f81f858df`，配额 50 GB。变量 `FUNDLY_SQLITE=/data/fundly.db`。
+4. **空库陷阱**：镜像不含 `data/*.db`。`serve.ts` 发现文件不存在会 `initSchema`，第一次起来后 `/data/fundly.db` 只有 **12,582,912 B**，`/api/live` 正常、`/api/stats` 500。
+5. **本机直传失败**：`railway volume files upload` 传 4.0 GB 原库约 118s 后 `session closed`。本机 `gzip` 活库得到 `/tmp/fundly.db.gz` **906 MB / 45.7s**，CLI 上传约 6 MB/min，跑了十几分钟只到约 70 MB，杀掉。
+6. **可用灌库**：新加坡容器打 R2 很快。本机用 sqlite 里的 Backy 凭证取 restore 短链（**不**写进 Volume、不提交）。`ObAmSwORwjG0-VasYCNoU`（749,352,407 B，tag `fundly-db`，2026-08-22T00:55:41Z）：
+   - 容器 `fetch` → `/data/seed.db.gz`，**19s**，字节数对齐
+   - `gzip -dc` → `/data/fundly.db.new`，**45s**，3,723,972,608 B
+   - 只读核对：`fund_basic_info = 27527`，`fund_nav = 30690680`
+   - `mv` 换上 `/data/fundly.db`，删 shm/wal
+7. **必须 restart**：旧进程还握着空库 inode。换文件后 `railway restart -y`。换库过程中 `/api/stats` 打过 `SQLITE_CORRUPT`，restart 之后消失。
+8. **探活**：`https://fundly.hexly.ai/api/stats` 与 `https://fundly-production-5442.up.railway.app/api/stats` 均为 27,527 / 30,690,680，净值区间 2001-09-21 → 2026-08-20。首页 HTML 200。`df -h /data`：46G 盘、已用 3.5G。CLI `currentSizeMB` 仍可能报 `0.0`。
+9. **清场**：删掉 `seed.db.gz`、空库、restore URL、临时脚本。
+
+SSH 灌库时不要把 restore URL 走 `railway ssh` 的 stdin（CLI 会吞掉，容器里的 bun 一直等输入）。把短链写进卷上的临时文件再 `bun /data/seed.ts`，跑完立刻删。
