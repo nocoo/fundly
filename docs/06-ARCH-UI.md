@@ -15,7 +15,7 @@
 
 Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权益基金的列表、净值、阶段业绩、同类排名摊开，按 4433 / 夏普 / 回撤等规则筛选。不做交易、不做投顾、不做公开站点。
 
-采集进程写本地 `data/fundly.db`。浏览层只读这份 sqlite。Cloudflare Worker 与 D1 已拆除。
+采集进程写本地 `data/fundly.db`。浏览层只读这份 sqlite。生产在 Railway Volume，见 [09-RAILWAY.md](./09-RAILWAY.md)。Cloudflare Worker 与 D1 已拆除。
 
 ---
 
@@ -27,7 +27,7 @@ Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权
 | 前端 | Vite 8 + React 19 + React Router | Surety / Bat / Pew 同一套 |
 | 样式 | Tailwind 4 + Basalt token（朱红主色、四层亮度） | 控件库对齐 Surety / Zhe / Pew / Bat |
 | 结构 | MVVM：`lib/*-vm.ts` 纯函数，页面只渲染 | 可单测、页面不堆业务 |
-| 部署 | 本机 Vite + `dev:api` | 不再托管 Cloudflare Worker / D1 |
+| 部署 | 本机 Vite + `dev:api`；生产 Railway + Volume | 不再托管 Cloudflare Worker / D1 |
 | 本地域名 | `fundly.dev.hexly.ai` → `:7044` | Caddy v2.11.4，端口按首次立项续编 |
 | 与爬虫关系 | `apps/` 独立，不改 `src/` `scripts/` `tests/` | 避免和正在跑的采集进程抢文件 |
 | 本机数据 | `bun run dev:api` 读 sqlite | Vite `/api` 代理到 `:7045` |

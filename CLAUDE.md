@@ -121,6 +121,7 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ 覆盖率 99.15% 行 / 92.86% 函数、50/50 单测通过
 - ✅ 每日增量脚本 `fetch:daily` 上线
 - ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页
+- ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
 - 📋 Phase 2 待办：4433 法则筛选、多因子打分、Reits ETF 补齐
 - 📋 Phase 3 待办：回测引擎、Discord 推送
 
@@ -128,7 +129,8 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 
 - `v0.1.1` 打在 D1 bind-limit 修复之前。不要移动已发布 tag；含导入修复的版本走 `0.1.2`。
 - 可变表不能只 `INSERT OR IGNORE`，否则业绩/经理永远停在首次导入。
-- 已拆除 Cloudflare Worker 与 D1 `fundly-db`。浏览只走本机 sqlite，不要再 `deploy:web` / `import:d1`。
+- 已拆除 Cloudflare Worker 与 D1 `fundly-db`。不要再 `deploy:web` / `import:d1`。
+- Railway 灌库不要走 `volume files upload`（4GB 会 session closed，906MB gzip 约 6MB/min）。容器从 Backy/R2 直拉再 gunzip；换库后必须 `railway restart`。
 
 ## 🔗 关键文件快速链接
 
