@@ -44,7 +44,7 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | `fund_fees` 27,527 行，管理费 27,055、托管 27,526、销服 **22,168** 非空 | 销服 `null` 不能当 0；没有合成持有成本 |
 | `fund_nav` 3,069 万行 | 没有定投路径指标 |
 | `02-SCHEMA` 写了 `fund_screening_rank` | **schema.ts 没有这张表** |
-| `apps/worker/scripts/app.ts` `openReadonlySqlite` | 生产 **`{ readonly: true }`**，**不会** `initSchema`（只在文件不存在时建空库）。Volume 上的活库缺表时 `JOIN` 会直接炸 |
+| `apps/worker/scripts/app.ts` `openReadonlySqlite` | 生产 **`{ readonly: true }`**。现实现文件不存在时会建空库；本需求改为缺文件 503。Volume 上活库缺新表时硬 `JOIN` 会炸，必须 `hasTable` |
 
 ---
 
@@ -72,7 +72,7 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | `sharpe_1y` / `max_drawdown_1y` / `volatility_1y` / `calmar_1y` | `/select/risk` |
 | 无法识别的 `dim` | `/select/return`，丢掉 `dim` |
 
-`list-origin` 读到旧 `/ranking` 时按上表改写。localStorage `fundly_ranking_filters` 读一次：按其中 `dim` 写入 `fundly_select_return` 或 `fundly_select_risk`，再删旧 key。
+`list-origin` 读到旧 `/ranking` 时按上表改写。localStorage `fundly_ranking_filters` 读一次：按其中 `dim` 写入 `fundly_select_return` 或 `fundly_select_risk`，**原样保留 `pass4433`**，再删旧 key。收益页与风险页继续认 `pass4433`（缺省关，与现 `/ranking` 一致）；不是精选页专属。
 
 ### URL 参数
 
@@ -85,8 +85,8 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | `mvpOnly` | 只看 MVP 池 | `1` 或省略 |
 | `dim` | 该页可排序列 | 缺省=上表默认排序列 |
 | `page` | 页码 | 从 1 |
-| `pass4433` | 精选：是否要求过 4433 | 缺省开（等价 `1`）；`off` 关闭。**不是**百分位 |
-| `minSamples` | 样本门槛 | 缺省开（风险/持有/精选 = `200`）；`off` 关闭；或正整数。**不是**百分位 |
+| `pass4433` | 是否要求过 4433 | 收益/风险/持有/定投：**缺省关**；精选：**缺省开**。`1` 开，`off` 关。**不是**百分位 |
+| `minSamples` | 样本门槛 | 风险/持有/精选缺省 `200`；`off` 关闭；或正整数。**不是**百分位 |
 | `feePeer` | 精选：综合费同类百分位上限 | 缺省 `50`；`off` 关闭；或 `1`–`100` |
 | `ddPeer` | 精选：近 1 年回撤同类百分位上限 | 缺省 `50`；`off` 关闭；或 `1`–`100` |
 
@@ -165,30 +165,46 @@ nav_samples_* 仍写实际样本数
 | `worst_month_1y` | 最差自然月收益 % | 1y | 10 个完整月 |
 | `recovery_days_1y` | 窗内最大回撤后回到峰的交易日；未收复 null | 1y | 200 |
 
-路径：有 `acc_nav` 用累计净值（含分红再投资近似），否则 `unit_nav`。货基 / 无单位净值：整行 null。
+路径：用下面的**总回报指数 `tr_nav`**，不用累计净值冒充再投资。货基 / 构不成 `tr_nav`：整行 null。
 
-溃疡：第 t 日回撤 `dd_t = 1 - nav_t / peak_t`（`peak_t` 为截至 t 的滚动峰值），`ulcer = 100 * sqrt(mean(dd_t^2))`。
+溃疡：第 t 日回撤 `dd_t = 1 - tr_t / peak_t`（`peak_t` 为截至 t 的滚动峰值），`ulcer = 100 * sqrt(mean(dd_t^2))`。
+
+### 总回报指数（持有 + 定投共用）
+
+东财 `acc_nav` 是「单位净值 + 历史现金分红简单加总」，**不是**可成交价格，也**不是**分红再投资后的财富路径。禁止 `1/acc_nav` 当份额。
+
+在 `src/analytics/total-return.ts` 按日期升序构造 `tr_nav`（起点第一日 = 1）：
+
+1. 优先用 `fund_nav.daily_return`（东财 `equityReturn`，除权日已含分红）：`tr_t = tr_{t-1} * (1 + daily_return/100)`
+2. 该日缺失 `daily_return`：用 `unit_nav_t / unit_nav_{t-1} - 1`；若当日有 `fund_dividend.event_type='dividend'`，改为 `(unit_nav_t + dividend_per_share) / unit_nav_{t-1} - 1`
+3. `event_type='split'`：仅当该日走了单位净值比（第 2 步）时再乘 `split_ratio`；已用 `daily_return` 则不再调
+4. 没有单位净值序列 → 整条 `tr_nav` 为 null
+
+忽略申购费。`tr_nav` 只存在于计算内存，不落新列。
 
 ### 定投（新算）
 
-**财富路径只用累计净值 `acc_nav`**。没有 `acc_nav` 则整段 null，不用 `unit_nav` 冒充总回报。拆分已反映在净值序列里，不再单独调。忽略申购费。
+财富路径只用 `tr_nav`。构不成指数则四个字段全 null。
 
-扣款：以最新净值日为窗尾，向前 36 个自然月；每月最后一个有 `acc_nav` 的交易日投入 **1 元**。缺月跳过。有效扣款月 **N < 30** → 四个字段全 null。
+扣款：以最新净值日为窗尾，向前 36 个自然月；每月最后一个有 `tr_nav` 的交易日投入 **1 元**。缺月跳过。有效扣款月 **N < 30** → 四个字段全 null。
 
 **本金对齐**（必须写死，禁止实现时另选）：
 
 - 定投现金流：每个扣款日 `Di` 流出 1，期末一次流入终值
-- 定投份额 = `Σ 1 / acc_nav(Di)`，定投终值 `dca_fv = 份额 × acc_nav(Dend)`
-- 一次性对照本金 = **N 元**（与定投现金流出合计相等），全部在 **首个扣款日 D0** 按当天 `acc_nav` 买入
-- 一次性终值 `lump_fv = N / acc_nav(D0) × acc_nav(Dend)`
+- 定投「份额」= `Σ 1 / tr_nav(Di)`（指数单位，不是基金真实份额）
+- 定投终值 `dca_fv = 份额 × tr_nav(Dend)`
+- 一次性对照本金 = **N 元**（与定投现金流出合计相等），全部在 **首个扣款日 D0** 按当天 `tr_nav` 买入
+- 一次性终值 `lump_fv = N / tr_nav(D0) × tr_nav(Dend)`
 - `dca_vs_lump_3y = dca_fv / lump_fv - 1`
 
 | 字段 | 定义 | 窗 |
 |------|------|----|
-| `dca_cagr_3y` | 上述现金流的 XIRR，再换算成年化 % | 至多 36 个月 |
+| `dca_cagr_3y` | 上述现金流的 XIRR，再换算成年化 %（日期用真实 `Di` / `Dend`） | 至多 36 个月 |
 | `dca_vs_lump_3y` | 定投终值 / 等额期初一次性终值 − 1 | 同上 |
-| `dca_month_win_3y` | 相邻扣款日之间区间收益 > 0 的月份占比 | 同上 |
-| `dca_month_vol_3y` | 上述月收益标准差 × `sqrt(12)` | 同上 |
+| `dca_month_win_3y` | **连续自然月**区间收益 > 0 的占比 | 同上 |
+| `dca_month_vol_3y` | 上述连续月收益标准差 × `sqrt(12)` | 同上 |
+
+`dca_month_win` / `dca_month_vol` **只统计相邻两次扣款落在连续自然月**的区间（例如 1 月 31 日→2 月 28 日）。中间缺月的那一对不进入胜率/波动，也不按「一跳当一个月」再乘 `sqrt(12)`。CAGR / 对比仍用全部扣款日的真实日历，不受此限。
 
 `dca_vs_lump` 只解释，不默认排序。正值表示这段路径里定投终值高于「同等现金、第一天一次买完」。
 
@@ -205,17 +221,20 @@ nav_samples_* 仍写实际样本数
 
 销服 null **不得当 0**。成本榜与精选费率规则：**排除** `all_in_fee_pct IS NULL`。销服未知时仍展示管理+托管，并标「销服未知」，但不参与「前 50% 便宜」筛选。
 
-#### 份额记号（必须按此解析，失败则不分组）
+#### 份额记号（先剥后缀，有兄弟才入组）
 
-对 `fund_name` 去首尾空白后，只认**一次**末尾记号（先试长的）：
+对 `fund_name` 去首尾空白，只匹配**一次**末尾：
 
-1. `(人民币|美元现汇|美元现钞|美元)?[ABCDEHI]类$`
-2. `(人民币|美元现汇|美元现钞|美元)[ABCDEHI]$`
-3. `[ABCDEHI]$`，且其前一个字符属于 `型股债指混接汇码FOFETFlofLOF`
+```
+/^(.+?)(?:人民币|美元现汇|美元现钞|美元)?([ABCDEHI])类?$/
+```
 
-命中则 `share_class` = 最后那个字母（大写）；`share_group_key` = 去掉该末尾记号后的名称再 `trim`。未命中、或去掉后长度 < 2 → `share_class=''`、`share_group_key=''`，**不猜**。
+- 候选 `share_class` = 捕获的字母
+- 候选 `base` = 去掉该末尾后 `trim`，长度必须 ≥ 2
+- **写入 `share_group_key = base` 的前提**：库里另有至少一只基金，用同一规则得到相同 `base`、不同 `share_class`
+- 否则 `share_class=''`、`share_group_key=''`，**不猜**。这样「指数A / 混合A / 股票A / (FOF)A」能成组；末尾碰巧是字母、但没有兄弟的名称不会误入组
 
-兄弟份额：`GET /api/funds/:code/siblings` 返回 `share_group_key` 相同且非空、`fund_code` 不同的全部行（代码、简称、份额、综合费、销服是否已知）。不靠当前列表页拼盘。
+兄弟份额：`GET /api/funds/:code/siblings`（`funds-service.ts` + 详情字段映射 + 详情页消费）返回 `share_group_key` 相同且非空、`fund_code` 不同的全部行（代码、简称、份额、综合费、销服是否已知）。不靠当前列表页拼盘。
 
 ### 精选
 
@@ -231,7 +250,7 @@ nav_samples_* 仍写实际样本数
 
 「同类前 50%」在 **完整 `fund_type`** 内算，**先编秩、再套用户过滤**。禁止在已过滤子集上算百分位（否则 `pass4433` 会改变「前 50%」的分母）。
 
-实现必须是两层 CTE，查询时算，不另存快照表：
+实现必须是两层 CTE，查询时算，不另存快照表。**SQLite 默认把 NULL 排在 `ASC` 最前**，若 `RANK()` 在含 null 的分区里编、再用 `COUNT(col)` 做分母，非空行名次会被 null 个数抬高，百分位可超过 100。必须把 null **隔出该维窗口**：
 
 ```sql
 WITH peer AS (
@@ -243,18 +262,23 @@ WITH peer AS (
   LEFT JOIN fund_select_metrics s ON s.fund_code = b.fund_code
 ),
 ranked AS (
-  -- 百分位只在完整 fund_type 内、该维非空行上编
   SELECT *,
-    100.0 * RANK() OVER (
-      PARTITION BY fund_type
+    CASE WHEN all_in_fee_pct IS NULL THEN NULL
+    ELSE 100.0 * RANK() OVER (
+      PARTITION BY fund_type, all_in_fee_pct IS NOT NULL
       ORDER BY all_in_fee_pct ASC
-    ) / COUNT(all_in_fee_pct) OVER (PARTITION BY fund_type)
-      AS fee_pct,
-    100.0 * RANK() OVER (
-      PARTITION BY fund_type
+    ) / COUNT(all_in_fee_pct) OVER (
+      PARTITION BY fund_type, all_in_fee_pct IS NOT NULL
+    )
+    END AS fee_pct,
+    CASE WHEN max_drawdown_1y IS NULL THEN NULL
+    ELSE 100.0 * RANK() OVER (
+      PARTITION BY fund_type, max_drawdown_1y IS NOT NULL
       ORDER BY max_drawdown_1y ASC
-    ) / COUNT(max_drawdown_1y) OVER (PARTITION BY fund_type)
-      AS dd_pct
+    ) / COUNT(max_drawdown_1y) OVER (
+      PARTITION BY fund_type, max_drawdown_1y IS NOT NULL
+    )
+    END AS dd_pct
   FROM peer
 )
 SELECT * FROM ranked
@@ -263,7 +287,7 @@ SELECT * FROM ranked
    AND (ddPeer  off OR dd_pct <= :ddPeer)
 ```
 
-空值不进该维 `COUNT`。`RANK()` 是竞争名次，与 `assignRanks` 一致。
+`list` 与 `count` 必须复用同一 CTE。百分位落在 `(0, 100]`。`RANK()` 是竞争名次，与 `assignRanks` 一致。L2 夹具必须含「同类里混有 null」，断言非空行分母不含 null、pct ≤ 100。
 
 **综合分 `select_score`（越高越好，0–100）** 在 `compute:select` 时按同样 peer 口径写入表，查询不再重算：
 
@@ -329,11 +353,22 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 
 | 进程 | 打开方式 | 可否建表 |
 |------|----------|----------|
-| `serve.ts` / `dev:api` | `{ readonly: true }` | **否**。禁止在 boot 调 `initSchema` |
-| `db:init` / `compute:select` / `compute:risk` / `refresh:select` | 读写 | 是。`compute:select` **必须**先 `initSchema` |
-| `restore` | 读写 | 解压后先迁再校验 |
+| `serve.ts` / `dev:api` | `{ readonly: true }` | **否**。禁止 boot `initSchema`。文件不存在 → **fail-fast / 503**，不要再走现在的「建空库再只读」（改 `apps/worker/scripts/app.ts` `openReadonlySqlite`） |
+| 一切现有可写脚本（`db:init`、`fetch:*`、`compute:*`、`refresh:select` 等，它们已经调 `initSchema`） | 读写 | 会 `CREATE TABLE IF NOT EXISTS`。`compute:select` **必须**先 `initSchema` |
+| `restore` | 先只读验源，再读写迁移 | 见下方顺序 |
 
-列表 SQL 沿用现网 `hasTable`：`fund_select_metrics` 不存在或无行时，体验/定投/成本/精选的 sort 回退到该页不依赖新表的列（收益/风险页本身不依赖新表），**禁止**对不存在的表 `JOIN`。
+能力探测放在 **`funds-service.ts`**（现网 `hasTable` / `riskDimCaps` 已在这里，不在 `fund-query.ts`）。对 `fund_select_metrics`：
+
+- 表不存在 → 禁止 JOIN
+- 表在但该维全空 → 该维 capability = false
+
+| 页 | capability | 不可用时 |
+|----|------------|----------|
+| `/select/hold` | `EXISTS ulcer_1y IS NOT NULL` | 空态「尚未计算持有体验」，**不要**改排 `return_1y` |
+| `/select/dca` | `EXISTS dca_cagr_3y IS NOT NULL` | 空态「尚未计算定投」，同上 |
+| `/select/cost` | `EXISTS all_in_fee_pct IS NOT NULL` | 空态「尚未计算综合费」，同上 |
+| `/select/picks` | `EXISTS select_score IS NOT NULL` | 空态「尚未计算精选」，同上 |
+| 收益 / 风险 | 不依赖新表 | 风险维沿用现 `riskDims` |
 
 生产 Volume 已有 v2 库：部署 v3 代码后，在可写环境跑一次 `bun run compute:select`（Railway SSH 或本机对着同一文件），**不要**指望 `serve.ts` 第一次启动建表。
 
@@ -351,25 +386,32 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 2. `SCHEMA_VERSION = 3`；`schema_version` **按 version 定位**插入 3（`WHERE version = 3` 不存在才 INSERT）
 3. `assertFundlyDb` 改为 `SELECT MAX(version) FROM schema_version`，必须等于 `SCHEMA_VERSION`；并检查核心三表 + `fund_select_metrics` 表存在（可空）
 4. 单测夹具：当前库用 `MAX=3`（允许同时留着 version=2 行，这是增量写入的正常形态，不是错误）
-5. **旧 v2 快照不能直接当现行库**：`restore` 在 `assertFundlyDb` 之前跑 `initSchema`（只补表和 version=3 行，不改净值）。顺序：gunzip → 打开读写 → `initSchema` → `assertFundlyDb`。这样 v2 Backy 仍可换机，不会因为缺 version=3 / 缺新表而失败
+5. **旧 v2 快照不能直接当现行库**。`restore` **禁止**对来源库盲目 `initSchema`（`CREATE TABLE IF NOT EXISTS` 不会补缺列，却会插入 version=3，随后 `MAX=3` 假通过）。顺序必须是：
+
+   1. gunzip 到临时文件
+   2. **只读**验源：`MAX(version)=2`、核心三表在、`fund_basic_info`/`fund_nav` 非空。`MAX` 不是 2 也不是 3 → 拒绝。已是 3 且新表在 → 跳过迁移，走步骤 4
+   3. 打开**读写**，`initSchema`（只补 `fund_select_metrics` + 插入 version=3，不改净值）
+   4. `assertFundlyDb`（`MAX===3` 且新表存在）
+   5. 再替换正式路径
+
 6. 备份源仍走 `assertFundlyDb`，只接受已迁到 3 的库
 
-不要在 `assertFundlyDb` 里接受「MAX=2 也算过」——那会把未迁的库备份出去。v2 只允许走 restore-then-migrate。
+不要在 `assertFundlyDb` 里接受「MAX=2 也算过」——那会把未迁的库备份出去。v2 只允许走上述 restore-then-migrate。v1 / 空壳 / 缺核心表一律拒绝。
 
 ### 刷新顺序
 
-现网 `fetch:daily` **不会**跑风险或排名。新增包装脚本，**失败即停**：
+现网 `fetch:daily` **不会**跑风险或排名，且默认 `FUNDLY_DAILY_POOL=mvp`（权益白名单，不含债券/货币）。选基页默认 **没有** `mvpOnly=1`。新增包装脚本必须**强制全市场**，**失败即停**，禁止继承 mvp 默认值：
 
 ```
 bun run refresh:select
 # 内部严格按序：
-bun run fetch:daily
+FUNDLY_DAILY_POOL=all bun run fetch:daily
 bun run rank:refresh
 bun run compute:risk
 bun run compute:select
 ```
 
-`compute:select` 读 nav + fees + performance + risk，写 select 表并算 `select_score`。单独重跑后三步可以，但日常只跑包装脚本，避免漏步。失败不回滚已成功的前步。实现时写入 `docs/03-SCRIPTS.md` 与 `package.json`。
+`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk，写 select 表并算 `select_score`。单独重跑后三步可以，但日常只跑包装脚本，避免漏步。失败不回滚已成功的前步。实现时写入 `docs/03-SCRIPTS.md` 与 `package.json`。现有 crontab 里的 `FUNDLY_DAILY_POOL=mvp bun run fetch:daily` 只刷权益净值，**不能**代替本包装脚本。
 
 算库时打开独立连接、busy_timeout、不要和正在 `VACUUM` 的 backup 并行。WAL 下与只读 API 可共存；写的是小表。
 
@@ -378,15 +420,16 @@ bun run compute:select
 | 文件 | 职责 |
 |------|------|
 | `src/analytics/risk-metrics.ts` | 补 3y/5y 日历跨度门（0.8 × 窗长） |
-| `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复 |
-| `src/analytics/dca-metrics.ts` | 月定投；输入必须是 acc_nav 序列；lump = N 元 @ D0 |
-| `src/analytics/cost-metrics.ts` | 综合费、销服是否已知、份额与 group key |
+| `src/analytics/total-return.ts` | 由 unit_nav + daily_return + dividend/split 构造 `tr_nav` |
+| `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复；输入 `tr_nav` |
+| `src/analytics/dca-metrics.ts` | 月定投；输入必须是 `tr_nav`；lump = N 元 @ D0 |
+| `src/analytics/cost-metrics.ts` | 综合费、销服是否已知、份额与 group key（有兄弟才入组） |
 | `src/metrics/select-score.ts` | 用现网 `rankPct` 翻成 `select_score` |
 | `scripts/compute-select-metrics.ts` | `initSchema` + 批算写入 |
 | `scripts/refresh-select.ts` | 四步包装，fail-fast |
 | `package.json` | `compute:select`、`refresh:select` |
 
-货币/无 acc_nav：体验、定投 null；成本仍可算。
+货币/无 `tr_nav`：体验、定投 null；成本仍可算。
 
 ---
 
@@ -394,15 +437,16 @@ bun run compute:select
 
 | 层 | 路径 |
 |----|------|
-| DDL + 版本校验 | `src/db/schema.ts`、`src/db/repo.ts`、`src/backup/snapshot.ts`、`src/backup/run.ts`（restore 先 migrate） |
+| DDL + 版本校验 | `src/db/schema.ts`、`src/db/repo.ts`、`src/backup/snapshot.ts`、`src/backup/run.ts`（先只读验 v2，再 migrate，再 assert v3） |
+| 只读打开 | `apps/worker/scripts/app.ts` `openReadonlySqlite`：缺文件 503，不再建空库 |
 | 文档 | `02-SCHEMA.md`（删 `fund_screening_rank`）、`03-SCRIPTS.md`、`06-ARCH-UI.md`、`08-BACKY.md`（restore-then-migrate） |
-| 列表 SQL | `apps/worker/src/lib/fund-query.ts`：新 sort、lens=picks 两层 CTE、货基最新七日+7 日新鲜度、按维切换 `minSamples` 列；`hasTable` 守卫新表 |
-| 详情兄弟份额 | `apps/worker/scripts/app.ts` `GET /api/funds/:code/siblings` |
-| 导航/路由 | `navigation.ts`、`App.tsx`：`/select/:lens`；`/ranking` 按 dim 分组跳转 |
+| 列表 SQL | `fund-query.ts` 新 sort / picks 两层 CTE / 货基最新七日+7 日新鲜度 / 按维切换 `minSamples`；`funds-service.ts` 做 `hasTable` + 分维 EXISTS capability |
+| 详情兄弟份额 | `funds-service.ts` + `app.ts` `GET /api/funds/:code/siblings` + 详情字段映射 + 详情页 |
+| 导航/路由 | `navigation.ts`、`App.tsx`：`/select/:lens`；`/ranking` 按 dim 分组跳转，保留 `pass4433` |
 | VM/页 | `select-vm.ts`、`select-page.tsx`；`ranking-vm` 只留重定向/存储迁移 |
 | 来源 | `list-origin.ts` 识别 `/select/*`，兼容旧 `/ranking` |
 
-`serve.ts` / `openReadonlySqlite` **保持只读**，不在本需求里改成可写。
+`serve.ts` **保持只读**，不在本需求里改成可写。
 
 ---
 
@@ -410,11 +454,10 @@ bun run compute:select
 
 1. `fix: compare schema version with max row`（Backy 校验改 `MAX(version)`，先于升版）
 2. `fix: require calendar span for multi year risk`（3y/5y 跨度门，独立可测）
-3. `feat: add select metrics table and compute`
-4. `feat: restore migrates v2 snapshots to v3`
-5. `feat: expose select sort keys and picks filters`
-6. `feat: add select pages and restore nav group`
-7. `docs: sync schema scripts and ui for select`
+3. `feat: add select metrics and migrate v2 restore`（**升 v3 与 restore-then-migrate 必须同一提交**，避免中间态让历史 v2 备份不可恢复）
+4. `feat: expose select sort keys and picks filters`
+5. `feat: add select pages and restore nav group`
+6. `docs: sync schema scripts and ui for select`
 
 ---
 
@@ -422,8 +465,8 @@ bun run compute:select
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/select-vm/share-class 纯函数；夹具含回撤再收复、无 acc_nav、销服 null、不足月、lump=N@D0、份额未命中、3y 样本够但跨度不够 |
-| **L2** | fund-query 新 sort / picks 两层 CTE（过滤前后百分位分母不变）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3 夹具上通过；restore(v2)→migrate→assert 通过 |
+| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日缺 `daily_return` |
+| **L2** | fund-query 新 sort / picks 两层 CTE（过滤前后分母不变；**同类混 null** 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度 / selectCaps；`assertFundlyDb` 在 MAX=3（可含 version=2 行）上通过；restore：拒 v1、收 v2→迁→assert、已是 v3 跳过迁移 |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
 | **G2** | 不新增依赖 |
@@ -436,8 +479,9 @@ bun run compute:select
 - 侧栏「选基」七项；`/ranking` 打开即到收益页；`/ranking?dim=sharpe_1y` 到风险页
 - `typeL2` 仍是后缀；百分位公式与 `rankPct` 一致
 - 收益列只有 1m/3m/6m/1y；风险没有虚构的 5y 索提诺/卡玛；3y/5y 指标在跨度不足时为 null
-- 体验/定投/成本在 `compute:select` 之后有数；销服未知不进「最便宜 50%」
-- 精选百分位分母是完整 `fund_type`，不受 `pass4433` 影响；规则可关；`select_score` 高分在前
+- 体验/定投/成本在 `compute:select` 之后有数；销服未知不进「最便宜 50%」；未计算时各页空态而不是改排收益
+- 精选百分位分母是完整 `fund_type`，不受 `pass4433` 影响；同类混 null 时非空行 pct ≤ 100；规则可关；`select_score` 高分在前
+- 定投走 `tr_nav`，不用 `acc_nav` 当买价；`refresh:select` 强制 `FUNDLY_DAILY_POOL=all`
 - 默认带 L1；六页在 `typeL1=all` 时都警告
 - Volume 缺表时 API 不 500；restore 旧 v2 快照会迁到 3 再校验
 - 货基七日年化超过市场最新日 7 天视为过期
@@ -451,3 +495,5 @@ bun run compute:select
 - 新建 `fund_screening_rank`
 - 在只读 `serve.ts` 里建表或升版本
 - 用 `PERCENT_RANK()` 或 `(rank-1)/(n-1)` 冒充现网百分位
+- 用累计净值 `acc_nav` 当可成交价格或再投资财富路径
+- `refresh:select` 继承 `fetch:daily` 的 mvp 默认池
