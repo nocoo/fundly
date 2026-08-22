@@ -18,7 +18,7 @@ import {
 import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip, createGzip } from 'node:zlib';
-import { SCHEMA_VERSION, V2_REQUIRED_COLUMNS } from '../db/schema.ts';
+import { SCHEMA_VERSION, V2_REQUIRED_COLUMNS, V3_SELECT_COLUMNS } from '../db/schema.ts';
 
 export function snapPath(sqlite: string): string {
   return `${sqlite}.backy-snap.db`;
@@ -190,9 +190,14 @@ export function assertFundlyDb(path: string): void {
     assertCoreTables(db);
     if (!tableExists(db, 'fund_select_metrics'))
       throw new Error('missing table fund_select_metrics');
+    const selectCols = columnNames(db, 'fund_select_metrics');
+    for (const col of V3_SELECT_COLUMNS) {
+      if (!selectCols.has(col)) throw new Error(`missing column fund_select_metrics.${col}`);
+    }
     if (!columnNames(db, 'fund_trend_extra').has('grand_total_json')) {
       throw new Error('missing column fund_trend_extra.grand_total_json');
     }
+    assertV2Columns(db);
   } finally {
     db.close();
   }

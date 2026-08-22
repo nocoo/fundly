@@ -83,6 +83,27 @@ describe('assertFundlyDb', () => {
     assertFundlyDb(path);
   });
 
+  test('rejects a v2 snapshot missing frozen columns', () => {
+    const path = tmp('thin-v2.db');
+    seedMini(path);
+    const db = new Database(path);
+    db.exec('DELETE FROM schema_version WHERE version = 3');
+    db.exec('INSERT INTO schema_version (version, applied_at) VALUES (2, 1)');
+    db.exec('DROP TABLE fund_select_metrics');
+    db.exec('ALTER TABLE fund_performance DROP COLUMN rank_stats_json');
+    db.close();
+    expect(() => assertRestoreSource(path)).toThrow('fund_performance.rank_stats_json');
+  });
+
+  test('rejects a v3 database missing select metric columns', () => {
+    const path = tmp('thin-v3.db');
+    seedMini(path);
+    const db = new Database(path);
+    db.exec('ALTER TABLE fund_select_metrics DROP COLUMN recovery_status_1y');
+    db.close();
+    expect(() => assertFundlyDb(path)).toThrow('fund_select_metrics.recovery_status_1y');
+  });
+
   test('migrates a supported v2 snapshot to v3', () => {
     const path = tmp('v2.db');
     seedMini(path);
