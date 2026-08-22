@@ -39,12 +39,12 @@ Fundly 是**私人选基工作台**，不是投顾。页面回答「在给定约
 | 已有 | 缺什么 |
 |------|--------|
 | `/funds` 浏览、`/ranking` 单表切维度 | 分组名叫「排名」，没有按决策问题拆开的下属页 |
-| `fund_performance` 阶段收益 + 同类百分位 + `pass_4433` | 库里 `return_3y` / `return_5y` / `return_ytd` **实测全空**；`rank:refresh` 只临时算 3y/5y 百分位；YTD 抓取固定为空 |
-| `fund_risk_metrics` 26,072 只 / 10 秒 | 有 1y/3y/5y 的波动、回撤、夏普、年化；**没有** `sortino_5y`、`calmar_5y`。没有溃疡、水下、连跌 |
+| `fund_performance` 阶段收益 + 同类百分位 + `pass_4433` | 库里 `return_2y` / `return_3y` / `return_5y` / `return_ytd` **实测全空**；`rank:refresh` 用 `acc_nav` 比算 2y/3y/5y 百分位但不写回收益；YTD 抓取固定为空 |
+| `fund_risk_metrics` 26,072 只 / 10 秒 | 有 1y/3y/5y 的波动、回撤、夏普、年化；回撤走 `unit_nav`，现金分红会被当成亏损。**没有** `sortino_5y`、`calmar_5y`。没有溃疡、水下、连跌 |
 | `fund_fees` 27,527 行，管理费 27,055、托管 27,526、销服 **22,168** 非空 | 销服 `null` 不能当 0；没有合成持有成本 |
 | `fund_nav` 3,069 万行 | 没有定投路径指标 |
 | `02-SCHEMA` 写了 `fund_screening_rank` | **schema.ts 没有这张表** |
-| `apps/worker/scripts/app.ts` `openReadonlySqlite` | 生产 **`{ readonly: true }`**。现实现文件不存在时会建空库；本需求改为缺文件 503。Volume 上活库缺新表时硬 `JOIN` 会炸，必须 `hasTable` |
+| `apps/worker/scripts/app.ts` `openReadonlySqlite` | 生产 **`{ readonly: true }`**。现实现文件不存在时会建空库；本需求改为**进程启动失败**（抛错，不是 HTTP 503）。Volume 上活库缺新表时硬 `JOIN` 会炸，必须 `hasTable` |
 
 ---
 
@@ -151,6 +151,8 @@ nav_samples_* 仍写实际样本数
 
 `windowDays` 与现实现一致：1y=365，3y=1095，5y=1825。即 3y 至少约 2.4 年、5y 至少约 4.0 年。此门写进 `src/analytics/risk-metrics.ts`，下次 `compute:risk` 覆盖旧值。选基页不再另算跨度。
 
+**风险路径必须改用 `tr_nav`**（见下节），不能继续在 `unit_nav` 上算回撤：除息日单位净值下跳会被当成亏损，卡玛、`ddPeer`、`select_score` 一并脏掉。实测如 015141 近窗 `unit_nav` 回撤 4.52%，总回报链只有 1.51%。`compute:risk` 的波动 / 回撤 / 夏普 / 索提诺 / 卡玛 / 年化、以及 `max_drawdown_all`，全部改走 `tr_nav`（日收益优先 `daily_return`）。`rank:refresh` 给 2y/3y/5y 编秩时用 `tr_nav` 比，不再用 `acc_nav` 比，并**写回** `return_2y/3y/5y`（今日这三列全空）。收益页第一期仍只展示抓取列 1m/3m/6m/1y，避免和本地长窗口径混排。YTD 第一期仍不做。
+
 ### 持有体验（新算）
 
 描述时间折磨，不是回撤深度。同样的最大回撤，溃疡指数高 = 深回撤持续更久。
@@ -163,11 +165,22 @@ nav_samples_* 仍写实际样本数
 | `max_consec_down_1y` | 最长连续日跌 | 1y | 60 |
 | `down_day_ratio_1y` | 日收益 < 0 占比 | 1y | 60 |
 | `worst_month_1y` | 最差自然月收益 % | 1y | 10 个完整月 |
-| `recovery_days_1y` | 窗内最大回撤后回到峰的交易日；未收复 null | 1y | 200 |
+| `recovery_days_1y` | 窗内最大回撤后回到峰的交易日；仅 `recovery_status_1y='recovered'` 时有数 | 1y | 200 |
+| `recovery_status_1y` | `recovered` / `open` / `insufficient`，三者不得共用 null | 1y | — |
 
 路径：用下面的**总回报指数 `tr_nav`**，不用累计净值冒充再投资。货基 / 构不成 `tr_nav`：整行 null。
 
 溃疡：第 t 日回撤 `dd_t = 1 - tr_t / peak_t`（`peak_t` 为截至 t 的滚动峰值），`ulcer = 100 * sqrt(mean(dd_t^2))`。
+
+收复状态必须拆开，禁止 `recovery_days_1y is null` 同时表示「样本不够」和「还没回到峰」：
+
+| `recovery_status_1y` | 含义 | `recovery_days_1y` |
+|----------------------|------|--------------------|
+| `recovered` | 窗内最大回撤已回到峰 | 交易日数 |
+| `open` | 样本够，审查期末仍低于该峰 | null |
+| `insufficient` | 样本 < 200 | null |
+
+按 `recovery_days_1y` 排序：`recovered` 按天数升序 → `open`（未收复视为最差体验，排已收复之后）→ `insufficient` 最后。`metricNotNull` 不得把 `open` 当无数据丢掉。
 
 ### 总回报指数（持有 + 定投共用）
 
@@ -322,6 +335,7 @@ CREATE TABLE IF NOT EXISTS fund_select_metrics (
   down_day_ratio_1y      REAL,
   worst_month_1y         REAL,
   recovery_days_1y       INTEGER,
+  recovery_status_1y     TEXT NOT NULL DEFAULT 'insufficient',
   dca_cagr_3y            REAL,
   dca_vs_lump_3y         REAL,
   dca_month_win_3y       REAL,
@@ -353,22 +367,40 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 
 | 进程 | 打开方式 | 可否建表 |
 |------|----------|----------|
-| `serve.ts` / `dev:api` | `{ readonly: true }` | **否**。禁止 boot `initSchema`。文件不存在 → **fail-fast / 503**，不要再走现在的「建空库再只读」（改 `apps/worker/scripts/app.ts` `openReadonlySqlite`） |
-| 一切现有可写脚本（`db:init`、`fetch:*`、`compute:*`、`refresh:select` 等，它们已经调 `initSchema`） | 读写 | 会 `CREATE TABLE IF NOT EXISTS`。`compute:select` **必须**先 `initSchema` |
+| `serve.ts` / `dev:api` | `{ readonly: true }` | **否**。禁止 boot `initSchema`。文件不存在 → **`openReadonlySqlite` 抛错，进程起不来**（在 `createApi` 之前，不是 HTTP 503）。不要再走现在的「建空库再只读」 |
+| 已调用 `initSchema` 的可写脚本（`db:init`、`fetch:*`、`compute:risk`、`compute:select` 等） | 读写 | 会 `CREATE TABLE IF NOT EXISTS`。`compute:select` **必须**先 `initSchema` |
+| `rank:refresh` | 读写 | **不**调 `initSchema`，也不依赖新表 |
 | `restore` | 先只读验源，再读写迁移 | 见下方顺序 |
 
 能力探测放在 **`funds-service.ts`**（现网 `hasTable` / `riskDimCaps` 已在这里，不在 `fund-query.ts`）。对 `fund_select_metrics`：
 
 - 表不存在 → 禁止 JOIN
-- 表在但该维全空 → 该维 capability = false
+- 表在但**该排序列**全空 → 该列 capability = false
+- 用户点到不可用列：留在当前页，提示「该维尚未计算」，**不要**改排 `return_1y` 或该页默认列以外的无关指标
 
-| 页 | capability | 不可用时 |
-|----|------------|----------|
-| `/select/hold` | `EXISTS ulcer_1y IS NOT NULL` | 空态「尚未计算持有体验」，**不要**改排 `return_1y` |
-| `/select/dca` | `EXISTS dca_cagr_3y IS NOT NULL` | 空态「尚未计算定投」，同上 |
-| `/select/cost` | `EXISTS all_in_fee_pct IS NOT NULL` | 空态「尚未计算综合费」，同上 |
-| `/select/picks` | `EXISTS select_score IS NOT NULL` | 空态「尚未计算精选」，同上 |
-| 收益 / 风险 | 不依赖新表 | 风险维沿用现 `riskDims` |
+每页维度元数据（实现写成常量，VM 与 SQL 共用）：
+
+| 页 | `dim` | 默认方向 | capability | `minSamples` 列 |
+|----|-------|----------|------------|-----------------|
+| 收益 | `return_1y`（默认）/`1m`/`3m`/`6m` | 降 | 该列非空 | 无 |
+| 收益 | `seven_day_yield` | 降 | 货基且未过期 | 无 |
+| 风险 | `max_drawdown_1y`（默认）/`3y`/`5y` | 升 | 该列非空 | 对应 `nav_samples_*` |
+| 风险 | `max_drawdown_all` | 升 | 该列非空 | 无（全历史；值 null 排最后） |
+| 风险 | `volatility_1y/3y/5y` | 升 | 该列非空 | 对应 `nav_samples_*` |
+| 风险 | `sharpe_1y/3y/5y` | 降 | 该列非空 | 对应 `nav_samples_*` |
+| 风险 | `sortino_1y/3y`、`calmar_1y/3y` | 降 | 该列非空 | 对应 `nav_samples_*` |
+| 持有 | `ulcer_1y`（默认） | 升 | `ulcer_1y` 非空 | `nav_samples_1y` 200 |
+| 持有 | `underwater_ratio_1y`、`max_underwater_days_1y` | 升 | 该列非空 | 200 |
+| 持有 | `max_consec_down_1y`、`down_day_ratio_1y` | 升 | 该列非空 | 60 |
+| 持有 | `worst_month_1y` | **降**（没那么负更好） | 该列非空 | 10 个完整月 |
+| 持有 | `recovery_days_1y` | 升，且 `open` 在已收复之后 | `recovery_status_1y != 'insufficient'` | 200 |
+| 定投 | `dca_cagr_3y`（默认） | 降 | 该列非空 | 无（计算侧已要求 N≥30） |
+| 定投 | `dca_vs_lump_3y`、`dca_month_win_3y` | 降 | 该列非空 | 无 |
+| 定投 | `dca_month_vol_3y` | 升 | 该列非空 | 无 |
+| 成本 | `all_in_fee_pct`（默认） | 升 | 该列非空 | 无 |
+| 精选 | `select_score`（默认） | 降 | 该列非空 | 200（规则可关） |
+
+整页所有可排列都空 → 该页空态「请跑 `bun run compute:select`」（风险页则「请跑 `compute:risk`」）。
 
 生产 Volume 已有 v2 库：部署 v3 代码后，在可写环境跑一次 `bun run compute:select`（Railway SSH 或本机对着同一文件），**不要**指望 `serve.ts` 第一次启动建表。
 
@@ -389,9 +421,14 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 5. **旧 v2 快照不能直接当现行库**。`restore` **禁止**对来源库盲目 `initSchema`（`CREATE TABLE IF NOT EXISTS` 不会补缺列，却会插入 version=3，随后 `MAX=3` 假通过）。顺序必须是：
 
    1. gunzip 到临时文件
-   2. **只读**验源：`MAX(version)=2`、核心三表在、`fund_basic_info`/`fund_nav` 非空。`MAX` 不是 2 也不是 3 → 拒绝。已是 3 且新表在 → 跳过迁移，走步骤 4
+   2. **只读**验源，全部通过才允许写入：
+      - `PRAGMA integrity_check` = `ok`
+      - `MAX(version)` ∈ {2, 3}，其它拒绝
+      - 核心三表在且 `fund_basic_info`/`fund_nav` 非空
+      - **v2 列契约**：`fund_basic_info` / `fund_performance` / `fund_nav` / `schema_version` 的列集合不少于 `SCHEMA_VERSION=2` 时 `SCHEMA_DDL` 的列（实现时导出一份冻结的 v2 列清单，缺列即拒绝）
+      - 已是 3 且 `fund_select_metrics` 表及上表 DDL 列都在 → 跳过迁移，走步骤 4
    3. 打开**读写**，`initSchema`（只补 `fund_select_metrics` + 插入 version=3，不改净值）
-   4. `assertFundlyDb`（`MAX===3` 且新表存在）
+   4. `assertFundlyDb`（`MAX===3` + 新表存在 + v3 列契约）
    5. 再替换正式路径
 
 6. 备份源仍走 `assertFundlyDb`，只接受已迁到 3 的库
@@ -400,18 +437,26 @@ CREATE INDEX IF NOT EXISTS idx_select_share_group
 
 ### 刷新顺序
 
-现网 `fetch:daily` **不会**跑风险或排名，且默认 `FUNDLY_DAILY_POOL=mvp`（权益白名单，不含债券/货币）。选基页默认 **没有** `mvpOnly=1`。新增包装脚本必须**强制全市场**，**失败即停**，禁止继承 mvp 默认值：
+现网 `fetch:daily` **不会**跑风险或排名，且默认 `FUNDLY_DAILY_POOL=mvp`（权益白名单，不含债券/货币）。选基页默认 **没有** `mvpOnly=1`。三个子脚本都只认 `argv[2]` / 各自默认路径，**不读** `FUNDLY_SQLITE`。包装脚本必须**解析一次目标库**并显式传给每一步：
 
 ```
-bun run refresh:select
-# 内部严格按序：
-FUNDLY_DAILY_POOL=all bun run fetch:daily
-bun run rank:refresh
-bun run compute:risk
-bun run compute:select
+path = argv[2] ?? FUNDLY_SQLITE ?? DEFAULT_DB_PATH
+
+bun run refresh:select [path]
+# 内部严格按序，全部带同一个 path：
+FUNDLY_DAILY_POOL=all FUNDLY_DAILY_STRICT=1 bun run fetch:daily "$path"
+bun run rank:refresh "$path"
+bun run compute:risk "$path"
+bun run compute:select "$path"
 ```
 
-`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk，写 select 表并算 `select_score`。单独重跑后三步可以，但日常只跑包装脚本，避免漏步。失败不回滚已成功的前步。实现时写入 `docs/03-SCRIPTS.md` 与 `package.json`。现有 crontab 里的 `FUNDLY_DAILY_POOL=mvp bun run fetch:daily` 只刷权益净值，**不能**代替本包装脚本。
+`FUNDLY_DAILY_STRICT=1`：`fetch:daily` 任一基金失败则非零退出（现网默认捕获单只错误、累计 failed 仍 exit 0，包装器会在半新数据上继续算）。不设该变量时旧 crontab 行为不变。
+
+禁止继承 mvp 默认池。Railway Volume 靠 `FUNDLY_SQLITE=/data/fundly.db`，不传 path 时包装器必须读这个环境变量，不能落到仓库内 `data/fundly.db`。
+
+`compute:select` 读 `fund_basic_info`（`fund_name` / `fund_type`）+ nav + dividend + fees + performance + risk。先在内存或临时表算完全市场，再**一个事务**替换 `fund_select_metrics`（`DELETE` + `INSERT`，或 staging 表 `ALTER RENAME`）。中途失败保留旧快照；capability 只在提交成功后为真。`score_asof` = 本批开始时 `MAX(fund_nav.nav_date)`，全表同一天，不是单基金日期、也不是墙钟。
+
+单独重跑后三步可以，但日常只跑包装脚本。失败不回滚已成功的前步。实现时写入 `docs/03-SCRIPTS.md` 与 `package.json`。现有 crontab 里的 `FUNDLY_DAILY_POOL=mvp bun run fetch:daily` 只刷权益净值，**不能**代替本包装脚本。
 
 算库时打开独立连接、busy_timeout、不要和正在 `VACUUM` 的 backup 并行。WAL 下与只读 API 可共存；写的是小表。
 
@@ -419,7 +464,8 @@ bun run compute:select
 
 | 文件 | 职责 |
 |------|------|
-| `src/analytics/risk-metrics.ts` | 补 3y/5y 日历跨度门（0.8 × 窗长） |
+| `src/analytics/risk-metrics.ts` | 改走 `tr_nav`；补 3y/5y 日历跨度门（0.8 × 窗长） |
+| `src/metrics/nav-return.ts` / `src/db/ranks.ts` | 2y/3y/5y 用 `tr_nav` 比并写回 `return_*` |
 | `src/analytics/total-return.ts` | 由 unit_nav + daily_return + dividend/split 构造 `tr_nav` |
 | `src/analytics/hold-metrics.ts` | 溃疡/水下/连跌/最差月/收复；输入 `tr_nav` |
 | `src/analytics/dca-metrics.ts` | 月定投；输入必须是 `tr_nav`；lump = N 元 @ D0 |
@@ -438,7 +484,7 @@ bun run compute:select
 | 层 | 路径 |
 |----|------|
 | DDL + 版本校验 | `src/db/schema.ts`、`src/db/repo.ts`、`src/backup/snapshot.ts`、`src/backup/run.ts`（先只读验 v2，再 migrate，再 assert v3） |
-| 只读打开 | `apps/worker/scripts/app.ts` `openReadonlySqlite`：缺文件 503，不再建空库 |
+| 只读打开 | `apps/worker/scripts/app.ts` `openReadonlySqlite`：缺文件抛错，进程不起，不再建空库 |
 | 文档 | `02-SCHEMA.md`（删 `fund_screening_rank`）、`03-SCRIPTS.md`、`06-ARCH-UI.md`、`08-BACKY.md`（restore-then-migrate） |
 | 列表 SQL | `fund-query.ts` 新 sort / picks 两层 CTE / 货基最新七日+7 日新鲜度 / 按维切换 `minSamples`；`funds-service.ts` 做 `hasTable` + 分维 EXISTS capability |
 | 详情兄弟份额 | `funds-service.ts` + `app.ts` `GET /api/funds/:code/siblings` + 详情字段映射 + 详情页 |
@@ -453,7 +499,7 @@ bun run compute:select
 ## 原子化提交
 
 1. `fix: compare schema version with max row`（Backy 校验改 `MAX(version)`，先于升版）
-2. `fix: require calendar span for multi year risk`（3y/5y 跨度门，独立可测）
+2. `fix: compute risk and long ranks on tr nav`（回撤/长窗排名改总回报 + 跨度门）
 3. `feat: add select metrics and migrate v2 restore`（**升 v3 与 restore-then-migrate 必须同一提交**，避免中间态让历史 v2 备份不可恢复）
 4. `feat: expose select sort keys and picks filters`
 5. `feat: add select pages and restore nav group`
@@ -465,8 +511,8 @@ bun run compute:select
 
 | 维 | 计划 |
 |----|------|
-| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日缺 `daily_return` |
-| **L2** | fund-query 新 sort / picks 两层 CTE（过滤前后分母不变；**同类混 null** 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度 / selectCaps；`assertFundlyDb` 在 MAX=3（可含 version=2 行）上通过；restore：拒 v1、收 v2→迁→assert、已是 v3 跳过迁移 |
+| **L1** | hold/dca/cost/score/select-vm/share-class/`tr_nav` 纯函数；夹具含回撤再收复、未收复 vs 样本不足、无单位净值、销服 null、缺月后连续月、lump=N@D0、无兄弟不入组、3y 样本够但跨度不够、分红日已有 `daily_return` 不得再加分红、split 只走净值比分支 |
+| **L2** | fund-query 新 sort / 逐列 capability / picks 两层 CTE（过滤前后分母不变；**同类混 null** 时非空行 pct ∈ (0,100]）/ siblings / 货基新鲜度；`assertFundlyDb` 在 MAX=3（可含 version=2 行）上通过；restore：拒缺列 v2 / 拒 v1、收完整 v2→迁→assert、已是 v3 跳过迁移；`refresh:select` 把同一 path 传给四步；`FUNDLY_DAILY_STRICT=1` 在有失败时非零退出；`compute:select` 中断后旧表完整 |
 | **L3** | 手测七页、`/ranking?dim=sharpe_1y` 进风险页、旧 localStorage 迁移、详情返回、`typeL1=all` 六页都有警告。不进 CI |
 | **G1** | `bun run lint`、`typecheck`、`typecheck:web`、`test`、`test:web`；提交前 `test:coverage` |
 | **G2** | 不新增依赖 |
@@ -481,7 +527,8 @@ bun run compute:select
 - 收益列只有 1m/3m/6m/1y；风险没有虚构的 5y 索提诺/卡玛；3y/5y 指标在跨度不足时为 null
 - 体验/定投/成本在 `compute:select` 之后有数；销服未知不进「最便宜 50%」；未计算时各页空态而不是改排收益
 - 精选百分位分母是完整 `fund_type`，不受 `pass4433` 影响；同类混 null 时非空行 pct ≤ 100；规则可关；`select_score` 高分在前
-- 定投走 `tr_nav`，不用 `acc_nav` 当买价；`refresh:select` 强制 `FUNDLY_DAILY_POOL=all`
+- 定投/风险/2y–5y 排名都走 `tr_nav`，不用 `acc_nav` 当买价、不用 `unit_nav` 当回撤
+- `refresh:select` 强制全市场、同一 `path`、`FUNDLY_DAILY_STRICT=1`
 - 默认带 L1；六页在 `typeL1=all` 时都警告
 - Volume 缺表时 API 不 500；restore 旧 v2 快照会迁到 3 再校验
 - 货基七日年化超过市场最新日 7 天视为过期
@@ -496,4 +543,6 @@ bun run compute:select
 - 在只读 `serve.ts` 里建表或升版本
 - 用 `PERCENT_RANK()` 或 `(rank-1)/(n-1)` 冒充现网百分位
 - 用累计净值 `acc_nav` 当可成交价格或再投资财富路径
-- `refresh:select` 继承 `fetch:daily` 的 mvp 默认池
+- 继续在 `unit_nav` 上算最大回撤
+- `refresh:select` 继承 mvp 默认池、或不传库路径
+- 用 `recovery_days_1y is null` 同时表示未收复和样本不足
