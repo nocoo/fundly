@@ -258,16 +258,49 @@ describe('fundListSql', () => {
       CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
       CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
     `);
-    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','甲人民币A','混合型-偏股','J','JIA',1)`);
-    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','甲乙A','混合型-偏股','JY','JIAYI',1)`);
-    db.exec(`INSERT INTO fund_basic_info VALUES ('000003','指数A','混合型-偏股','ZS','ZHISHU',1)`);
-    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
-    db.exec(`INSERT INTO fund_performance VALUES ('000002',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
-    db.exec(`INSERT INTO fund_performance VALUES ('000003',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    const names = [
+      ['000001', '甲人民币A'],
+      ['000002', '甲乙A'],
+      ['000003', '指数A'],
+      ['000004', '甲乙A\t'],
+      ['000005', '甲乙A\n'],
+      ['000006', '甲乙A\u00a0'],
+      ['000007', '甲乙人民币a'],
+      ['000008', '某沪深300ETF'],
+    ];
+    for (const [code, name] of names) {
+      db.exec(`INSERT INTO fund_basic_info VALUES ('${code}','${name}','混合型-偏股','X','X',1)`);
+      db.exec(`INSERT INTO fund_performance VALUES ('${code}',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    }
     const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }));
     const rows = db.query(built.listSql).all(...built.listParams) as Array<{ fund_name: string }>;
-    expect(rows.map((row) => row.fund_name).sort()).toEqual(['指数A', '甲乙A']);
+    expect(rows.map((row) => row.fund_name).sort()).toEqual([
+      '指数A',
+      '甲乙A',
+      '甲乙A\t',
+      '甲乙A\n',
+      '甲乙A\u00a0',
+    ]);
     db.close();
+  });
+
+  it('keeps share-letter fallback SQL under the 100kb statement limit', () => {
+    const worst = fundListSql(
+      parseFundListQuery({
+        q: 'A',
+        sort: 'all_in_fee_pct',
+        typeL1: '混合型',
+        typeL2: '偏股',
+        mvpOnly: '1',
+        hasNav: '1',
+        pass4433: '1',
+        metricNotNull: '1',
+        pageSize: '500',
+      }),
+      { fees: true },
+    );
+    expect(new TextEncoder().encode(worst.listSql).length).toBeLessThan(100_000);
+    expect(new TextEncoder().encode(worst.countSql).length).toBeLessThan(100_000);
   });
 
   it('projects share_class so picks search can score share letters', () => {

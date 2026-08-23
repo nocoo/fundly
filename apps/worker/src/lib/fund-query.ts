@@ -257,63 +257,38 @@ export function resolveFundListQuery(
   return query;
 }
 
-const SHARE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] as const;
-
 const SHARE_CURRENCIES = ['人民币', '美元现汇', '美元现钞', '美元汇', '美元'] as const;
 
+// JS String.trim() whitespace so SQL letter extraction matches parseShareClass.
+const JS_TRIM_CODES = [
+  9, 10, 11, 12, 13, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202,
+  8232, 8233, 8239, 8287, 12288, 65279,
+] as const;
+
+function jsTrimSql(rawExpr: string): string {
+  return `trim(${JS_TRIM_CODES.reduce((expr, code) => `replace(${expr}, char(${code}), ' ')`, rawExpr)})`;
+}
+
 function nameShareLetterSql(rawExpr: string): string {
-  const nameExpr = `trim(replace(replace(${rawExpr}, char(9), ' '), '　', ' '))`;
-  const productTails = ['ETF', 'LOF', 'FOF'].flatMap((tag) => [
-    `'%${tag}'`,
-    `'%${tag}类'`,
-    ...SHARE_CURRENCIES.flatMap((cur) => [`'%${tag}${cur}'`, `'%${tag}类${cur}'`]),
-  ]);
-  const qdiiTails = [
-    "'%QDII'",
-    "'%QDII类'",
-    ...SHARE_CURRENCIES.flatMap((cur) => [`'%QDII${cur}'`, `'%QDII类${cur}'`]),
-  ];
-  const blockedF = `(${productTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
-  const blockedI = `(${qdiiTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
-  const branches = SHARE_LETTERS.map((letter) => {
-    const notCurrencyLetter = SHARE_CURRENCIES.map(
-      (cur) =>
-        `${nameExpr} NOT GLOB '*${cur}${letter}' AND ${nameExpr} NOT GLOB '*${letter}${cur}'`,
-    ).join(' AND ');
-    const notCurrencyClass = SHARE_CURRENCIES.map(
-      (cur) =>
-        `${nameExpr} NOT GLOB '*${cur}${letter}类' AND ${nameExpr} NOT GLOB '*${letter}类${cur}'`,
-    ).join(' AND ');
-    const tails: Array<{ pred: string; minLen: number }> = [
-      {
-        pred: `${nameExpr} GLOB '*${letter}' AND ${nameExpr} NOT GLOB '*${letter}类' AND ${notCurrencyLetter}`,
-        minLen: 3,
-      },
-      {
-        pred: `${nameExpr} GLOB '*${letter}类' AND ${notCurrencyClass}`,
-        minLen: 4,
-      },
-      ...SHARE_CURRENCIES.flatMap((cur) => [
-        {
-          pred: `${nameExpr} GLOB '*${cur}${letter}' AND ${nameExpr} NOT GLOB '*${cur}${letter}类'`,
-          minLen: cur.length + 3,
-        },
-        { pred: `${nameExpr} GLOB '*${cur}${letter}类'`, minLen: cur.length + 4 },
-        {
-          pred: `${nameExpr} GLOB '*${letter}${cur}' AND ${nameExpr} NOT GLOB '*${letter}类${cur}'`,
-          minLen: cur.length + 3,
-        },
-        { pred: `${nameExpr} GLOB '*${letter}类${cur}'`, minLen: cur.length + 4 },
-      ]),
-    ];
-    const hit = `(${tails
-      .map((tail) => `(${tail.pred} AND length(${nameExpr}) >= ${tail.minLen})`)
-      .join(' OR ')})`;
-    if (letter === 'F') return `WHEN ${hit} AND NOT ${blockedF} THEN 'F'`;
-    if (letter === 'I') return `WHEN ${hit} AND NOT ${blockedI} THEN 'I'`;
-    return `WHEN ${hit} THEN '${letter}'`;
-  });
-  return `CASE ${branches.join(' ')} ELSE '' END`;
+  const n = 'n';
+  const blockedF = `(${n} GLOB '*ETF' OR ${n} GLOB '*ETF类' OR ${n} GLOB '*LOF' OR ${n} GLOB '*LOF类' OR ${n} GLOB '*FOF' OR ${n} GLOB '*FOF类')`;
+  const blockedI = `(${n} GLOB '*QDII' OR ${n} GLOB '*QDII类')`;
+  const letterCase = `CASE
+    WHEN ${blockedF} OR ${blockedI} THEN ''
+    ${SHARE_CURRENCIES.flatMap((cur) => [
+      `WHEN ${n} GLOB '*[A-I]类${cur}' AND length(${n}) >= ${cur.length + 4} THEN substr(${n}, -${cur.length + 2}, 1)`,
+      `WHEN ${n} GLOB '*[A-I]${cur}' AND length(${n}) >= ${cur.length + 3} THEN substr(${n}, -${cur.length + 1}, 1)`,
+      `WHEN ${n} GLOB '*${cur}[A-I]类' AND length(${n}) >= ${cur.length + 4} THEN substr(${n}, -2, 1)`,
+      `WHEN ${n} GLOB '*${cur}[A-I]' AND length(${n}) >= ${cur.length + 3} THEN substr(${n}, -1, 1)`,
+    ]).join(' ')}
+    WHEN ${n} GLOB '*[A-I]类' AND length(${n}) >= 4
+      AND ${SHARE_CURRENCIES.map((cur) => `${n} NOT GLOB '*${cur}[A-I]类' AND ${n} NOT GLOB '*[A-I]类${cur}'`).join(' AND ')}
+      THEN substr(${n}, -2, 1)
+    WHEN ${n} GLOB '*[A-I]' AND length(${n}) >= 3
+      AND ${SHARE_CURRENCIES.map((cur) => `${n} NOT GLOB '*${cur}[A-I]' AND ${n} NOT GLOB '*[A-I]${cur}'`).join(' AND ')}
+      THEN substr(${n}, -1, 1)
+    ELSE '' END`;
+  return `(SELECT ${letterCase} FROM (SELECT ${jsTrimSql(rawExpr)} AS n))`;
 }
 
 function shareLetterExpr(
@@ -339,7 +314,7 @@ function searchScoreSql(
   const full = qualify("IFNULL(b.pinyin_full, '')", flat);
   const letter = shareLetterExpr(hasSelect, flat, selectCols);
   let shareSql = '0';
-  if (q.shareLetter) {
+  if (q.shareLetter && searchQueryKind(q) !== 'share') {
     shareSql = `CASE WHEN ${letter} = ? THEN -1 WHEN ${letter} != '' THEN 3 ELSE 0 END`;
   }
   const expr = `(
@@ -372,7 +347,7 @@ function searchScoreSql(
     q.normalized,
     q.normalized,
   ];
-  if (q.shareLetter) caseParams.push(q.shareLetter);
+  if (q.shareLetter && searchQueryKind(q) !== 'share') caseParams.push(q.shareLetter);
   return { expr, params: caseParams };
 }
 
