@@ -266,15 +266,39 @@ const JS_TRIM_CODES = [
 ] as const;
 
 function jsTrimSql(rawExpr: string): string {
-  return `trim(${JS_TRIM_CODES.reduce((expr, code) => `replace(${expr}, char(${code}), ' ')`, rawExpr)})`;
+  const chunk = 5;
+  let from = '';
+  for (let i = 0; i < JS_TRIM_CODES.length; i += chunk) {
+    const source = i === 0 ? rawExpr : 'n';
+    const replaced = JS_TRIM_CODES.slice(i, i + chunk).reduce(
+      (expr, code) => `replace(${expr}, char(${code}), ' ')`,
+      source,
+    );
+    from = from ? `(SELECT ${replaced} AS n FROM ${from})` : `(SELECT ${replaced} AS n)`;
+  }
+  return `(SELECT trim(n) AS n FROM ${from})`;
+}
+
+function productBlockGlobs(n: string, letter: 'F' | 'I'): string {
+  const stems = letter === 'F' ? ['ET', 'LO', 'FO'] : ['QDI'];
+  const globs: string[] = [];
+  for (const stem of stems) {
+    globs.push(`${n} GLOB '*${stem}${letter}'`, `${n} GLOB '*${stem}${letter}类'`);
+    for (const cur of SHARE_CURRENCIES) {
+      globs.push(
+        `${n} GLOB '*${stem}${letter}${cur}'`,
+        `${n} GLOB '*${stem}${letter}类${cur}'`,
+        `${n} GLOB '*${stem}${cur}${letter}'`,
+        `${n} GLOB '*${stem}${cur}${letter}类'`,
+      );
+    }
+  }
+  return globs.join(' OR ');
 }
 
 function nameShareLetterSql(rawExpr: string): string {
   const n = 'n';
-  const blockedF = `(${n} GLOB '*ETF' OR ${n} GLOB '*ETF类' OR ${n} GLOB '*LOF' OR ${n} GLOB '*LOF类' OR ${n} GLOB '*FOF' OR ${n} GLOB '*FOF类')`;
-  const blockedI = `(${n} GLOB '*QDII' OR ${n} GLOB '*QDII类')`;
   const letterCase = `CASE
-    WHEN ${blockedF} OR ${blockedI} THEN ''
     ${SHARE_CURRENCIES.flatMap((cur) => [
       `WHEN ${n} GLOB '*[A-I]类${cur}' AND length(${n}) >= ${cur.length + 4} THEN substr(${n}, -${cur.length + 2}, 1)`,
       `WHEN ${n} GLOB '*[A-I]${cur}' AND length(${n}) >= ${cur.length + 3} THEN substr(${n}, -${cur.length + 1}, 1)`,
@@ -288,7 +312,13 @@ function nameShareLetterSql(rawExpr: string): string {
       AND ${SHARE_CURRENCIES.map((cur) => `${n} NOT GLOB '*${cur}[A-I]' AND ${n} NOT GLOB '*[A-I]${cur}'`).join(' AND ')}
       THEN substr(${n}, -1, 1)
     ELSE '' END`;
-  return `(SELECT ${letterCase} FROM (SELECT ${jsTrimSql(rawExpr)} AS n))`;
+  return `(SELECT CASE
+    WHEN letter = 'F' AND (${productBlockGlobs('n', 'F')}) THEN ''
+    WHEN letter = 'I' AND (${productBlockGlobs('n', 'I')}) THEN ''
+    ELSE letter
+  END FROM (
+    SELECT n, ${letterCase} AS letter FROM ${jsTrimSql(rawExpr)}
+  ))`;
 }
 
 function shareLetterExpr(

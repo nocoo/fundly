@@ -284,6 +284,38 @@ describe('fundListSql', () => {
     db.close();
   });
 
+  it('does not treat currency-suffixed ETF/QDII tails as share letters', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+    `);
+    const names = [
+      ['000001', '某沪深300ETF人民币'],
+      ['000002', '某ET人民币F'],
+      ['000003', '易方达安悦超短债F'],
+      ['000004', '某全球QDII人民币'],
+      ['000005', '指数I'],
+    ];
+    for (const [code, name] of names) {
+      db.query('INSERT INTO fund_basic_info VALUES (?, ?, ?, ?, ?, 1)').run(
+        code,
+        name,
+        '混合型-偏股',
+        'X',
+        'X',
+      );
+      db.exec(`INSERT INTO fund_performance VALUES ('${code}',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    }
+    const f = fundListSql(parseFundListQuery({ q: 'F', sort: 'fund_code' }));
+    const fRows = db.query(f.listSql).all(...f.listParams) as Array<{ fund_name: string }>;
+    expect(fRows.map((row) => row.fund_name)).toEqual(['易方达安悦超短债F']);
+    const i = fundListSql(parseFundListQuery({ q: 'I', sort: 'fund_code' }));
+    const iRows = db.query(i.listSql).all(...i.listParams) as Array<{ fund_name: string }>;
+    expect(iRows.map((row) => row.fund_name)).toEqual(['指数I']);
+    db.close();
+  });
+
   it('keeps share-letter fallback SQL under the 100kb statement limit', () => {
     const worst = fundListSql(
       parseFundListQuery({
