@@ -92,10 +92,23 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   };
 }
 
+function splitShareCodes(
+  rows: Array<{ fund_code: string; letter: string }>,
+  letter: string,
+): { matched: string[]; others: string[] } {
+  const matched: string[] = [];
+  const others: string[] = [];
+  for (const row of rows) {
+    if (row.letter === letter) matched.push(row.fund_code);
+    else if (row.letter) others.push(row.fund_code);
+  }
+  return { matched, others };
+}
+
 async function shareLetterOpts(
   exec: QueryExec,
   parsed: ReturnType<typeof parseSearchQuery> | null,
-): Promise<{ shareCodes?: string[]; scoreShareCodes?: string[] }> {
+): Promise<{ shareCodes?: string[]; scoreShareCodes?: string[]; otherShareCodes?: string[] }> {
   if (!parsed?.shareLetter) return {};
   const letter = parsed.shareLetter;
   const kind = searchQueryKind(parsed);
@@ -112,22 +125,27 @@ async function shareLetterOpts(
   if (await hasTable(exec, 'fund_select_metrics')) {
     const cols = await columnSet(exec, 'fund_select_metrics');
     if (cols.has('share_class')) {
-      const rows = await exec.all<{ fund_code: string }>(
-        `SELECT fund_code FROM fund_select_metrics
-         WHERE share_class != '' AND substr(share_class, -1, 1) = ?`,
-        [letter],
+      const rows = await exec.all<{ fund_code: string; share_class: string }>(
+        `SELECT fund_code, share_class FROM fund_select_metrics WHERE share_class != ''`,
       );
-      return { scoreShareCodes: rows.map((row) => row.fund_code) };
+      const split = splitShareCodes(
+        rows.map((row) => ({ fund_code: row.fund_code, letter: row.share_class.slice(-1) })),
+        letter,
+      );
+      return { scoreShareCodes: split.matched, otherShareCodes: split.others };
     }
   }
   const names = await exec.all<{ fund_code: string; fund_name: string }>(
     'SELECT fund_code, fund_name FROM fund_basic_info',
   );
-  return {
-    scoreShareCodes: names
-      .filter((row) => parseShareClass(row.fund_name).letter === letter)
-      .map((row) => row.fund_code),
-  };
+  const split = splitShareCodes(
+    names.map((row) => ({
+      fund_code: row.fund_code,
+      letter: parseShareClass(row.fund_name).letter,
+    })),
+    letter,
+  );
+  return { scoreShareCodes: split.matched, otherShareCodes: split.others };
 }
 
 async function hasTable(exec: QueryExec, name: string): Promise<boolean> {

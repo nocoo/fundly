@@ -257,10 +257,18 @@ export function resolveFundListQuery(
   return query;
 }
 
+function inListSql(
+  column: string,
+  codes: readonly string[],
+): { sql: string; params: SqlBinding[] } {
+  return { sql: `${column} IN (${codes.map(() => '?').join(',')})`, params: [...codes] };
+}
+
 function searchScoreSql(
   q: ReturnType<typeof parseSearchQuery>,
   flat: boolean,
-  shareCodes?: readonly string[],
+  scoreShareCodes?: readonly string[],
+  otherShareCodes?: readonly string[],
 ): { expr: string; params: SqlBinding[] } {
   const name = qualify('b.fund_name', flat);
   const code = qualify('b.fund_code', flat);
@@ -268,10 +276,20 @@ function searchScoreSql(
   const full = qualify("IFNULL(b.pinyin_full, '')", flat);
   let shareSql = '0';
   const shareParams: SqlBinding[] = [];
-  if (q.shareLetter && searchQueryKind(q) !== 'share' && shareCodes && shareCodes.length > 0) {
-    const placeholders = shareCodes.map(() => '?').join(',');
-    shareSql = `CASE WHEN ${qualify('b.fund_code', flat)} IN (${placeholders}) THEN -1 ELSE 0 END`;
-    shareParams.push(...shareCodes);
+  if (q.shareLetter && searchQueryKind(q) !== 'share') {
+    const codeCol = qualify('b.fund_code', flat);
+    const matched = scoreShareCodes?.length ? inListSql(codeCol, scoreShareCodes) : null;
+    const others = otherShareCodes?.length ? inListSql(codeCol, otherShareCodes) : null;
+    if (matched && others) {
+      shareSql = `CASE WHEN ${matched.sql} THEN -1 WHEN ${others.sql} THEN 3 ELSE 0 END`;
+      shareParams.push(...matched.params, ...others.params);
+    } else if (matched) {
+      shareSql = `CASE WHEN ${matched.sql} THEN -1 ELSE 0 END`;
+      shareParams.push(...matched.params);
+    } else if (others) {
+      shareSql = `CASE WHEN ${others.sql} THEN 3 ELSE 0 END`;
+      shareParams.push(...others.params);
+    }
   }
   const expr = `(
     CASE
@@ -475,7 +493,12 @@ export function buildFundListClauses(
     orderSql = `ORDER BY ${qualify(SORT_COLUMNS[query.sort], flat)} ${dirSql}, ${codeOrd} ASC`;
   }
   if (parsed && kind && kind !== 'empty') {
-    const scored = searchScoreSql(parsed, flat, opts.scoreShareCodes ?? opts.shareCodes);
+    const scored = searchScoreSql(
+      parsed,
+      flat,
+      opts.scoreShareCodes ?? opts.shareCodes,
+      opts.otherShareCodes,
+    );
     scoreParams.push(...scored.params);
     orderSql = `ORDER BY ${scored.expr} ASC, ${orderSql.replace(/^ORDER BY /, '')}`;
   }
@@ -567,6 +590,7 @@ export type FundListSqlOpts = {
   fees?: boolean;
   shareCodes?: readonly string[];
   scoreShareCodes?: readonly string[];
+  otherShareCodes?: readonly string[];
   riskCols?: ReadonlySet<string>;
   selectCols?: ReadonlySet<string>;
   feeCols?: ReadonlySet<string>;
@@ -737,6 +761,7 @@ export function fundListSql(
     fees: joinFees,
     shareCodes: opts.shareCodes,
     scoreShareCodes: opts.scoreShareCodes,
+    otherShareCodes: opts.otherShareCodes,
     riskCols: opts.riskCols,
     selectCols: opts.selectCols,
     feeCols: opts.feeCols,

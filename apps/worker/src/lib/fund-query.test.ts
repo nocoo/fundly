@@ -338,6 +338,7 @@ describe('fundListSql', () => {
   });
 
   it('keeps share-letter fallback SQL under the 100kb statement limit', () => {
+    const shareCodes = Array.from({ length: 12_000 }, (_, i) => String(i).padStart(6, '0'));
     const worst = fundListSql(
       parseFundListQuery({
         q: 'A',
@@ -350,8 +351,9 @@ describe('fundListSql', () => {
         metricNotNull: '1',
         pageSize: '500',
       }),
-      { fees: true },
+      { fees: true, shareCodes },
     );
+    expect(worst.listSql).toContain('b.fund_code IN (');
     expect(new TextEncoder().encode(worst.listSql).length).toBeLessThan(100_000);
     expect(new TextEncoder().encode(worst.countSql).length).toBeLessThan(100_000);
   });
@@ -367,10 +369,13 @@ describe('fundListSql', () => {
   it('scores stored share_class matches without boosting empty classes', () => {
     const built = fundListSql(parseFundListQuery({ q: '测试A', sort: 'fund_code' }), {
       scoreShareCodes: ['000002'],
+      otherShareCodes: ['000003'],
     });
+    expect(built.listSql).toContain('THEN -1 WHEN');
+    expect(built.listSql).toContain('THEN 3 ELSE 0 END');
     expect(built.listParams).toContain('000002');
+    expect(built.listParams).toContain('000003');
     expect(built.listParams).not.toContain('000001');
-    expect(built.listSql).toContain('b.fund_code IN (?)');
   });
 
   it('projects share_class so picks search can score share letters', () => {
