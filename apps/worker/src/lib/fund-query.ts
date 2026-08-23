@@ -278,11 +278,11 @@ function nameShareLetterSql(rawExpr: string): string {
   const branches = SHARE_LETTERS.map((letter) => {
     const notCurrencyLetter = SHARE_CURRENCIES.map(
       (cur) =>
-        `${nameExpr} NOT LIKE '%${cur}${letter}' AND ${nameExpr} NOT LIKE '%${letter}${cur}'`,
+        `${nameExpr} NOT GLOB '*${cur}${letter}' AND ${nameExpr} NOT GLOB '*${letter}${cur}'`,
     ).join(' AND ');
     const notCurrencyClass = SHARE_CURRENCIES.map(
       (cur) =>
-        `${nameExpr} NOT LIKE '%${cur}${letter}类' AND ${nameExpr} NOT LIKE '%${letter}类${cur}'`,
+        `${nameExpr} NOT GLOB '*${cur}${letter}类' AND ${nameExpr} NOT GLOB '*${letter}类${cur}'`,
     ).join(' AND ');
     const tails: Array<{ pred: string; minLen: number }> = [
       {
