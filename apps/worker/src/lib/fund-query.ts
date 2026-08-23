@@ -262,7 +262,7 @@ const SHARE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] as const;
 const SHARE_CURRENCIES = ['人民币', '美元现汇', '美元现钞', '美元汇', '美元'] as const;
 
 function nameShareLetterSql(rawExpr: string): string {
-  const nameExpr = `trim(${rawExpr})`;
+  const nameExpr = `trim(replace(replace(${rawExpr}, char(9), ' '), '　', ' '))`;
   const productTails = ['ETF', 'LOF', 'FOF'].flatMap((tag) => [
     `'%${tag}'`,
     `'%${tag}类'`,
@@ -295,15 +295,15 @@ function nameShareLetterSql(rawExpr: string): string {
       },
       ...SHARE_CURRENCIES.flatMap((cur) => [
         {
-          pred: `${nameExpr} LIKE '%${cur}${letter}' AND ${nameExpr} NOT LIKE '%${cur}${letter}类'`,
+          pred: `${nameExpr} GLOB '*${cur}${letter}' AND ${nameExpr} NOT GLOB '*${cur}${letter}类'`,
           minLen: cur.length + 3,
         },
-        { pred: `${nameExpr} LIKE '%${cur}${letter}类'`, minLen: cur.length + 4 },
+        { pred: `${nameExpr} GLOB '*${cur}${letter}类'`, minLen: cur.length + 4 },
         {
-          pred: `${nameExpr} LIKE '%${letter}${cur}' AND ${nameExpr} NOT LIKE '%${letter}类${cur}'`,
+          pred: `${nameExpr} GLOB '*${letter}${cur}' AND ${nameExpr} NOT GLOB '*${letter}类${cur}'`,
           minLen: cur.length + 3,
         },
-        { pred: `${nameExpr} LIKE '%${letter}类${cur}'`, minLen: cur.length + 4 },
+        { pred: `${nameExpr} GLOB '*${letter}类${cur}'`, minLen: cur.length + 4 },
       ]),
     ];
     const hit = `(${tails
