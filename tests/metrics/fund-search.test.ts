@@ -80,6 +80,9 @@ describe('fund search', () => {
   test('reads share letters from the normalized query', () => {
     expect(parseSearchQuery('测试a').shareLetter).toBe('A');
     expect(parseSearchQuery('测试A').shareLetter).toBe('A');
+    expect(parseSearchQuery('A类').shareLetter).toBe('A');
+    expect(parseSearchQuery('300ETFA').shareLetter).toBe('A');
+    expect(parseSearchQuery('ETFA').shareLetter).toBe('A');
   });
 
   test('does not infer a missing stored share letter from the name', () => {

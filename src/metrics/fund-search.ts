@@ -19,6 +19,12 @@ export type SearchCandidate = {
   shareLetter: string;
 };
 
+function queryShareLetter(normalized: string): string {
+  if (/^[A-I]类?$/.test(normalized)) return normalized[0] ?? '';
+  if (!/[\u4e00-\u9fff]|类|ETF|LOF|FOF|QDII/.test(normalized)) return '';
+  return parseShareClass(normalized).letter;
+}
+
 export function parseSearchQuery(raw: string): SearchSignals {
   const normalized = raw
     .trim()
@@ -30,10 +36,7 @@ export function parseSearchQuery(raw: string): SearchSignals {
   const hasEtf = normalized.includes('ETF');
   const hasLof = normalized.includes('LOF');
   const hasLink = normalized.includes('联接') || normalized.includes('聯接');
-  const parsedShare = /[\u4e00-\u9fff]|类/.test(normalized)
-    ? parseShareClass(normalized).letter
-    : '';
-  const shareLetter = parsedShare || (/^[A-I]$/.test(normalized) ? normalized : '');
+  const shareLetter = queryShareLetter(normalized);
   let core = normalized
     .replace(/基金/g, '')
     .replace(/ETF联接/g, '')
