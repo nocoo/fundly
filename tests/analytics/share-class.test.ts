@@ -19,6 +19,15 @@ describe('parseShareClass', () => {
     expect(parseShareClass('某沪深300ETF').letter).toBe('');
     expect(parseShareClass('某黄金LOF').letter).toBe('');
     expect(parseShareClass('某全球QDII').letter).toBe('');
+    expect(parseShareClass('某沪深300ETF人民币').letter).toBe('');
+    expect(parseShareClass('某ET 人民币F').letter).toBe('');
+    expect(parseShareClass('某QDI I').letter).toBe('');
+  });
+
+  test('trims the base after stripping the suffix', () => {
+    expect(parseShareClass('甲 A').letter).toBe('');
+    expect(parseShareClass('甲乙A\t').letter).toBe('A');
+    expect(parseShareClass('指数A\u00a0').letter).toBe('A');
   });
 
   test('groups only when a sibling class exists', () => {

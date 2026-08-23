@@ -18,11 +18,15 @@ export type ParsedShareClass = {
   letter: string;
 };
 
+export function trimShareName(name: string): string {
+  return name.replace(/^[\t\n\r \u00a0\u3000]+|[\t\n\r \u00a0\u3000]+$/g, '');
+}
+
 export function parseShareClass(name: string): ParsedShareClass {
-  const text = name.trim();
+  const text = trimShareName(name);
   const match = SHARE_SUFFIX.exec(text);
   if (!match) return { shareClass: '', base: '', letter: '' };
-  const rest = (match[1] ?? '').trim();
+  const rest = trimShareName(match[1] ?? '');
   const suffix = match[2] ?? '';
   const letterMatch = /[A-I]/.exec(suffix);
   const letter = letterMatch?.[0] ?? '';

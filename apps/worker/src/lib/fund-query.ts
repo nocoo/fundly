@@ -259,46 +259,12 @@ export function resolveFundListQuery(
 
 const SHARE_CURRENCIES = ['人民币', '美元现汇', '美元现钞', '美元汇', '美元'] as const;
 
-// JS String.trim() whitespace so SQL letter extraction matches parseShareClass.
-const JS_TRIM_CODES = [
-  9, 10, 11, 12, 13, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202,
-  8232, 8233, 8239, 8287, 12288, 65279,
-] as const;
-
-function jsTrimSql(rawExpr: string): string {
-  const chunk = 5;
-  let from = '';
-  for (let i = 0; i < JS_TRIM_CODES.length; i += chunk) {
-    const source = i === 0 ? rawExpr : 'n';
-    const replaced = JS_TRIM_CODES.slice(i, i + chunk).reduce(
-      (expr, code) => `replace(${expr}, char(${code}), ' ')`,
-      source,
-    );
-    from = from ? `(SELECT ${replaced} AS n FROM ${from})` : `(SELECT ${replaced} AS n)`;
-  }
-  return `(SELECT trim(n) AS n FROM ${from})`;
+function trimmedNameSql(rawExpr: string): string {
+  return `trim(replace(replace(replace(replace(replace(${rawExpr}, char(9), ' '), char(10), ' '), char(13), ' '), char(160), ' '), char(12288), ' '))`;
 }
 
-function productBlockGlobs(n: string, letter: 'F' | 'I'): string {
-  const stems = letter === 'F' ? ['ET', 'LO', 'FO'] : ['QDI'];
-  const globs: string[] = [];
-  for (const stem of stems) {
-    globs.push(`${n} GLOB '*${stem}${letter}'`, `${n} GLOB '*${stem}${letter}类'`);
-    for (const cur of SHARE_CURRENCIES) {
-      globs.push(
-        `${n} GLOB '*${stem}${letter}${cur}'`,
-        `${n} GLOB '*${stem}${letter}类${cur}'`,
-        `${n} GLOB '*${stem}${cur}${letter}'`,
-        `${n} GLOB '*${stem}${cur}${letter}类'`,
-      );
-    }
-  }
-  return globs.join(' OR ');
-}
-
-function nameShareLetterSql(rawExpr: string): string {
-  const n = 'n';
-  const letterCase = `CASE
+function shareLetterCaseSql(n: string): string {
+  return `CASE
     ${SHARE_CURRENCIES.flatMap((cur) => [
       `WHEN ${n} GLOB '*[A-I]类${cur}' AND length(${n}) >= ${cur.length + 4} THEN substr(${n}, -${cur.length + 2}, 1)`,
       `WHEN ${n} GLOB '*[A-I]${cur}' AND length(${n}) >= ${cur.length + 3} THEN substr(${n}, -${cur.length + 1}, 1)`,
@@ -312,24 +278,59 @@ function nameShareLetterSql(rawExpr: string): string {
       AND ${SHARE_CURRENCIES.map((cur) => `${n} NOT GLOB '*${cur}[A-I]' AND ${n} NOT GLOB '*[A-I]${cur}'`).join(' AND ')}
       THEN substr(${n}, -1, 1)
     ELSE '' END`;
-  return `(SELECT CASE
-    WHEN letter = 'F' AND (${productBlockGlobs('n', 'F')}) THEN ''
-    WHEN letter = 'I' AND (${productBlockGlobs('n', 'I')}) THEN ''
-    ELSE letter
-  END FROM (
-    SELECT n, ${letterCase} AS letter FROM ${jsTrimSql(rawExpr)}
-  ))`;
+}
+
+function shareSuffixLenSql(): string {
+  return `CASE
+    WHEN letter = '' THEN 0
+    ${SHARE_CURRENCIES.flatMap((cur) => [
+      `WHEN n GLOB '*' || letter || '类${cur}' THEN ${cur.length + 2}`,
+      `WHEN n GLOB '*' || letter || '${cur}' THEN ${cur.length + 1}`,
+      `WHEN n GLOB '*${cur}' || letter || '类' THEN ${cur.length + 2}`,
+      `WHEN n GLOB '*${cur}' || letter THEN ${cur.length + 1}`,
+    ]).join(' ')}
+    WHEN n GLOB '*' || letter || '类' THEN 2
+    WHEN n GLOB '*' || letter THEN 1
+    ELSE 0 END`;
+}
+
+function shareLetterBaseSql(): string {
+  const cols = 'fund_code, fund_name, fund_type, pinyin_abbr, pinyin_full, in_mvp_pool';
+  return `(
+    SELECT ${cols},
+      CASE
+        WHEN letter = '' OR suffix_len = 0 OR length(base) < 2 THEN ''
+        WHEN letter = 'F' AND (base GLOB '*ET' OR base GLOB '*LO' OR base GLOB '*FO') THEN ''
+        WHEN letter = 'I' AND base GLOB '*QDI' THEN ''
+        ELSE letter
+      END AS share_letter
+    FROM (
+      SELECT ${cols}, letter, suffix_len, trim(substr(n, 1, length(n) - suffix_len)) AS base
+      FROM (
+        SELECT ${cols}, n, letter, ${shareSuffixLenSql()} AS suffix_len
+        FROM (
+          SELECT ${cols}, n, ${shareLetterCaseSql('n')} AS letter
+          FROM (
+            SELECT ${cols}, ${trimmedNameSql('fund_name')} AS n
+            FROM fund_basic_info
+          )
+        )
+      )
+    )
+  )`;
 }
 
 function shareLetterExpr(
   hasSelect: boolean,
   flat: boolean,
   selectCols?: ReadonlySet<string>,
+  fromName = false,
 ): string {
+  if (fromName) return qualify('b.share_letter', flat);
   if (hasSelect && (!selectCols || selectCols.has('share_class'))) {
     return `CASE WHEN ${qualify("IFNULL(s.share_class, '')", flat)} = '' THEN '' ELSE substr(${qualify('s.share_class', flat)}, -1, 1) END`;
   }
-  return nameShareLetterSql(qualify('b.fund_name', flat));
+  return qualify('b.share_letter', flat);
 }
 
 function searchScoreSql(
@@ -342,7 +343,7 @@ function searchScoreSql(
   const code = qualify('b.fund_code', flat);
   const abbr = qualify("IFNULL(b.pinyin_abbr, '')", flat);
   const full = qualify("IFNULL(b.pinyin_full, '')", flat);
-  const letter = shareLetterExpr(hasSelect, flat, selectCols);
+  const letter = shareLetterExpr(hasSelect, flat, selectCols, true);
   let shareSql = '0';
   if (q.shareLetter && searchQueryKind(q) !== 'share') {
     shareSql = `CASE WHEN ${letter} = ? THEN -1 WHEN ${letter} != '' THEN 3 ELSE 0 END`;
@@ -456,7 +457,7 @@ export function buildFundListClauses(
     }
     if (signals.length) where.push(`(${signals.join(' AND ')})`);
   } else if (parsed && kind === 'share') {
-    where.push(`${nameShareLetterSql(qualify('b.fund_name', flat))} = ?`);
+    where.push(`${qualify('b.share_letter', flat)} = ?`);
     filterParams.push(parsed.shareLetter);
   }
   if (query.typeL1 && query.typeL2) {
@@ -634,6 +635,7 @@ export type FundListSqlOpts = {
   select?: boolean;
   money?: boolean;
   fees?: boolean;
+  shareLetter?: boolean;
   riskCols?: ReadonlySet<string>;
   selectCols?: ReadonlySet<string>;
   feeCols?: ReadonlySet<string>;
@@ -659,7 +661,8 @@ export function fundListFromSql(opts: FundListSqlOpts = {}): string {
     : '';
   const moneyJoin = opts.money ? ` ${MONEY_YIELD_JOIN}` : '';
   const feeJoin = opts.fees ? ' LEFT JOIN fund_fees f ON f.fund_code = b.fund_code' : '';
-  return `FROM fund_basic_info b
+  const base = opts.shareLetter ? shareLetterBaseSql() : 'fund_basic_info';
+  return `FROM ${base} b
     LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}${selectJoin}${moneyJoin}${feeJoin}`;
 }
 
@@ -725,7 +728,8 @@ export function fundListSelectSql(opts: FundListSqlOpts = {}): string {
   const moneyCols = opts.money ? 'y.seven_day_yield' : 'NULL AS seven_day_yield';
   const feeShown = feeShownSql(opts);
   const salesKnown = salesKnownSql(opts);
-  return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
+  const shareCol = opts.shareLetter ? ', b.share_letter' : '';
+  return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool${shareCol},
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
       ${riskCols}, ${selectCols}, ${salesKnown}, ${moneyCols}, ${feeShown}
@@ -805,6 +809,7 @@ export function fundListSql(
     select: joinSelect,
     money: joinMoney,
     fees: joinFees,
+    shareLetter: Boolean(parsedQ?.shareLetter),
     riskCols: opts.riskCols,
     selectCols: opts.selectCols,
     feeCols: opts.feeCols,

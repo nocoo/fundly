@@ -267,6 +267,7 @@ describe('fundListSql', () => {
       ['000006', '甲乙A\u00a0'],
       ['000007', '甲乙人民币a'],
       ['000008', '某沪深300ETF'],
+      ['000009', '甲 A'],
     ];
     for (const [code, name] of names) {
       db.exec(`INSERT INTO fund_basic_info VALUES ('${code}','${name}','混合型-偏股','X','X',1)`);
@@ -296,6 +297,8 @@ describe('fundListSql', () => {
       ['000003', '易方达安悦超短债F'],
       ['000004', '某全球QDII人民币'],
       ['000005', '指数I'],
+      ['000006', '某ET 人民币F'],
+      ['000007', '某QDI I'],
     ];
     for (const [code, name] of names) {
       db.query('INSERT INTO fund_basic_info VALUES (?, ?, ?, ?, ?, 1)').run(
