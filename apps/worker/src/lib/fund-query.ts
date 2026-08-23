@@ -261,7 +261,8 @@ const SHARE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] as const;
 
 const SHARE_CURRENCIES = ['人民币', '美元现汇', '美元现钞', '美元汇', '美元'] as const;
 
-function nameShareLetterSql(nameExpr: string): string {
+function nameShareLetterSql(rawExpr: string): string {
+  const nameExpr = `trim(${rawExpr})`;
   const productTails = ['ETF', 'LOF', 'FOF'].flatMap((tag) => [
     `'%${tag}'`,
     `'%${tag}类'`,
@@ -275,18 +276,38 @@ function nameShareLetterSql(nameExpr: string): string {
   const blockedF = `(${productTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
   const blockedI = `(${qdiiTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
   const branches = SHARE_LETTERS.map((letter) => {
-    const tails: Array<{ like: string; minLen: number }> = [
-      { like: `'%${letter}'`, minLen: 3 },
-      { like: `'%${letter}类'`, minLen: 4 },
+    const notCurrencyLetter = SHARE_CURRENCIES.map(
+      (cur) =>
+        `${nameExpr} NOT LIKE '%${cur}${letter}' AND ${nameExpr} NOT LIKE '%${letter}${cur}'`,
+    ).join(' AND ');
+    const notCurrencyClass = SHARE_CURRENCIES.map(
+      (cur) =>
+        `${nameExpr} NOT LIKE '%${cur}${letter}类' AND ${nameExpr} NOT LIKE '%${letter}类${cur}'`,
+    ).join(' AND ');
+    const tails: Array<{ pred: string; minLen: number }> = [
+      {
+        pred: `${nameExpr} GLOB '*${letter}' AND ${nameExpr} NOT GLOB '*${letter}类' AND ${notCurrencyLetter}`,
+        minLen: 3,
+      },
+      {
+        pred: `${nameExpr} GLOB '*${letter}类' AND ${notCurrencyClass}`,
+        minLen: 4,
+      },
       ...SHARE_CURRENCIES.flatMap((cur) => [
-        { like: `'%${cur}${letter}'`, minLen: cur.length + 3 },
-        { like: `'%${cur}${letter}类'`, minLen: cur.length + 4 },
-        { like: `'%${letter}${cur}'`, minLen: cur.length + 3 },
-        { like: `'%${letter}类${cur}'`, minLen: cur.length + 4 },
+        {
+          pred: `${nameExpr} LIKE '%${cur}${letter}' AND ${nameExpr} NOT LIKE '%${cur}${letter}类'`,
+          minLen: cur.length + 3,
+        },
+        { pred: `${nameExpr} LIKE '%${cur}${letter}类'`, minLen: cur.length + 4 },
+        {
+          pred: `${nameExpr} LIKE '%${letter}${cur}' AND ${nameExpr} NOT LIKE '%${letter}类${cur}'`,
+          minLen: cur.length + 3,
+        },
+        { pred: `${nameExpr} LIKE '%${letter}类${cur}'`, minLen: cur.length + 4 },
       ]),
     ];
     const hit = `(${tails
-      .map((tail) => `(${nameExpr} LIKE ${tail.like} AND length(${nameExpr}) >= ${tail.minLen})`)
+      .map((tail) => `(${tail.pred} AND length(${nameExpr}) >= ${tail.minLen})`)
       .join(' OR ')})`;
     if (letter === 'F') return `WHEN ${hit} AND NOT ${blockedF} THEN 'F'`;
     if (letter === 'I') return `WHEN ${hit} AND NOT ${blockedI} THEN 'I'`;
@@ -536,9 +557,13 @@ export function buildFundListClauses(
 function peerRankSql(query: FundListQuery): string {
   const parts: string[] = [];
   if (query.feePeer != null) {
-    parts.push(`CASE WHEN s.all_in_fee_pct IS NULL THEN NULL
-    ELSE 100.0 * RANK() OVER (PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL ORDER BY s.all_in_fee_pct ASC)
-      / COUNT(s.all_in_fee_pct) OVER (PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL)
+    parts.push(`CASE WHEN s.all_in_fee_pct IS NULL OR IFNULL(s.sales_fee_known, 0) != 1 THEN NULL
+    ELSE 100.0 * RANK() OVER (
+      PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL AND IFNULL(s.sales_fee_known, 0) = 1
+      ORDER BY s.all_in_fee_pct ASC)
+      / NULLIF(COUNT(CASE WHEN IFNULL(s.sales_fee_known, 0) = 1 THEN s.all_in_fee_pct END) OVER (
+        PARTITION BY b.fund_type, s.all_in_fee_pct IS NOT NULL AND IFNULL(s.sales_fee_known, 0) = 1
+      ), 0)
     END AS fee_pct`);
   }
   if (query.ddPeer != null) {
@@ -741,7 +766,11 @@ export function fundListSql(
         opts.riskCols &&
         !opts.riskCols.has(sampleCol.replace(/^r\./, '')),
     ) ||
-    Boolean(query.feePeer != null && opts.selectCols && !opts.selectCols.has('all_in_fee_pct')) ||
+    Boolean(
+      query.feePeer != null &&
+        opts.selectCols &&
+        (!opts.selectCols.has('all_in_fee_pct') || !opts.selectCols.has('sales_fee_known')),
+    ) ||
     Boolean(query.ddPeer != null && opts.riskCols && !opts.riskCols.has('max_drawdown_1y')) ||
     Boolean(query.scalePeer != null && opts.selectCols && !opts.selectCols.has('scale_yi')) ||
     Boolean(query.top10Max != null && opts.selectCols && !opts.selectCols.has('top10_weight_pct'));

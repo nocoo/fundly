@@ -253,9 +253,21 @@ describe('fundListSql', () => {
   });
 
   it('does not treat short bases like 甲A类 as share A', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','甲人民币A','混合型-偏股','J','JIA',1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','甲乙A','混合型-偏股','JY','JIAYI',1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000003','指数A','混合型-偏股','ZS','ZHISHU',1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000002',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000003',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
     const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }));
-    expect(built.listSql).toContain('length(b.fund_name) >= 4');
-    expect(built.listSql).toContain('length(b.fund_name) >= 6');
+    const rows = db.query(built.listSql).all(...built.listParams) as Array<{ fund_name: string }>;
+    expect(rows.map((row) => row.fund_name).sort()).toEqual(['指数A', '甲乙A']);
+    db.close();
   });
 
   it('projects share_class so picks search can score share letters', () => {
@@ -436,6 +448,47 @@ describe('fundListSql', () => {
     expect(built.listSql).toContain('fund_risk_metrics');
     expect(built.listSql).toContain('r.nav_samples_1y >= ?');
     expect(built.listSql).not.toContain('dd_pct');
+  });
+
+  it('excludes unknown sales fees from feePeer percentiles', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+      CREATE TABLE fund_select_metrics (
+        fund_code TEXT, ulcer_1y REAL, underwater_ratio_1y REAL, max_underwater_days_1y INTEGER,
+        max_consec_down_1y INTEGER, down_day_ratio_1y REAL, worst_month_1y REAL,
+        recovery_days_1y INTEGER, recovery_status_1y TEXT, dca_cagr_3y REAL, dca_vs_lump_3y REAL,
+        dca_month_win_3y REAL, dca_month_vol_3y REAL, all_in_fee_pct REAL, select_score REAL,
+        excess_hs300_1y REAL, scale_yi REAL, top10_weight_pct REAL, equity_ratio_pct REAL,
+        inst_holder_pct REAL, sales_fee_known INTEGER, share_class TEXT
+      );
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','已知','混合型-偏股','A','A',1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','未知','混合型-偏股','B','B',1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,1,1,1,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000002',1,1,1,1,'2026-08-01',10,10,10,10,1)`);
+    db.exec(
+      `INSERT INTO fund_select_metrics VALUES ('000001',1,1,1,1,1,1,1,'recovered',1,1,1,1,2.0,80,1,10,20,60,10,1,'A')`,
+    );
+    db.exec(
+      `INSERT INTO fund_select_metrics VALUES ('000002',1,1,1,1,1,1,1,'open',1,1,1,1,1.0,70,1,NULL,20,60,10,0,'C')`,
+    );
+    const q = parseFundListQuery({
+      lens: 'picks',
+      typeL1: '混合型',
+      feePeer: '100',
+      sort: 'select_score',
+      dir: 'desc',
+    });
+    const built = fundListSql(q, { select: true });
+    const rows = db.query(built.listSql).all(...built.listParams) as Array<{
+      fund_code: string;
+      fee_pct: number | null;
+    }>;
+    expect(rows.map((row) => row.fund_code)).toEqual(['000001']);
+    expect(rows[0]?.fee_pct).toBe(100);
+    db.close();
   });
 
   it('keeps peer percentiles at or below 100 when a peer is null', () => {
