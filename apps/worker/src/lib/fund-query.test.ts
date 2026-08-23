@@ -252,6 +252,12 @@ describe('fundListSql', () => {
     expect(built.listSql).toContain('WHERE 0=1');
   });
 
+  it('does not treat short bases like 甲A类 as share A', () => {
+    const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }));
+    expect(built.listSql).toContain('length(b.fund_name) >= 4');
+    expect(built.listSql).toContain('length(b.fund_name) >= 6');
+  });
+
   it('projects share_class so picks search can score share letters', () => {
     const built = fundListSql(
       parseFundListQuery({
@@ -327,6 +333,47 @@ describe('fundListSql', () => {
       { select: true, fees: true },
     );
     expect(() => db.query(built.listSql).all(...built.listParams)).not.toThrow();
+    db.close();
+  });
+
+  it('prefers select all-in over fees when both tables exist', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+      CREATE TABLE fund_select_metrics (
+        fund_code TEXT, ulcer_1y REAL, underwater_ratio_1y REAL, max_underwater_days_1y INTEGER,
+        max_consec_down_1y INTEGER, down_day_ratio_1y REAL, worst_month_1y REAL,
+        recovery_days_1y INTEGER, recovery_status_1y TEXT, dca_cagr_3y REAL, dca_vs_lump_3y REAL,
+        dca_month_win_3y REAL, dca_month_vol_3y REAL, all_in_fee_pct REAL, select_score REAL,
+        excess_hs300_1y REAL, scale_yi REAL, top10_weight_pct REAL, equity_ratio_pct REAL,
+        inst_holder_pct REAL, sales_fee_known INTEGER, share_class TEXT
+      );
+      CREATE TABLE fund_fees (fund_code TEXT, mgmt_fee_pct REAL, custodian_fee_pct REAL, sales_service_fee_pct REAL);
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','贵','混合型-偏股','G','GUI',1)`);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000002','便宜','混合型-偏股','P','PIANYI',1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000002',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(
+      `INSERT INTO fund_select_metrics VALUES ('000001',1,1,1,1,1,1,1,'recovered',1,1,1,1,2.0,80,1,10,20,60,10,1,'A')`,
+    );
+    db.exec(
+      `INSERT INTO fund_select_metrics VALUES ('000002',1,1,1,1,1,1,1,'recovered',1,1,1,1,1.0,80,1,10,20,60,10,1,'C')`,
+    );
+    db.exec(`INSERT INTO fund_fees VALUES ('000001',0.1,0.1,0.1)`);
+    db.exec(`INSERT INTO fund_fees VALUES ('000002',3.0,1.0,1.0)`);
+    const built = fundListSql(parseFundListQuery({ sort: 'all_in_fee_pct', metricNotNull: '1' }), {
+      select: true,
+      fees: true,
+    });
+    const rows = db.query(built.listSql).all(...built.listParams) as Array<{
+      fund_code: string;
+      fee_shown_pct: number;
+    }>;
+    expect(rows.map((row) => row.fund_code)).toEqual(['000002', '000001']);
+    expect(rows[0]?.fee_shown_pct).toBe(1);
+    expect(rows[1]?.fee_shown_pct).toBe(2);
     db.close();
   });
 

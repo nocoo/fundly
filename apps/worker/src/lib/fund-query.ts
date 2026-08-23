@@ -275,22 +275,22 @@ function nameShareLetterSql(nameExpr: string): string {
   const blockedF = `(${productTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
   const blockedI = `(${qdiiTails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
   const branches = SHARE_LETTERS.map((letter) => {
-    const tails = [
-      `'%${letter}'`,
-      `'%${letter}类'`,
+    const tails: Array<{ like: string; minLen: number }> = [
+      { like: `'%${letter}'`, minLen: 3 },
+      { like: `'%${letter}类'`, minLen: 4 },
       ...SHARE_CURRENCIES.flatMap((cur) => [
-        `'%${cur}${letter}'`,
-        `'%${cur}${letter}类'`,
-        `'%${letter}${cur}'`,
-        `'%${letter}类${cur}'`,
+        { like: `'%${cur}${letter}'`, minLen: cur.length + 3 },
+        { like: `'%${cur}${letter}类'`, minLen: cur.length + 4 },
+        { like: `'%${letter}${cur}'`, minLen: cur.length + 3 },
+        { like: `'%${letter}类${cur}'`, minLen: cur.length + 4 },
       ]),
     ];
-    const hit = `(${tails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
-    if (letter === 'F')
-      return `WHEN ${hit} AND NOT ${blockedF} AND length(${nameExpr}) >= 3 THEN 'F'`;
-    if (letter === 'I')
-      return `WHEN ${hit} AND NOT ${blockedI} AND length(${nameExpr}) >= 3 THEN 'I'`;
-    return `WHEN ${hit} AND length(${nameExpr}) >= 3 THEN '${letter}'`;
+    const hit = `(${tails
+      .map((tail) => `(${nameExpr} LIKE ${tail.like} AND length(${nameExpr}) >= ${tail.minLen})`)
+      .join(' OR ')})`;
+    if (letter === 'F') return `WHEN ${hit} AND NOT ${blockedF} THEN 'F'`;
+    if (letter === 'I') return `WHEN ${hit} AND NOT ${blockedI} THEN 'I'`;
+    return `WHEN ${hit} THEN '${letter}'`;
   });
   return `CASE ${branches.join(' ')} ELSE '' END`;
 }
@@ -471,7 +471,9 @@ export function buildFundListClauses(
         const bits: string[] = [];
         if (hasAllIn) bits.push(qualify('s.all_in_fee_pct IS NOT NULL', flat));
         if (hasMgmt && hasCust) {
-          bits.push(qualify('f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL', flat));
+          bits.push(
+            qualify('f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL', flat),
+          );
         }
         where.push(bits.length > 0 ? `(${bits.join(' OR ')})` : '0=1');
       }
