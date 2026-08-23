@@ -30,7 +30,9 @@ export function parseSearchQuery(raw: string): SearchSignals {
   const hasEtf = normalized.includes('ETF');
   const hasLof = normalized.includes('LOF');
   const hasLink = normalized.includes('联接') || normalized.includes('聯接');
-  const parsedShare = /[\u4e00-\u9fff]|类/.test(raw) ? parseShareClass(raw).letter : '';
+  const parsedShare = /[\u4e00-\u9fff]|类/.test(normalized)
+    ? parseShareClass(normalized).letter
+    : '';
   const shareLetter = parsedShare || (/^[A-I]$/.test(normalized) ? normalized : '');
   let core = normalized
     .replace(/基金/g, '')
@@ -104,9 +106,8 @@ export function searchScore(query: SearchSignals, candidate: SearchCandidate): n
     if (query.hasLof !== candLof) score += 4;
     if (query.hasLink !== candLink) score += 4;
     if (query.shareLetter) {
-      const letter = candidate.shareLetter || parseShareClass(candidate.fundName).letter;
-      if (letter === query.shareLetter) score -= 1;
-      else if (letter) score += 3;
+      if (candidate.shareLetter === query.shareLetter) score -= 1;
+      else if (candidate.shareLetter) score += 3;
     }
   }
   return score;

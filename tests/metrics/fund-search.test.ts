@@ -77,6 +77,32 @@ describe('fund search', () => {
     expect(q.core).toContain('YIFANGDA');
   });
 
+  test('reads share letters from the normalized query', () => {
+    expect(parseSearchQuery('测试a').shareLetter).toBe('A');
+    expect(parseSearchQuery('测试A').shareLetter).toBe('A');
+  });
+
+  test('does not infer a missing stored share letter from the name', () => {
+    const q = parseSearchQuery('测试A');
+    expect(
+      searchScore(q, {
+        fundCode: '000001',
+        fundName: '测试产品A',
+        pinyinAbbr: null,
+        pinyinFull: null,
+        shareLetter: '',
+      }),
+    ).toBeGreaterThan(
+      searchScore(q, {
+        fundCode: '000002',
+        fundName: '测试产品A',
+        pinyinAbbr: null,
+        pinyinFull: null,
+        shareLetter: 'A',
+      }),
+    );
+  });
+
   test('pure ETF only recalls ETF names', () => {
     const q = parseSearchQuery('ETF');
     expect(searchRecalls(q, yfd300)).toBe(true);
