@@ -1,5 +1,6 @@
 import { Database } from 'bun:sqlite';
 import { describe, expect, it } from 'bun:test';
+import { parseShareClass } from '../../../../src/analytics/share-class';
 import {
   DEFAULT_PAGE_SIZE,
   fundListSql,
@@ -273,7 +274,13 @@ describe('fundListSql', () => {
       db.exec(`INSERT INTO fund_basic_info VALUES ('${code}','${name}','混合型-偏股','X','X',1)`);
       db.exec(`INSERT INTO fund_performance VALUES ('${code}',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
     }
-    const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }));
+    const rowsForLetter = db
+      .query('SELECT fund_code, fund_name FROM fund_basic_info')
+      .all() as Array<{ fund_code: string; fund_name: string }>;
+    const shareCodes = rowsForLetter
+      .filter((row) => parseShareClass(row.fund_name).letter === 'A')
+      .map((row) => row.fund_code);
+    const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }), { shareCodes });
     const rows = db.query(built.listSql).all(...built.listParams) as Array<{ fund_name: string }>;
     expect(rows.map((row) => row.fund_name).sort()).toEqual([
       '指数A',
@@ -310,10 +317,21 @@ describe('fundListSql', () => {
       );
       db.exec(`INSERT INTO fund_performance VALUES ('${code}',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
     }
-    const f = fundListSql(parseFundListQuery({ q: 'F', sort: 'fund_code' }));
+    const rowsForLetter = db
+      .query('SELECT fund_code, fund_name FROM fund_basic_info')
+      .all() as Array<{ fund_code: string; fund_name: string }>;
+    const shareCodes = (letter: string) =>
+      rowsForLetter
+        .filter((row) => parseShareClass(row.fund_name).letter === letter)
+        .map((row) => row.fund_code);
+    const f = fundListSql(parseFundListQuery({ q: 'F', sort: 'fund_code' }), {
+      shareCodes: shareCodes('F'),
+    });
     const fRows = db.query(f.listSql).all(...f.listParams) as Array<{ fund_name: string }>;
     expect(fRows.map((row) => row.fund_name)).toEqual(['易方达安悦超短债F']);
-    const i = fundListSql(parseFundListQuery({ q: 'I', sort: 'fund_code' }));
+    const i = fundListSql(parseFundListQuery({ q: 'I', sort: 'fund_code' }), {
+      shareCodes: shareCodes('I'),
+    });
     const iRows = db.query(i.listSql).all(...i.listParams) as Array<{ fund_name: string }>;
     expect(iRows.map((row) => row.fund_name)).toEqual(['指数I']);
     db.close();

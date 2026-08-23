@@ -1,3 +1,4 @@
+import { parseShareClass } from '../../../../src/analytics/share-class';
 import { parseSearchQuery } from '../../../../src/metrics/fund-search';
 import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
@@ -66,11 +67,22 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
     hasFees ? columnSet(exec, 'fund_fees') : Promise.resolve(new Set<string>()),
   ]);
   const resolved = resolveFundListQuery(query, riskDims, selectDims);
+  const parsed = resolved.q ? parseSearchQuery(resolved.q) : null;
+  let shareCodes: string[] | undefined;
+  if (parsed?.shareLetter) {
+    const names = await exec.all<{ fund_code: string; fund_name: string }>(
+      'SELECT fund_code, fund_name FROM fund_basic_info',
+    );
+    shareCodes = names
+      .filter((row) => parseShareClass(row.fund_name).letter === parsed.shareLetter)
+      .map((row) => row.fund_code);
+  }
   const built = fundListSql(resolved, {
     risk: hasRisk,
     select: hasSelect,
     money: hasMoney,
     fees: hasFees,
+    shareCodes,
     riskCols,
     selectCols,
     feeCols,
