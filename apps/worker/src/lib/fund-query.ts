@@ -588,7 +588,6 @@ const SELECT_RESULT_COLS = [
   'top10_weight_pct',
   'equity_ratio_pct',
   'inst_holder_pct',
-  'sales_fee_known',
   'share_class',
 ] as const;
 
@@ -634,6 +633,19 @@ function colOk(
   return Boolean(enabled) && (!present || present.has(name));
 }
 
+function salesKnownSql(opts: FundListSqlOpts): string {
+  const hasFeeSales = colOk(opts.feeCols, 'sales_service_fee_pct', opts.fees);
+  const hasSelectKnown = colOk(opts.selectCols, 'sales_fee_known', opts.select);
+  if (hasFeeSales && hasSelectKnown) {
+    return `CASE WHEN f.sales_service_fee_pct IS NOT NULL OR s.sales_fee_known = 1 THEN 1 ELSE 0 END AS sales_fee_known`;
+  }
+  if (hasFeeSales) {
+    return `CASE WHEN f.sales_service_fee_pct IS NOT NULL THEN 1 ELSE 0 END AS sales_fee_known`;
+  }
+  if (hasSelectKnown) return 's.sales_fee_known';
+  return 'NULL AS sales_fee_known';
+}
+
 function feeShownSql(opts: FundListSqlOpts): string {
   const hasAllIn = colOk(opts.selectCols, 'all_in_fee_pct', opts.select);
   const hasMgmt = colOk(opts.feeCols, 'mgmt_fee_pct', opts.fees);
@@ -674,10 +686,11 @@ export function fundListSelectSql(opts: FundListSqlOpts = {}): string {
   const selectCols = projectedCols('s', SELECT_RESULT_COLS, Boolean(opts.select), opts.selectCols);
   const moneyCols = opts.money ? 'y.seven_day_yield' : 'NULL AS seven_day_yield';
   const feeShown = feeShownSql(opts);
+  const salesKnown = salesKnownSql(opts);
   return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
-      ${riskCols}, ${selectCols}, ${moneyCols}, ${feeShown}
+      ${riskCols}, ${selectCols}, ${salesKnown}, ${moneyCols}, ${feeShown}
     ${fundListFromSql(opts)}`;
 }
 
@@ -740,7 +753,9 @@ export function fundListSql(
   }
   const parsedQ = query.q ? parseSearchQuery(query.q) : null;
   const joinRisk = Boolean(opts.risk && needRisk);
-  const joinSelect = Boolean(opts.select && (needSelect || Boolean(parsedQ?.shareLetter)));
+  const joinSelect = Boolean(
+    opts.select && (needSelect || Boolean(parsedQ?.shareLetter) || query.sort === 'all_in_fee_pct'),
+  );
   const joinMoney = Boolean(opts.money && needMoney);
   const joinFees = Boolean(opts.fees && (joinSelect || query.sort === 'all_in_fee_pct'));
   const sqlOpts: FundListSqlOpts = {

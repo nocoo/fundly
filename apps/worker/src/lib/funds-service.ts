@@ -116,13 +116,20 @@ async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
     const cols = await columnSet(exec, 'fund_select_metrics');
     const keys = SELECT_SORT_KEYS.filter((key) => key !== 'seven_day_yield' && cols.has(key));
     if (keys.length > 0) {
-      const parts = keys.map((key) =>
-        key === 'recovery_days_1y' && cols.has('recovery_status_1y')
-          ? `EXISTS(SELECT 1 FROM fund_select_metrics WHERE recovery_status_1y IN ('recovered', 'open')) AS ${key}`
-          : `EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`,
-      );
-      const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
-      for (const key of keys) out[key] = Boolean(row?.[key]);
+      const parts = keys.flatMap((key) => {
+        if (key === 'recovery_days_1y') {
+          return cols.has('recovery_status_1y')
+            ? [
+                `EXISTS(SELECT 1 FROM fund_select_metrics WHERE recovery_status_1y IN ('recovered', 'open')) AS ${key}`,
+              ]
+            : [];
+        }
+        return [`EXISTS(SELECT 1 FROM fund_select_metrics WHERE ${key} IS NOT NULL) AS ${key}`];
+      });
+      if (parts.length > 0) {
+        const row = await exec.first<Record<string, number>>(`SELECT ${parts.join(', ')}`);
+        for (const key of keys) out[key] = Boolean(row?.[key]);
+      }
     }
   }
   if (await hasTable(exec, 'fund_money_yield')) {
@@ -136,13 +143,16 @@ async function selectDimCaps(exec: QueryExec): Promise<SelectDimCaps> {
     out.seven_day_yield = Boolean(row?.n);
   }
   if (!out.all_in_fee_pct && (await hasTable(exec, 'fund_fees'))) {
-    const row = await exec.first<{ n: number }>(
-      `SELECT EXISTS(
-         SELECT 1 FROM fund_fees
-         WHERE mgmt_fee_pct IS NOT NULL AND custodian_fee_pct IS NOT NULL
-       ) AS n`,
-    );
-    out.all_in_fee_pct = Boolean(row?.n);
+    const feeCols = await columnSet(exec, 'fund_fees');
+    if (feeCols.has('mgmt_fee_pct') && feeCols.has('custodian_fee_pct')) {
+      const row = await exec.first<{ n: number }>(
+        `SELECT EXISTS(
+           SELECT 1 FROM fund_fees
+           WHERE mgmt_fee_pct IS NOT NULL AND custodian_fee_pct IS NOT NULL
+         ) AS n`,
+      );
+      out.all_in_fee_pct = Boolean(row?.n);
+    }
   }
   return out;
 }

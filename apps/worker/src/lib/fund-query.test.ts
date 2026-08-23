@@ -288,6 +288,15 @@ describe('fundListSql', () => {
     expect(built.listSql).toContain('fee_shown_pct');
   });
 
+  it('joins select metrics for cost sort when the table exists', () => {
+    const built = fundListSql(parseFundListQuery({ sort: 'all_in_fee_pct' }), {
+      select: true,
+      fees: true,
+    });
+    expect(built.listSql).toContain('fund_select_metrics');
+    expect(built.listSql).toContain('fund_fees');
+  });
+
   it('can sort costs from fund_fees when select metrics are missing', () => {
     const db = new Database(':memory:');
     db.exec(`
