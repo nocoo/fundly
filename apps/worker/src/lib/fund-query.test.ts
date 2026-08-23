@@ -356,6 +356,23 @@ describe('fundListSql', () => {
     expect(new TextEncoder().encode(worst.countSql).length).toBeLessThan(100_000);
   });
 
+  it('does not join select metrics for a plain share-letter query', () => {
+    const built = fundListSql(parseFundListQuery({ q: 'A', sort: 'fund_code' }), {
+      shareCodes: ['000002'],
+    });
+    expect(built.listSql).not.toContain('fund_select_metrics');
+    expect(built.listSql).toContain('b.fund_code IN (?)');
+  });
+
+  it('scores stored share_class matches without boosting empty classes', () => {
+    const built = fundListSql(parseFundListQuery({ q: '测试A', sort: 'fund_code' }), {
+      scoreShareCodes: ['000002'],
+    });
+    expect(built.listParams).toContain('000002');
+    expect(built.listParams).not.toContain('000001');
+    expect(built.listSql).toContain('b.fund_code IN (?)');
+  });
+
   it('projects share_class so picks search can score share letters', () => {
     const built = fundListSql(
       parseFundListQuery({

@@ -1,5 +1,5 @@
 import { parseShareClass } from '../../../../src/analytics/share-class';
-import { parseSearchQuery } from '../../../../src/metrics/fund-search';
+import { parseSearchQuery, searchQueryKind } from '../../../../src/metrics/fund-search';
 import type { QueryExec } from './executor';
 import { type FieldView, mapFundDetail, presentField } from './fund-detail';
 import { type FundExtras, parseFundExtras } from './fund-extra';
@@ -52,10 +52,9 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   const selectDims = needCaps ? await selectDimCaps(exec) : EMPTY_SELECT_DIMS;
   const risk = riskSortEnabledAny(riskDims);
   const select = selectSortEnabledAny(selectDims);
-  const shareSearch = Boolean(query.q && parseSearchQuery(query.q).shareLetter);
   const [hasRisk, hasSelect, hasMoney, hasFees] = await Promise.all([
     needCaps ? hasTable(exec, 'fund_risk_metrics') : Promise.resolve(false),
-    needCaps || shareSearch ? hasTable(exec, 'fund_select_metrics') : Promise.resolve(false),
+    needCaps ? hasTable(exec, 'fund_select_metrics') : Promise.resolve(false),
     needCaps || query.sort === 'seven_day_yield'
       ? hasTable(exec, 'fund_money_yield')
       : Promise.resolve(false),
@@ -68,21 +67,13 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
   ]);
   const resolved = resolveFundListQuery(query, riskDims, selectDims);
   const parsed = resolved.q ? parseSearchQuery(resolved.q) : null;
-  let shareCodes: string[] | undefined;
-  if (parsed?.shareLetter) {
-    const names = await exec.all<{ fund_code: string; fund_name: string }>(
-      'SELECT fund_code, fund_name FROM fund_basic_info',
-    );
-    shareCodes = names
-      .filter((row) => parseShareClass(row.fund_name).letter === parsed.shareLetter)
-      .map((row) => row.fund_code);
-  }
+  const shareOpts = await shareLetterOpts(exec, parsed);
   const built = fundListSql(resolved, {
     risk: hasRisk,
     select: hasSelect,
     money: hasMoney,
     fees: hasFees,
-    shareCodes,
+    ...shareOpts,
     riskCols,
     selectCols,
     feeCols,
@@ -98,6 +89,44 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
     pageSize: resolved.pageSize,
     sort: resolved.sort,
     capabilities: { risk, riskDims, select, selectDims },
+  };
+}
+
+async function shareLetterOpts(
+  exec: QueryExec,
+  parsed: ReturnType<typeof parseSearchQuery> | null,
+): Promise<{ shareCodes?: string[]; scoreShareCodes?: string[] }> {
+  if (!parsed?.shareLetter) return {};
+  const letter = parsed.shareLetter;
+  const kind = searchQueryKind(parsed);
+  if (kind === 'share') {
+    const names = await exec.all<{ fund_code: string; fund_name: string }>(
+      'SELECT fund_code, fund_name FROM fund_basic_info',
+    );
+    return {
+      shareCodes: names
+        .filter((row) => parseShareClass(row.fund_name).letter === letter)
+        .map((row) => row.fund_code),
+    };
+  }
+  if (await hasTable(exec, 'fund_select_metrics')) {
+    const cols = await columnSet(exec, 'fund_select_metrics');
+    if (cols.has('share_class')) {
+      const rows = await exec.all<{ fund_code: string }>(
+        `SELECT fund_code FROM fund_select_metrics
+         WHERE share_class != '' AND substr(share_class, -1, 1) = ?`,
+        [letter],
+      );
+      return { scoreShareCodes: rows.map((row) => row.fund_code) };
+    }
+  }
+  const names = await exec.all<{ fund_code: string; fund_name: string }>(
+    'SELECT fund_code, fund_name FROM fund_basic_info',
+  );
+  return {
+    scoreShareCodes: names
+      .filter((row) => parseShareClass(row.fund_name).letter === letter)
+      .map((row) => row.fund_code),
   };
 }
 

@@ -475,7 +475,7 @@ export function buildFundListClauses(
     orderSql = `ORDER BY ${qualify(SORT_COLUMNS[query.sort], flat)} ${dirSql}, ${codeOrd} ASC`;
   }
   if (parsed && kind && kind !== 'empty') {
-    const scored = searchScoreSql(parsed, flat, opts.shareCodes);
+    const scored = searchScoreSql(parsed, flat, opts.scoreShareCodes ?? opts.shareCodes);
     scoreParams.push(...scored.params);
     orderSql = `ORDER BY ${scored.expr} ASC, ${orderSql.replace(/^ORDER BY /, '')}`;
   }
@@ -566,6 +566,7 @@ export type FundListSqlOpts = {
   money?: boolean;
   fees?: boolean;
   shareCodes?: readonly string[];
+  scoreShareCodes?: readonly string[];
   riskCols?: ReadonlySet<string>;
   selectCols?: ReadonlySet<string>;
   feeCols?: ReadonlySet<string>;
@@ -735,6 +736,7 @@ export function fundListSql(
     money: joinMoney,
     fees: joinFees,
     shareCodes: opts.shareCodes,
+    scoreShareCodes: opts.scoreShareCodes,
     riskCols: opts.riskCols,
     selectCols: opts.selectCols,
     feeCols: opts.feeCols,
