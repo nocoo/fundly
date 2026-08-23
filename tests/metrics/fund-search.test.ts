@@ -71,6 +71,12 @@ describe('fund search', () => {
     expect(searchRecalls(q, yfd300)).toBe(false);
   });
 
+  test('does not treat pinyin tails as share letters', () => {
+    const q = parseSearchQuery('YIFANGDA');
+    expect(q.shareLetter).toBe('');
+    expect(q.core).toContain('YIFANGDA');
+  });
+
   test('pure ETF only recalls ETF names', () => {
     const q = parseSearchQuery('ETF');
     expect(searchRecalls(q, yfd300)).toBe(true);

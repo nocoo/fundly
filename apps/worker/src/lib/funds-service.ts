@@ -60,9 +60,10 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
       : Promise.resolve(false),
     needCaps ? hasTable(exec, 'fund_fees') : Promise.resolve(false),
   ]);
-  const [riskCols, selectCols] = await Promise.all([
+  const [riskCols, selectCols, feeCols] = await Promise.all([
     hasRisk ? columnSet(exec, 'fund_risk_metrics') : Promise.resolve(new Set<string>()),
     hasSelect ? columnSet(exec, 'fund_select_metrics') : Promise.resolve(new Set<string>()),
+    hasFees ? columnSet(exec, 'fund_fees') : Promise.resolve(new Set<string>()),
   ]);
   const resolved = resolveFundListQuery(query, riskDims, selectDims);
   const built = fundListSql(resolved, {
@@ -72,6 +73,7 @@ export async function listFunds(exec: QueryExec, query: FundListQuery) {
     fees: hasFees,
     riskCols,
     selectCols,
+    feeCols,
   });
   const [rows, countRow] = await Promise.all([
     exec.all<Record<string, unknown>>(built.listSql, built.listParams),

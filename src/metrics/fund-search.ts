@@ -30,17 +30,17 @@ export function parseSearchQuery(raw: string): SearchSignals {
   const hasEtf = normalized.includes('ETF');
   const hasLof = normalized.includes('LOF');
   const hasLink = normalized.includes('联接') || normalized.includes('聯接');
-  const parsedShare = parseShareClass(raw).letter;
+  const parsedShare = /[\u4e00-\u9fff]|类/.test(raw) ? parseShareClass(raw).letter : '';
   const shareLetter = parsedShare || (/^[A-I]$/.test(normalized) ? normalized : '');
-  const core = normalized
+  let core = normalized
     .replace(/基金/g, '')
     .replace(/ETF联接/g, '')
     .replace(/ETF聯接/g, '')
     .replace(/联接[A-Z]?/g, '')
     .replace(/聯接[A-Z]?/g, '')
     .replace(/ETF/g, '')
-    .replace(/LOF/g, '')
-    .replace(/[A-Z](?:类)?$/g, '');
+    .replace(/LOF/g, '');
+  if (shareLetter) core = core.replace(/[A-Z](?:类)?$/g, '');
   const tokens = (core.match(/[\u4e00-\u9fa5]{2,}|[A-Z]{2,}|\d{2,}/g) ?? []).filter(Boolean);
   return { raw, normalized, core, tokens, hasEtf, hasLof, hasLink, shareLetter };
 }

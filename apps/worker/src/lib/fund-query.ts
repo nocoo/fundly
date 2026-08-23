@@ -286,9 +286,11 @@ function nameShareLetterSql(nameExpr: string): string {
       ]),
     ];
     const hit = `(${tails.map((tail) => `${nameExpr} LIKE ${tail}`).join(' OR ')})`;
-    if (letter === 'F') return `WHEN ${hit} AND NOT ${blockedF} THEN 'F'`;
-    if (letter === 'I') return `WHEN ${hit} AND NOT ${blockedI} THEN 'I'`;
-    return `WHEN ${hit} THEN '${letter}'`;
+    if (letter === 'F')
+      return `WHEN ${hit} AND NOT ${blockedF} AND length(${nameExpr}) >= 3 THEN 'F'`;
+    if (letter === 'I')
+      return `WHEN ${hit} AND NOT ${blockedI} AND length(${nameExpr}) >= 3 THEN 'I'`;
+    return `WHEN ${hit} AND length(${nameExpr}) >= 3 THEN '${letter}'`;
   });
   return `CASE ${branches.join(' ')} ELSE '' END`;
 }
@@ -460,14 +462,15 @@ export function buildFundListClauses(
         `${qualify("IFNULL(s.recovery_status_1y, 'insufficient')", flat)} IN ('recovered', 'open')`,
       );
     } else if (query.sort === 'all_in_fee_pct') {
-      where.push(
-        opts.fees
-          ? qualify(
-              '(s.all_in_fee_pct IS NOT NULL OR (f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL))',
-              flat,
-            )
-          : `${qualify('s.all_in_fee_pct', flat)} IS NOT NULL`,
-      );
+      const hasAllIn = colOk(opts.selectCols, 'all_in_fee_pct', opts.select);
+      const hasMgmt = colOk(opts.feeCols, 'mgmt_fee_pct', opts.fees);
+      const hasCust = colOk(opts.feeCols, 'custodian_fee_pct', opts.fees);
+      const bits: string[] = [];
+      if (hasAllIn) bits.push(qualify('s.all_in_fee_pct IS NOT NULL', flat));
+      if (hasMgmt && hasCust) {
+        bits.push(qualify('f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL', flat));
+      }
+      where.push(bits.length > 0 ? `(${bits.join(' OR ')})` : '0=1');
     } else {
       where.push(`${qualify(SORT_COLUMNS[query.sort], flat)} IS NOT NULL`);
     }
@@ -500,7 +503,7 @@ export function buildFundListClauses(
   if (query.sort === 'recovery_days_1y') {
     orderSql = `ORDER BY CASE ${qualify("IFNULL(s.recovery_status_1y, 'insufficient')", flat)} WHEN 'recovered' THEN 0 WHEN 'open' THEN 1 ELSE 2 END, ${qualify('s.recovery_days_1y', flat)} ASC, ${codeOrd} ASC`;
   } else if (query.sort === 'all_in_fee_pct') {
-    orderSql = `ORDER BY CASE WHEN ${qualify('s.all_in_fee_pct', flat)} IS NULL THEN 1 ELSE 0 END, ${qualify('fee_shown_pct', true)} ASC, ${codeOrd} ASC`;
+    orderSql = `ORDER BY ${feeKnownOrderSql(opts, flat)}, ${qualify('fee_shown_pct', true)} ASC, ${codeOrd} ASC`;
   } else if (query.sort === 'fund_code') {
     orderSql = `ORDER BY ${codeOrd} ${dirSql}`;
   } else {
@@ -596,6 +599,7 @@ export type FundListSqlOpts = {
   fees?: boolean;
   riskCols?: ReadonlySet<string>;
   selectCols?: ReadonlySet<string>;
+  feeCols?: ReadonlySet<string>;
 };
 
 function projectedCols(
@@ -622,16 +626,54 @@ export function fundListFromSql(opts: FundListSqlOpts = {}): string {
     LEFT JOIN fund_performance p ON p.fund_code = b.fund_code${riskJoin}${selectJoin}${moneyJoin}${feeJoin}`;
 }
 
+function colOk(
+  present: ReadonlySet<string> | undefined,
+  name: string,
+  enabled: boolean | undefined,
+): boolean {
+  return Boolean(enabled) && (!present || present.has(name));
+}
+
+function feeShownSql(opts: FundListSqlOpts): string {
+  const hasAllIn = colOk(opts.selectCols, 'all_in_fee_pct', opts.select);
+  const hasMgmt = colOk(opts.feeCols, 'mgmt_fee_pct', opts.fees);
+  const hasCust = colOk(opts.feeCols, 'custodian_fee_pct', opts.fees);
+  const hasSales = colOk(opts.feeCols, 'sales_service_fee_pct', opts.fees);
+  const parts: string[] = [];
+  if (hasMgmt && hasCust && hasSales) {
+    parts.push(
+      'WHEN f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL AND f.sales_service_fee_pct IS NOT NULL THEN f.mgmt_fee_pct + f.custodian_fee_pct + f.sales_service_fee_pct',
+    );
+  }
+  if (hasMgmt && hasCust) {
+    parts.push(
+      'WHEN f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL THEN f.mgmt_fee_pct + f.custodian_fee_pct',
+    );
+  }
+  if (hasAllIn) {
+    parts.push('WHEN s.all_in_fee_pct IS NOT NULL THEN s.all_in_fee_pct');
+  }
+  if (parts.length === 0) return 'NULL AS fee_shown_pct';
+  return `CASE ${parts.join(' ')} ELSE NULL END AS fee_shown_pct`;
+}
+
+function feeKnownOrderSql(opts: FundListSqlOpts, flat: boolean): string {
+  const bits: string[] = [];
+  if (colOk(opts.feeCols, 'sales_service_fee_pct', opts.fees)) {
+    bits.push(qualify('f.sales_service_fee_pct IS NOT NULL', flat));
+  }
+  if (colOk(opts.selectCols, 'all_in_fee_pct', opts.select)) {
+    bits.push(qualify('s.all_in_fee_pct IS NOT NULL', flat));
+  }
+  if (bits.length === 0) return '1';
+  return `CASE WHEN ${bits.join(' OR ')} THEN 0 ELSE 1 END`;
+}
+
 export function fundListSelectSql(opts: FundListSqlOpts = {}): string {
   const riskCols = projectedCols('r', RISK_RESULT_COLS, Boolean(opts.risk), opts.riskCols);
   const selectCols = projectedCols('s', SELECT_RESULT_COLS, Boolean(opts.select), opts.selectCols);
   const moneyCols = opts.money ? 'y.seven_day_yield' : 'NULL AS seven_day_yield';
-  const feeShown = opts.fees
-    ? `CASE WHEN s.all_in_fee_pct IS NOT NULL THEN s.all_in_fee_pct
-           WHEN f.mgmt_fee_pct IS NOT NULL AND f.custodian_fee_pct IS NOT NULL
-             THEN f.mgmt_fee_pct + f.custodian_fee_pct
-           ELSE NULL END AS fee_shown_pct`
-    : 'NULL AS fee_shown_pct';
+  const feeShown = feeShownSql(opts);
   return `SELECT b.fund_code, b.fund_name, b.fund_type, b.pinyin_abbr, b.pinyin_full, b.in_mvp_pool,
       p.return_1m, p.return_3m, p.return_6m, p.return_1y, p.data_date,
       p.rank_pct_1m, p.rank_pct_3m, p.rank_pct_6m, p.rank_pct_1y, p.pass_4433,
@@ -651,11 +693,14 @@ export function fundListSql(
   countParams: SqlBinding[];
 } {
   const needSelect =
-    (isSelectSortKey(query.sort) && query.sort !== 'seven_day_yield') ||
+    (isSelectSortKey(query.sort) &&
+      query.sort !== 'seven_day_yield' &&
+      query.sort !== 'all_in_fee_pct') ||
     query.lens === 'picks' ||
     query.feePeer != null ||
     query.scalePeer != null ||
     query.top10Max != null;
+  const needFees = query.sort === 'all_in_fee_pct';
   const sampleCol = query.minSamples != null ? samplesColumn(query.sort, query.lens) : null;
   const needRisk =
     isRiskSortKey(query.sort) || query.ddPeer != null || Boolean(sampleCol?.startsWith('r.'));
@@ -664,8 +709,12 @@ export function fundListSql(
     (isRiskSortKey(query.sort) && Boolean(opts.riskCols) && !opts.riskCols?.has(query.sort)) ||
     (isSelectSortKey(query.sort) &&
       query.sort !== 'seven_day_yield' &&
+      query.sort !== 'all_in_fee_pct' &&
       Boolean(opts.selectCols) &&
       !opts.selectCols?.has(query.sort)) ||
+    (query.sort === 'recovery_days_1y' &&
+      Boolean(opts.selectCols) &&
+      !opts.selectCols?.has('recovery_status_1y')) ||
     Boolean(
       sampleCol?.startsWith('r.') &&
         opts.riskCols &&
@@ -679,6 +728,7 @@ export function fundListSql(
     (needSelect && !opts.select) ||
     (needRisk && !opts.risk) ||
     (needMoney && !opts.money) ||
+    (needFees && !opts.fees && !opts.select) ||
     missingSortCol
   ) {
     return {
@@ -700,6 +750,7 @@ export function fundListSql(
     fees: joinFees,
     riskCols: opts.riskCols,
     selectCols: opts.selectCols,
+    feeCols: opts.feeCols,
   };
   const c = buildFundListClauses(query, sqlOpts);
   const from = fundListFromSql(sqlOpts);

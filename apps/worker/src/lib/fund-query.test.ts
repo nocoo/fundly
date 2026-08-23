@@ -284,8 +284,29 @@ describe('fundListSql', () => {
       select: true,
       fees: true,
     });
-    expect(built.listSql).toContain('s.all_in_fee_pct IS NULL THEN 1 ELSE 0 END');
+    expect(built.listSql).toContain('THEN 0 ELSE 1 END');
     expect(built.listSql).toContain('fee_shown_pct');
+  });
+
+  it('can sort costs from fund_fees when select metrics are missing', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (fund_code TEXT, fund_name TEXT, fund_type TEXT, pinyin_abbr TEXT, pinyin_full TEXT, in_mvp_pool INTEGER);
+      CREATE TABLE fund_performance (fund_code TEXT, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL, data_date TEXT, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL, rank_pct_1y REAL, pass_4433 INTEGER);
+      CREATE TABLE fund_fees (fund_code TEXT, mgmt_fee_pct REAL, custodian_fee_pct REAL, sales_service_fee_pct REAL);
+    `);
+    db.exec(`INSERT INTO fund_basic_info VALUES ('000001','测试','混合型-偏股','CS','CESHI',1)`);
+    db.exec(`INSERT INTO fund_performance VALUES ('000001',1,2,3,4,'2026-08-01',10,10,10,10,1)`);
+    db.exec(`INSERT INTO fund_fees VALUES ('000001',1.2,0.2,NULL)`);
+    const built = fundListSql(parseFundListQuery({ sort: 'all_in_fee_pct', metricNotNull: '1' }), {
+      fees: true,
+      feeCols: new Set(['mgmt_fee_pct', 'custodian_fee_pct', 'sales_service_fee_pct']),
+    });
+    const rows = db.query(built.listSql).all(...built.listParams) as Array<{
+      fee_shown_pct: number;
+    }>;
+    expect(rows[0]?.fee_shown_pct).toBeCloseTo(1.4);
+    db.close();
   });
 
   it('keeps top10Max above 100 and does not floor fractions', () => {
