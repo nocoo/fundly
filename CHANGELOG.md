@@ -1,3 +1,72 @@
+## 0.3.0 — 2026-08-25
+
+- fix: detect share after product tags
+- fix: parse share letters after normalize
+- fix: add other share class score
+- fix: score stored share class only
+- fix: parse share letters in js first
+- fix: trim share base after suffix
+- fix: block currency etf share tails
+- fix: shrink share-letter sql under limit
+- fix: glob currency share suffixes too
+- fix: match share letters case-sensitively
+- fix: exclude unknown sales from fee peer
+- fix: align share sql and cost fee docs
+- fix: prefer select fee and flatten aliases
+- fix: join select table for cost sort
+- fix: sort costs from fees without select table
+- fix: sort unknown fees after known costs
+- fix: compute worst month from prior close
+- fix: restore money dim from stored filters
+- fix: empty sql when sort column missing
+- fix: keep first grand total fund series
+- feat: switch money yield and keep select q
+- fix: project missing select columns as null
+- test: cover select filters and siblings
+- test: cover hold dca and structure metrics
+- feat: show grand total chart and siblings
+- fix: compute select from readonly snapshot
+- fix: assert v2 and select metric columns
+- feat: parse picks filters in select pages
+- fix: bind search score after where
+- fix: complete select query capabilities
+- fix: empty select sql when satellite tables missing
+- fix: picks sql dca months and hs300 align
+- docs: sync schema scripts and ui for select
+- feat: add select pages and restore nav group
+- feat: expose select sort keys and picks filters
+- feat: add select metrics and migrate v2 restore
+- fix: compute risk and long ranks on tr nav
+- fix: compare schema version with max row
+- docs: align grandtotal wording and i fixture
+- docs: exclude etf lof fof from share f
+- docs: close search signal and chart axes
+- docs: close structure search review holes
+- docs: name real-time-fund license
+- docs: fix excess bench and search recall
+- docs: credit real-time-fund reference
+- docs: learn search and structure from jigubao
+- docs: include F/G share classes
+- docs: close sixth select design review
+- docs: close fifth select design review
+- docs: close fourth select design review
+- docs: fix select design third review
+- docs: close remaining select design review
+- docs: fix select design after review
+- docs: add fund screening system design
+- feat: move data stats into settings
+- fix: put detail back beside title
+- feat: add back button on fund detail
+- feat: restore list origin and persist filters
+- fix: typecheck process.env as auth env
+- fix: accept schema v2 in empty snapshot test
+- chore: merge origin/main for 0.2.0 release
+- docs(phase2): full coverage report + sync 02-SCHEMA/03-SCRIPTS
+- feat(satellites): fees + manager + portfolio fetchers + scripts
+- feat(dividend): fund_dividend fetcher via fhsp HTML
+- feat(analytics): local risk metrics (vol/mdd/sharpe/sortino/calmar)
+- feat(schema): add 6 satellite tables for Phase 2
+
 ## 0.2.0 — 2026-08-22
 
 - fix: bump login page version on release
