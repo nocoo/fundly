@@ -99,16 +99,3 @@ export function readStoredFundsFilters(): FundsFilters | null {
 export function writeStoredFundsFilters(filters: FundsFilters): void {
   writeStoredJson(FUNDS_FILTERS_KEY, filters);
 }
-
-export function fundsFiltersEqual(a: FundsFilters, b: FundsFilters): boolean {
-  return (
-    a.q === b.q &&
-    a.typeL1 === b.typeL1 &&
-    a.typeL2 === b.typeL2 &&
-    a.mvpOnly === b.mvpOnly &&
-    a.hasNav === b.hasNav &&
-    a.sort === b.sort &&
-    a.dir === b.dir &&
-    a.page === b.page
-  );
-}
