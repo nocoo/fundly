@@ -9,7 +9,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   SidebarFooter,
-  SidebarHeader,
   SidebarNav,
   SidebarPartition,
   Tooltip,
@@ -282,18 +281,25 @@ export function Sidebar({ mobile = false }: SidebarProps) {
     <BasaltSidebar collapsed={isCollapsed} aria-label={mobile ? '主导航抽屉' : '主导航'}>
       {isCollapsed ? (
         <>
-          <SidebarHeader className="justify-center px-0">
-            <img src="/logo.svg" alt="Fundly" width={22} height={22} className="shrink-0" />
-          </SidebarHeader>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mb-1 self-center text-basalt-muted-foreground hover:text-basalt-foreground"
-            onClick={toggle}
-            aria-label="展开侧边栏"
-          >
-            <PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-          </Button>
+          <div className="flex h-14 w-full items-center justify-start pr-3 pl-6">
+            <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
+          </div>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mb-2 h-10 w-10 self-center text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground"
+                onClick={toggle}
+                aria-label="展开侧边栏"
+              >
+                <PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              展开侧边栏
+            </TooltipContent>
+          </Tooltip>
           <SidebarNav className="w-full items-center gap-1 pt-1">
             {ALL_NAV_ITEMS.map((item) => {
               const isActive = isItemActive(item.href, pathname, listOrigin);
@@ -333,10 +339,10 @@ export function Sidebar({ mobile = false }: SidebarProps) {
         </>
       ) : (
         <>
-          <SidebarHeader>
-            <div className="flex w-full items-center justify-between">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <img src="/logo.svg" alt="Fundly" width={22} height={22} className="shrink-0" />
+          <div className="flex h-14 items-center px-3">
+            <div className="flex w-full items-center justify-between px-3">
+              <div className="flex items-center gap-3">
+                <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
                 <span className="truncate text-lg font-bold tracking-tight text-basalt-foreground">
                   fundly
                 </span>
@@ -356,7 +362,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                 </Button>
               )}
             </div>
-          </SidebarHeader>
+          </div>
           <SidebarNav className="pt-1">
             {NAV_GROUPS.map((group) => (
               <NavGroupSection
