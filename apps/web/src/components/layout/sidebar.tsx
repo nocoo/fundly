@@ -48,7 +48,7 @@ import { sidebarUserState } from '@/lib/user';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
 
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.4.0';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   CalendarRange,

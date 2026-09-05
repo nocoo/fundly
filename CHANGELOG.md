@@ -1,3 +1,14 @@
+## 0.4.0 — 2026-09-05
+
+- fix(scripts): match APP_VERSION string constant in sidebar when cutting release
+- fix(web): align sidebar logo position and eliminate toggle jitter
+- fix(web): remove low-contrast hover link color and use hover underline
+- fix(web): resolve codex review issues on table wrap, contrast, dom nesting and unstyled collapsible
+- fix(web): refine chart card overflow, safe danger tokens and collapsible trigger
+- fix(web): address review findings on table scroll, tooltip clipping and link semantics
+- feat(web): migrate pages and base components to basalt controls
+- feat(web): migrate app shell, login card and sidebar to basalt
+
 ## 0.3.0 — 2026-08-25
 
 - fix: detect share after product tags
