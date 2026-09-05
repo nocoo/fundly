@@ -256,7 +256,7 @@ export default function FundDetailPage() {
                     <span key={item.fund_code}>
                       {index > 0 ? ' · ' : ''}
                       <Link
-                        className="text-basalt-foreground hover:text-basalt-primary hover:underline font-medium"
+                        className="text-basalt-foreground hover:underline font-medium"
                         to={`/funds/${item.fund_code}`}
                       >
                         {item.share_class || item.fund_code}

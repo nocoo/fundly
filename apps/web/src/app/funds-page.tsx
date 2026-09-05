@@ -252,7 +252,7 @@ export default function FundsPage() {
                         >
                           <TableCell>
                             <Link
-                              className="font-medium text-basalt-foreground hover:text-basalt-primary hover:underline"
+                              className="font-medium text-basalt-foreground hover:underline"
                               to={loc.to}
                               state={loc.state}
                               onClick={() => writeListOrigin(listOrigin)}

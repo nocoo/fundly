@@ -288,7 +288,7 @@ export default function RankingPage() {
                           </TableCell>
                           <TableCell>
                             <Link
-                              className="font-medium text-basalt-foreground hover:text-basalt-primary hover:underline"
+                              className="font-medium text-basalt-foreground hover:underline"
                               to={fundDetailLink(row.fund_code, listOrigin).to}
                               state={fundDetailLink(row.fund_code, listOrigin).state}
                               onClick={() => writeListOrigin(listOrigin)}
