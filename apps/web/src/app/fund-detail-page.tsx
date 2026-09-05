@@ -1,3 +1,5 @@
+import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft, CircleOff } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
@@ -8,9 +10,7 @@ import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { SharePie } from '@/components/charts/share-pie';
 import { AppShell } from '@/components/layout';
-import { Button } from '@/components/ui/button';
 import { CopyField } from '@/components/ui/copy-field';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useChartPrefs } from '@/hooks/use-chart-prefs';
@@ -70,7 +70,7 @@ function BackToList({
   variant?: 'ghost' | 'outline';
 }) {
   return (
-    <Button variant={variant} size="icon-sm" className="mt-0.5 shrink-0" asChild>
+    <Button variant={variant} size="icon" className="h-8 w-8 shrink-0" asChild>
       <Link to={listHref(origin)} aria-label={listBackLabel(origin)}>
         <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
       </Link>
@@ -153,7 +153,7 @@ export default function FundDetailPage() {
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
         <div className="flex items-center gap-2">
           <BackToList origin={listOrigin} />
-          <p className="text-sm text-muted-foreground">加载中…</p>
+          <p className="text-sm text-basalt-muted-foreground">加载中…</p>
         </div>
       </AppShell>
     );
@@ -162,15 +162,24 @@ export default function FundDetailPage() {
     const missing = !error || error.message === 'Not found';
     return (
       <AppShell breadcrumbs={[listCrumb, { label: code }]}>
-        <div className="mb-4">
-          <BackToList origin={listOrigin} variant="outline" />
+        <div className="space-y-6">
+          <div className="mb-4">
+            <BackToList origin={listOrigin} variant="outline" />
+          </div>
+          <LayerCard className="py-12 text-center">
+            <LayerCard.Body className="flex flex-col items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-basalt-destructive/10 text-basalt-destructive mb-4">
+                <CircleOff className="h-8 w-8" strokeWidth={1.5} />
+              </div>
+              <h2 className="text-lg font-semibold text-basalt-foreground">
+                {missing ? '未找到基金' : '加载失败'}
+              </h2>
+              {error?.message ? (
+                <p className="mt-1 text-sm text-basalt-muted-foreground mb-4">{error.message}</p>
+              ) : null}
+            </LayerCard.Body>
+          </LayerCard>
         </div>
-        <EmptyState
-          icon={CircleOff}
-          tone="error"
-          title={missing ? '未找到基金' : '加载失败'}
-          description={error?.message}
-        />
       </AppShell>
     );
   }
@@ -226,219 +235,237 @@ export default function FundDetailPage() {
 
   return (
     <AppShell breadcrumbs={[listCrumb, { label: String(name) }]}>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2">
-          <BackToList origin={listOrigin} />
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold">
-              {name} <span className="text-muted-foreground text-base">{code}</span>
-            </h1>
-            {fundType ? <FundTypeBadges type={fundType} wrap className="mt-2" /> : null}
-            {siblings?.items.length ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                兄弟份额{' '}
-                {siblings.items.map((item, index) => (
-                  <span key={item.fund_code}>
-                    {index > 0 ? ' · ' : ''}
-                    <Link className="text-foreground" to={`/funds/${item.fund_code}`}>
-                      {item.share_class || item.fund_code}
-                    </Link>
-                    {item.all_in_fee_pct != null
-                      ? ` ${formatMetric(item.all_in_fee_pct, 'percent')}`
-                      : ''}
-                    {item.sales_fee_known === 0 ? ' 销服未知' : ''}
-                  </span>
-                ))}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-muted p-0.5 ring-1 ring-border/70">
-          <legend className="sr-only">时间范围</legend>
-          {RANGE_YEARS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={years === item}
-              onClick={() => {
-                const next = new URLSearchParams(params);
-                if (item === 5) next.delete('years');
-                else next.set('years', String(item));
-                setParams(next, { replace: true });
-              }}
-              className={cn(
-                'h-7 rounded-full px-2.5 text-xs font-semibold',
-                years === item
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {item}年
-            </button>
-          ))}
-        </fieldset>
-      </div>
+      <div className="space-y-6">
+        <PageHeader
+          title={
+            <div className="flex items-center gap-3">
+              <BackToList origin={listOrigin} />
+              <span>
+                {name}{' '}
+                <span className="text-basalt-muted-foreground text-base font-normal">{code}</span>
+              </span>
+            </div>
+          }
+          description={
+            <div className="mt-1">
+              {fundType ? <FundTypeBadges type={fundType} wrap className="mt-1" /> : null}
+              {siblings?.items.length ? (
+                <p className="mt-1.5 text-xs text-basalt-muted-foreground">
+                  兄弟份额{' '}
+                  {siblings.items.map((item, index) => (
+                    <span key={item.fund_code}>
+                      {index > 0 ? ' · ' : ''}
+                      <Link
+                        className="text-basalt-primary hover:underline font-medium"
+                        to={`/funds/${item.fund_code}`}
+                      >
+                        {item.share_class || item.fund_code}
+                      </Link>
+                      {item.all_in_fee_pct != null
+                        ? ` ${formatMetric(item.all_in_fee_pct, 'percent')}`
+                        : ''}
+                      {item.sales_fee_known === 0 ? ' 销服未知' : ''}
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          }
+          actions={
+            <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-basalt-muted p-0.5 ring-1 ring-basalt-border/70">
+              <legend className="sr-only">时间范围</legend>
+              {RANGE_YEARS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  aria-pressed={years === item}
+                  onClick={() => {
+                    const next = new URLSearchParams(params);
+                    if (item === 5) next.delete('years');
+                    else next.set('years', String(item));
+                    setParams(next, { replace: true });
+                  }}
+                  className={cn(
+                    'h-7 rounded-full px-2.5 text-xs font-semibold transition-colors',
+                    years === item
+                      ? 'bg-basalt-primary text-basalt-primary-foreground shadow-sm'
+                      : 'text-basalt-muted-foreground hover:text-basalt-foreground',
+                  )}
+                >
+                  {item}年
+                </button>
+              ))}
+            </fieldset>
+          }
+        />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr] xl:grid-rows-[auto_1fr]">
-        <div className="flex flex-col gap-4 xl:row-span-2">
-          {isMoneySeries ? (
+        <div className="grid items-start gap-4 xl:grid-cols-[3fr_1fr_1fr] xl:grid-rows-[auto_1fr]">
+          <div className="flex flex-col gap-4 xl:row-span-2">
+            {isMoneySeries ? (
+              <TimeCard
+                title="万份收益 / 七日年化"
+                empty={moneyPoints.length < 2}
+                emptyLabel={navError ? `收益加载失败：${navError.message}` : '暂无万份收益'}
+                points={moneyPoints}
+                series={[
+                  { key: 'income', label: '万份收益', color: GROWTH_STROKE.fund },
+                  {
+                    key: 'yield7',
+                    label: '七日年化',
+                    dashed: true,
+                    color: GROWTH_STROKE.bench,
+                    yAxis: 'right',
+                  },
+                ]}
+                timeDomain={timeDomain}
+                height={NAV_PANEL}
+                format={(value) =>
+                  value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(4)
+                }
+                axisFormat={(value) =>
+                  value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(2)
+                }
+                rightFormat={(value) => formatMetric(value, 'percent')}
+                rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+              />
+            ) : (
+              <TimeCard
+                title="净值增长"
+                empty={growth.length < 2}
+                emptyLabel={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'}
+                points={growth}
+                series={growthSeries}
+                timeDomain={timeDomain}
+                height={NAV_PANEL}
+                format={(value) => formatMetric(value, 'nav')}
+                axisFormat={(value) => formatAxisMetric(value, 'nav')}
+                rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
+                rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+                yDomain={growthDomain?.left}
+                rightYDomain={growthDomain?.right}
+              />
+            )}
+            {grand ? (
+              <TimeCard
+                title="半年累计收益"
+                empty={grand.points.length < 2}
+                points={grand.points}
+                series={grand.series.map((item, index) => ({
+                  ...item,
+                  color: index === 0 ? GROWTH_STROKE.fund : refStroke(index - 1),
+                  dashed: item.key !== 'fund',
+                }))}
+                timeDomain={grandDomain}
+                format={(value) => formatMetric(value, 'percent', { signed: true })}
+                axisFormat={(value) => formatAxisMetric(value, 'percent')}
+              />
+            ) : null}
             <TimeCard
-              title="万份收益 / 七日年化"
-              empty={moneyPoints.length < 2}
-              emptyLabel={navError ? `收益加载失败：${navError.message}` : '暂无万份收益'}
-              points={moneyPoints}
-              series={[
-                { key: 'income', label: '万份收益', color: GROWTH_STROKE.fund },
-                {
-                  key: 'yield7',
-                  label: '七日年化',
-                  dashed: true,
-                  color: GROWTH_STROKE.bench,
-                  yAxis: 'right',
-                },
-              ]}
+              title="同类排名"
+              empty={ranking.length < 2}
+              points={ranking}
+              series={[{ key: 'rank', label: '同类排名' }]}
               timeDomain={timeDomain}
-              height={NAV_PANEL}
-              format={(value) =>
-                value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(4)
-              }
-              axisFormat={(value) =>
-                value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(2)
-              }
-              rightFormat={(value) => formatMetric(value, 'percent')}
-              rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
+              yReversed
+              format={(value) => formatMetric(value, 'count')}
+              axisFormat={(value) => formatAxisMetric(value, 'count')}
             />
-          ) : (
             <TimeCard
-              title="净值增长"
-              empty={growth.length < 2}
-              emptyLabel={navError ? `净值加载失败：${navError.message}` : '暂无净值数据'}
-              points={growth}
-              series={growthSeries}
+              title="规模变动"
+              empty={scale.length < 1}
+              points={scale}
+              series={[{ key: 'scale', label: '规模（亿元）' }]}
               timeDomain={timeDomain}
-              height={NAV_PANEL}
-              format={(value) => formatMetric(value, 'nav')}
-              axisFormat={(value) => formatAxisMetric(value, 'nav')}
-              rightFormat={(value) => formatMetric(value, 'percent', { signed: true })}
-              rightAxisFormat={(value) => formatAxisMetric(value, 'percent')}
-              yDomain={growthDomain?.left}
-              rightYDomain={growthDomain?.right}
+              type="bar"
+              format={(value) => formatMetric(value, 'scale')}
+              axisFormat={(value) => formatAxisMetric(value, 'scale')}
             />
-          )}
-          {grand ? (
             <TimeCard
-              title="半年累计收益"
-              empty={grand.points.length < 2}
-              points={grand.points}
-              series={grand.series.map((item, index) => ({
-                ...item,
-                color: index === 0 ? GROWTH_STROKE.fund : refStroke(index - 1),
-                dashed: item.key !== 'fund',
-              }))}
-              timeDomain={grandDomain}
-              format={(value) => formatMetric(value, 'percent', { signed: true })}
+              title="资产配置"
+              empty={allocation.length < 2}
+              points={allocation}
+              series={
+                extras.allocation
+                  ? extras.allocation.series.map((item) => ({ key: item.name, label: item.name }))
+                  : []
+              }
+              timeDomain={timeDomain}
+              format={(value) => formatMetric(value, 'percent')}
               axisFormat={(value) => formatAxisMetric(value, 'percent')}
             />
-          ) : null}
-          <TimeCard
-            title="同类排名"
-            empty={ranking.length < 2}
-            points={ranking}
-            series={[{ key: 'rank', label: '同类排名' }]}
-            timeDomain={timeDomain}
-            yReversed
-            format={(value) => formatMetric(value, 'count')}
-            axisFormat={(value) => formatAxisMetric(value, 'count')}
-          />
-          <TimeCard
-            title="规模变动"
-            empty={scale.length < 1}
-            points={scale}
-            series={[{ key: 'scale', label: '规模（亿元）' }]}
-            timeDomain={timeDomain}
-            type="bar"
-            format={(value) => formatMetric(value, 'scale')}
-            axisFormat={(value) => formatAxisMetric(value, 'scale')}
-          />
-          <TimeCard
-            title="资产配置"
-            empty={allocation.length < 2}
-            points={allocation}
-            series={
-              extras.allocation
-                ? extras.allocation.series.map((item) => ({ key: item.name, label: item.name }))
-                : []
-            }
-            timeDomain={timeDomain}
-            format={(value) => formatMetric(value, 'percent')}
-            axisFormat={(value) => formatAxisMetric(value, 'percent')}
-          />
-          <TimeCard
-            title="持有人结构"
-            empty={holders.length < 2}
-            points={holders}
-            series={
-              extras.holders
-                ? extras.holders.series.map((item) => ({ key: item.name, label: item.name }))
-                : []
-            }
-            timeDomain={timeDomain}
-            format={(value) => formatMetric(value, 'percent')}
-            axisFormat={(value) => formatAxisMetric(value, 'percent')}
-          />
-        </div>
+            <TimeCard
+              title="持有人结构"
+              empty={holders.length < 2}
+              points={holders}
+              series={
+                extras.holders
+                  ? extras.holders.series.map((item) => ({ key: item.name, label: item.name }))
+                  : []
+              }
+              timeDomain={timeDomain}
+              format={(value) => formatMetric(value, 'percent')}
+              axisFormat={(value) => formatAxisMetric(value, 'percent')}
+            />
+          </div>
 
-        <div className="xl:col-span-2">
-          <FieldGroup
-            title="基本信息"
-            fields={fieldsOf(data.fields, '基本信息')}
-            columns="grid-cols-2 md:grid-cols-4"
-          />
-        </div>
+          <div className="xl:col-span-2">
+            <FieldGroup
+              title="基本信息"
+              fields={fieldsOf(data.fields, '基本信息')}
+              columns="grid-cols-2 md:grid-cols-4"
+            />
+          </div>
 
-        <div className="flex flex-col gap-4">
-          <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-            <p className="mb-4 text-sm font-semibold text-foreground">
-              {extras.scores?.avr != null
-                ? `五维能力（均分 ${formatMetric(extras.scores.avr, 'nav')}）`
-                : '五维能力'}
+          <div className="flex flex-col gap-4">
+            <LayerCard>
+              <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
+                {extras.scores?.avr != null
+                  ? `五维能力（均分 ${formatMetric(extras.scores.avr, 'nav')}）`
+                  : '五维能力'}
+              </LayerCard.Header>
+              <LayerCard.Body>
+                {extras.scores && extras.scores.items.length > 0 ? (
+                  <ScoreRadar items={extras.scores.items} height={CHART_HEIGHTS.standard} />
+                ) : (
+                  <ChartEmptyMask label="暂无五维数据" />
+                )}
+              </LayerCard.Body>
+            </LayerCard>
+            <SnapshotBar title="最新配置" items={extras.allocation?.latest ?? []} kind="percent" />
+            <LayerCard>
+              <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
+                最新持有人
+              </LayerCard.Header>
+              <LayerCard.Body>
+                {extras.holders && extras.holders.latest.length > 0 ? (
+                  <>
+                    <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
+                    <SeriesLegend
+                      series={extras.holders.latest.map((item, index) => ({
+                        key: item.name,
+                        label: `${item.name} ${formatMetric(item.value, 'percent')}`,
+                        color: seriesStroke(index),
+                      }))}
+                    />
+                  </>
+                ) : (
+                  <ChartEmptyMask label="暂无最新持有人" />
+                )}
+              </LayerCard.Body>
+            </LayerCard>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
+            <p className="text-xs leading-5 text-basalt-muted-foreground">
+              图中净值 {formatCount(growth.length)} 个交易日
+              {growth.length > 0
+                ? ` · ${String(growth[0]?.name)} → ${String(growth[growth.length - 1]?.name)}`
+                : ''}
+              。与左栏净值增长同一窗口，不是单位净值本身。
             </p>
-            {extras.scores && extras.scores.items.length > 0 ? (
-              <ScoreRadar items={extras.scores.items} height={CHART_HEIGHTS.standard} />
-            ) : (
-              <ChartEmptyMask label="暂无五维数据" />
-            )}
-          </article>
-          <SnapshotBar title="最新配置" items={extras.allocation?.latest ?? []} kind="percent" />
-          <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-            <p className="mb-3 text-sm font-semibold text-foreground">最新持有人</p>
-            {extras.holders && extras.holders.latest.length > 0 ? (
-              <>
-                <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
-                <SeriesLegend
-                  series={extras.holders.latest.map((item, index) => ({
-                    key: item.name,
-                    label: `${item.name} ${formatMetric(item.value, 'percent')}`,
-                    color: seriesStroke(index),
-                  }))}
-                />
-              </>
-            ) : (
-              <ChartEmptyMask label="暂无最新持有人" />
-            )}
-          </article>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <FieldGroup title="业绩" fields={fieldsOf(data.fields, '业绩')} />
-          <p className="text-xs leading-5 text-muted-foreground">
-            图中净值 {formatCount(growth.length)} 个交易日
-            {growth.length > 0
-              ? ` · ${String(growth[0]?.name)} → ${String(growth[growth.length - 1]?.name)}`
-              : ''}
-            。与左栏净值增长同一窗口，不是单位净值本身。
-          </p>
-          <FieldGroup title="排名" fields={fieldsOf(data.fields, '排名')} />
+            <FieldGroup title="排名" fields={fieldsOf(data.fields, '排名')} />
+          </div>
         </div>
       </div>
     </AppShell>
@@ -483,32 +510,36 @@ function TimeCard({
   type?: 'line' | 'bar';
 }) {
   return (
-    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
-      {empty ? (
-        <ChartEmptyMask label={emptyLabel} />
-      ) : (
-        <>
-          <SeriesChart
-            type={type}
-            points={points}
-            series={series}
-            height={height}
-            timeDomain={timeDomain}
-            colorByCategory={false}
-            valueFormatter={format}
-            axisValueFormatter={axisFormat}
-            rightValueFormatter={rightFormat}
-            rightAxisValueFormatter={rightAxisFormat}
-            yReversed={yReversed}
-            yDomain={yDomain}
-            rightYDomain={rightYDomain}
-            ariaLabel={title}
-          />
-          <SeriesLegend series={series} />
-        </>
-      )}
-    </article>
+    <LayerCard>
+      <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
+        {title}
+      </LayerCard.Header>
+      <LayerCard.Body>
+        {empty ? (
+          <ChartEmptyMask label={emptyLabel} />
+        ) : (
+          <>
+            <SeriesChart
+              type={type}
+              points={points}
+              series={series}
+              height={height}
+              timeDomain={timeDomain}
+              colorByCategory={false}
+              valueFormatter={format}
+              axisValueFormatter={axisFormat}
+              rightValueFormatter={rightFormat}
+              rightAxisValueFormatter={rightAxisFormat}
+              yReversed={yReversed}
+              yDomain={yDomain}
+              rightYDomain={rightYDomain}
+              ariaLabel={title}
+            />
+            <SeriesLegend series={series} />
+          </>
+        )}
+      </LayerCard.Body>
+    </LayerCard>
   );
 }
 
@@ -521,7 +552,7 @@ function SeriesLegend({ series }: { series: ChartSeries[] }) {
         return (
           <li
             key={item.key}
-            className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"
+            className="flex min-w-0 items-center gap-1.5 text-[11px] text-basalt-muted-foreground"
           >
             <span
               className="h-0.5 w-3.5 shrink-0 rounded-full"
@@ -550,31 +581,35 @@ function SnapshotBar({
 }) {
   const points = items.map((item) => ({ name: item.name, value: item.value }));
   return (
-    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
-      {points.length === 0 ? (
-        <ChartEmptyMask label={`暂无${title}`} />
-      ) : (
-        <>
-          <SeriesChart
-            type="bar"
-            orientation="horizontal"
-            points={points}
-            series={[{ key: 'value', label: title }]}
-            height={Math.max(140, points.length * 36)}
-            valueFormatter={(value) => formatMetric(value, kind)}
-            ariaLabel={title}
-          />
-          <SeriesLegend
-            series={points.map((point, index) => ({
-              key: String(point.name),
-              label: String(point.name),
-              color: seriesStroke(index),
-            }))}
-          />
-        </>
-      )}
-    </article>
+    <LayerCard>
+      <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
+        {title}
+      </LayerCard.Header>
+      <LayerCard.Body>
+        {points.length === 0 ? (
+          <ChartEmptyMask label={`暂无${title}`} />
+        ) : (
+          <>
+            <SeriesChart
+              type="bar"
+              orientation="horizontal"
+              points={points}
+              series={[{ key: 'value', label: title }]}
+              height={Math.max(140, points.length * 36)}
+              valueFormatter={(value) => formatMetric(value, kind)}
+              ariaLabel={title}
+            />
+            <SeriesLegend
+              series={points.map((point, index) => ({
+                key: String(point.name),
+                label: String(point.name),
+                color: seriesStroke(index),
+              }))}
+            />
+          </>
+        )}
+      </LayerCard.Body>
+    </LayerCard>
   );
 }
 
@@ -590,7 +625,7 @@ function FieldGroup({
   if (fields.length === 0) return null;
   return (
     <section>
-      <h2 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h2>
+      <h2 className="mb-2 text-sm font-medium text-basalt-muted-foreground">{title}</h2>
       <div className={cn('grid gap-2', columns)}>
         {fields.map((f) => (
           <CopyField

@@ -55,16 +55,16 @@ export function FilterDropdown({
         aria-controls={listId}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          'flex max-w-[min(100vw-2rem,20rem)] items-center gap-1.5 rounded-widget border border-border bg-secondary px-3 py-2 text-sm shadow-xs transition-colors',
-          'text-foreground hover:border-foreground/20 hover:bg-accent',
-          open && 'border-primary/40 bg-accent',
+          'flex max-w-[min(100vw-2rem,20rem)] items-center gap-1.5 rounded-lg border border-basalt-border bg-basalt-control px-3 py-1.5 text-xs font-medium transition-colors',
+          'text-basalt-foreground hover:border-basalt-foreground/20 hover:bg-basalt-accent',
+          open && 'border-basalt-primary/40 bg-basalt-accent',
         )}
       >
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="shrink-0 text-xs font-medium text-basalt-muted-foreground">{label}</span>
         <span className="min-w-0 truncate font-medium">{selected?.label ?? allLabel}</span>
         <ChevronDown
           className={cn(
-            'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+            'h-3.5 w-3.5 shrink-0 text-basalt-muted-foreground transition-transform duration-200',
             open && 'rotate-180',
           )}
           strokeWidth={1.5}
@@ -76,7 +76,7 @@ export function FilterDropdown({
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute top-full left-0 z-50 mt-1 max-h-80 min-w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+          className="absolute top-full left-0 z-50 mt-1 max-h-80 min-w-full overflow-y-auto rounded-lg border border-basalt-border bg-basalt-popover p-1 shadow-lg"
           style={{ minWidth: '12rem' }}
         >
           {items.map((item) => {
@@ -92,16 +92,16 @@ export function FilterDropdown({
                   setOpen(false);
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors',
                   active
-                    ? 'bg-primary/10 font-medium text-primary'
-                    : 'text-foreground hover:bg-accent',
+                    ? 'bg-basalt-primary/10 font-semibold text-basalt-primary'
+                    : 'text-basalt-foreground hover:bg-basalt-accent',
                 )}
               >
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {active ? (
                   <Check
-                    className="h-3.5 w-3.5 shrink-0 text-primary"
+                    className="h-3.5 w-3.5 shrink-0 text-basalt-primary"
                     strokeWidth={2}
                     aria-hidden="true"
                   />

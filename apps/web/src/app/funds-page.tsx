@@ -1,12 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import useSWR from 'swr';
-import { fetchAPI } from '@/api';
-import { AppShell } from '@/components/layout';
-import { FilterCheck } from '@/components/ui/filter-check';
-import { FilterDropdown } from '@/components/ui/filter-dropdown';
-import { Input } from '@/components/ui/input';
-import { Metric } from '@/components/ui/metric';
+import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -14,7 +7,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@nocoo/basalt/components/table';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
+import useSWR from 'swr';
+import { fetchAPI } from '@/api';
+import { AppShell } from '@/components/layout';
+import { FilterCheck } from '@/components/ui/filter-check';
+import { FilterDropdown } from '@/components/ui/filter-dropdown';
+import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
@@ -146,142 +147,161 @@ export default function FundsPage() {
 
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览' }]}>
-      <div className="mb-5 rounded-card bg-secondary p-3 ring-1 ring-border/40">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            id="fund-q"
-            value={search.value}
-            placeholder="代码 / 名称 / 拼音"
-            aria-label="关键词"
-            className="h-[38px] w-52 shadow-xs"
-            onChange={search.onChange}
-            onCompositionStart={search.onCompositionStart}
-            onCompositionEnd={search.onCompositionEnd}
-          />
-          <FilterDropdown
-            label="大类"
-            value={typeL1 || 'all'}
-            options={l1Options}
-            onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
-          />
-          {l2Options.length > 0 ? (
-            <FilterDropdown
-              label="细类"
-              value={typeL2 || 'all'}
-              options={l2Options}
-              onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
-            />
-          ) : null}
-          <FilterCheck
-            label="MVP 池"
-            checked={mvpOnly}
-            onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
-          />
-          <FilterCheck
-            label="有净值"
-            checked={hasNav}
-            onChange={(checked) => set({ hasNav: checked ? '1' : null })}
-          />
-          <button
-            type="button"
-            disabled={!filterActive && !search.value}
-            onClick={() =>
-              set({ q: null, typeL1: null, typeL2: null, mvpOnly: null, hasNav: null })
-            }
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:invisible"
-          >
-            重置
-          </button>
-        </div>
-      </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="基金浏览"
+          description="全市场公募基金列表，支持代码名称快速检索、多级分类筛选与周期收益排序。"
+          actions={
+            filterActive || search.value ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  set({ q: null, typeL1: null, typeL2: null, mvpOnly: null, hasNav: null })
+                }
+              >
+                重置筛选
+              </Button>
+            ) : null
+          }
+          filters={
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="fund-q"
+                value={search.value}
+                placeholder="代码 / 名称 / 拼音"
+                aria-label="关键词"
+                className="h-9 w-52"
+                onChange={search.onChange}
+                onCompositionStart={search.onCompositionStart}
+                onCompositionEnd={search.onCompositionEnd}
+              />
+              <FilterDropdown
+                label="大类"
+                value={typeL1 || 'all'}
+                options={l1Options}
+                onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
+              />
+              {l2Options.length > 0 ? (
+                <FilterDropdown
+                  label="细类"
+                  value={typeL2 || 'all'}
+                  options={l2Options}
+                  onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
+                />
+              ) : null}
+              <FilterCheck
+                label="MVP 池"
+                checked={mvpOnly}
+                onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
+              />
+              <FilterCheck
+                label="有净值"
+                checked={hasNav}
+                onChange={(checked) => set({ hasNav: checked ? '1' : null })}
+              />
+            </div>
+          }
+        />
 
-      {error && <p className="text-sm text-destructive-text">{error.message}</p>}
-      {isLoading && !data && <p className="text-sm text-muted-foreground">加载中…</p>}
+        {error && <p className="text-sm text-basalt-destructive">{error.message}</p>}
+        {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
 
-      {data && (
-        <div className="rounded-card bg-secondary ring-1 ring-border/40">
-          <p className="px-3 pt-3 text-xs text-muted-foreground">
-            共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)} 页 ·
-            每页 {formatCount(data.pageSize)}
-            {isValidating ? ' · 更新中…' : ''}
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {SORTS.map(([key, label]) => (
-                  <TableHead
-                    key={key}
-                    aria-sort={sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
-                  >
-                    <button type="button" className="font-medium" onClick={() => toggleSort(key)}>
-                      {label}
-                      {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                    </button>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((row) => {
-                const loc = fundDetailLink(row.fund_code, listOrigin);
-                return (
-                  <TableRow
-                    key={row.fund_code}
-                    className="cursor-pointer"
-                    onClick={() => openDetail(row.fund_code)}
-                  >
-                    <TableCell>
-                      <Link
-                        className="text-foreground"
-                        to={loc.to}
-                        state={loc.state}
-                        onClick={() => writeListOrigin(listOrigin)}
+        {data && (
+          <LayerCard>
+            <LayerCard.Header className="flex items-center justify-between text-xs text-basalt-muted-foreground">
+              <span>
+                共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)}{' '}
+                页 · 每页 {formatCount(data.pageSize)}
+                {isValidating ? ' · 更新中…' : ''}
+              </span>
+            </LayerCard.Header>
+            <LayerCard.Body className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {SORTS.map(([key, label]) => (
+                      <TableHead
+                        key={key}
+                        aria-sort={
+                          sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
+                        }
+                        className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
                       >
-                        {row.fund_code}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{row.fund_name}</TableCell>
-                    <TableCell>
-                      <FundTypeBadges type={row.fund_type} />
-                    </TableCell>
-                    <TableCell>
-                      <Metric value={row.return_1y} kind="percent" signed align="end" />
-                    </TableCell>
-                    <TableCell>
-                      <Metric value={row.return_1m} kind="percent" signed align="end" />
-                    </TableCell>
-                    <TableCell>
-                      <Metric value={row.return_3m} kind="percent" signed align="end" />
-                    </TableCell>
-                    <TableCell>
-                      <Metric value={row.return_6m} kind="percent" signed align="end" />
-                    </TableCell>
+                        <button
+                          type="button"
+                          className="font-medium hover:text-basalt-foreground transition-colors"
+                          onClick={() => toggleSort(key)}
+                        >
+                          {label}
+                          {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      </TableHead>
+                    ))}
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <div className="flex gap-2 p-3">
-            <button
-              type="button"
-              className="rounded-md border border-border px-3 py-1 text-sm disabled:opacity-40"
-              disabled={data.page <= 1}
-              onClick={() => set({ page: String(data.page - 1) })}
-            >
-              上一页
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-border px-3 py-1 text-sm disabled:opacity-40"
-              disabled={data.page >= pages}
-              onClick={() => set({ page: String(data.page + 1) })}
-            >
-              下一页
-            </button>
-          </div>
-        </div>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {data.items.map((row) => {
+                    const loc = fundDetailLink(row.fund_code, listOrigin);
+                    return (
+                      <TableRow
+                        key={row.fund_code}
+                        className="cursor-pointer"
+                        onClick={() => openDetail(row.fund_code)}
+                      >
+                        <TableCell>
+                          <Link
+                            className="font-medium text-basalt-primary hover:underline"
+                            to={loc.to}
+                            state={loc.state}
+                            onClick={() => writeListOrigin(listOrigin)}
+                          >
+                            {row.fund_code}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{row.fund_name}</TableCell>
+                        <TableCell>
+                          <FundTypeBadges type={row.fund_type} />
+                        </TableCell>
+                        <TableCell>
+                          <Metric value={row.return_1y} kind="percent" signed align="end" />
+                        </TableCell>
+                        <TableCell>
+                          <Metric value={row.return_1m} kind="percent" signed align="end" />
+                        </TableCell>
+                        <TableCell>
+                          <Metric value={row.return_3m} kind="percent" signed align="end" />
+                        </TableCell>
+                        <TableCell>
+                          <Metric value={row.return_6m} kind="percent" signed align="end" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </LayerCard.Body>
+            <LayerCard.Footer className="flex items-center gap-2 p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={data.page <= 1}
+                onClick={() => set({ page: String(data.page - 1) })}
+              >
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={data.page >= pages}
+                onClick={() => set({ page: String(data.page + 1) })}
+              >
+                下一页
+              </Button>
+            </LayerCard.Footer>
+          </LayerCard>
+        )}
+      </div>
     </AppShell>
   );
 }

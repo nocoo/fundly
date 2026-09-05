@@ -1,5 +1,4 @@
-import { useId } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from '@nocoo/basalt';
 import { cn } from '@/lib/utils';
 
 export function FilterCheck({
@@ -11,19 +10,23 @@ export function FilterCheck({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  const id = useId();
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
       className={cn(
-        'flex cursor-pointer items-center gap-2 rounded-widget border border-border bg-secondary px-3 py-2 text-sm shadow-xs transition-colors',
-        'hover:border-foreground/20 hover:bg-accent',
-        checked && 'border-primary/40 bg-accent',
+        'flex cursor-pointer items-center gap-2 rounded-lg border border-basalt-border bg-basalt-control px-3 py-1.5 text-sm font-medium transition-colors',
+        'hover:border-basalt-foreground/20 hover:bg-basalt-accent',
+        checked && 'border-basalt-primary/40 bg-basalt-accent text-basalt-foreground',
       )}
     >
-      <Checkbox id={id} checked={checked} onCheckedChange={(value) => onChange(value === true)} />
-      <label htmlFor={id} className="cursor-pointer font-medium">
-        {label}
-      </label>
-    </div>
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(value) => onChange(value === true)}
+        tabIndex={-1}
+        className="pointer-events-none"
+      />
+      <span>{label}</span>
+    </button>
   );
 }

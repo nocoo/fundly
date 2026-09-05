@@ -25,7 +25,7 @@ export function Metric({
         align === 'end'
           ? 'inline-block w-full text-right'
           : 'block w-full text-left whitespace-normal break-words',
-        signed ? quoteToneClass(tone, color) : 'text-foreground',
+        signed ? quoteToneClass(tone, color) : 'text-basalt-foreground',
         className,
       )}
     >

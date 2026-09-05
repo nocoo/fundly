@@ -1,12 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
-import useSWR from 'swr';
-import { fetchAPI } from '@/api';
-import { AppShell } from '@/components/layout';
-import { FilterCheck } from '@/components/ui/filter-check';
-import { FilterChips } from '@/components/ui/filter-chips';
-import { Input } from '@/components/ui/input';
-import { Metric } from '@/components/ui/metric';
+import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -14,7 +7,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@nocoo/basalt/components/table';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import useSWR from 'swr';
+import { fetchAPI } from '@/api';
+import { AppShell } from '@/components/layout';
+import { FilterCheck } from '@/components/ui/filter-check';
+import { FilterChips } from '@/components/ui/filter-chips';
+import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
@@ -157,205 +158,225 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
 
   return (
     <AppShell breadcrumbs={[{ label: '选基' }, { label: LENS_LABEL[lens] }]}>
-      <div className="mb-5 space-y-3 rounded-card bg-secondary p-3 ring-1 ring-border/40">
-        <FilterChips
-          label="大类"
-          value={normalized.typeL1}
-          options={l1Options}
-          includeAll
-          allValue={TYPE_L1_ALL}
-          onChange={(value) =>
-            set({
-              typeL1: value === DEFAULT_TYPE_L1 ? DEFAULT_TYPE_L1 : value,
-              typeL2: '',
-            })
+      <div className="space-y-6">
+        <PageHeader
+          title={`选基 · ${LENS_LABEL[lens]}`}
+          description="多因子量化选基体系，从收益、风险与综合筛选视角透视基金产品。"
+          filters={
+            <div className="space-y-2.5">
+              <FilterChips
+                label="大类"
+                value={normalized.typeL1}
+                options={l1Options}
+                includeAll
+                allValue={TYPE_L1_ALL}
+                onChange={(value) =>
+                  set({
+                    typeL1: value === DEFAULT_TYPE_L1 ? DEFAULT_TYPE_L1 : value,
+                    typeL2: '',
+                  })
+                }
+              />
+              {l2Options.length > 0 ? (
+                <FilterChips
+                  label="细类"
+                  value={normalized.typeL2 || 'all'}
+                  options={l2Options}
+                  includeAll
+                  allLabel="全部细类"
+                  onChange={(value) => set({ typeL2: value === 'all' ? '' : value })}
+                />
+              ) : null}
+              <div className="max-w-sm">
+                <Input
+                  value={search.value}
+                  placeholder="搜索代码 / 简称 / 拼音"
+                  className="h-9"
+                  onChange={search.onChange}
+                  onCompositionStart={search.onCompositionStart}
+                  onCompositionEnd={search.onCompositionEnd}
+                />
+              </div>
+              <FilterChips
+                label="维度"
+                value={dim.key}
+                options={dimOptions}
+                onChange={(value) =>
+                  set({
+                    dim:
+                      dimsFor(lens, normalized.typeL1).find((item) => item.key === value) ??
+                      defaultDim(lens, normalized.typeL1),
+                  })
+                }
+              />
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <FilterCheck
+                  label="仅 4433"
+                  checked={normalized.pass4433}
+                  onChange={(checked) => set({ pass4433: checked })}
+                />
+                {lens === 'picks' ? (
+                  <>
+                    <FilterCheck
+                      label="仅 MVP"
+                      checked={normalized.mvpOnly}
+                      onChange={(checked) => set({ mvpOnly: checked })}
+                    />
+                    <FilterCheck
+                      label="样本≥200"
+                      checked={normalized.minSamples != null}
+                      onChange={(checked) => set({ minSamples: checked ? 200 : null })}
+                    />
+                    <FilterCheck
+                      label="费率前50%"
+                      checked={normalized.feePeer != null}
+                      onChange={(checked) => set({ feePeer: checked ? 50 : null })}
+                    />
+                    <FilterCheck
+                      label="回撤前50%"
+                      checked={normalized.ddPeer != null}
+                      onChange={(checked) => set({ ddPeer: checked ? 50 : null })}
+                    />
+                    <FilterCheck
+                      label="规模前50%"
+                      checked={normalized.scalePeer != null}
+                      onChange={(checked) => set({ scalePeer: checked ? 50 : null })}
+                    />
+                    <FilterCheck
+                      label="前十大≤60%"
+                      checked={normalized.top10Max != null}
+                      onChange={(checked) => set({ top10Max: checked ? 60 : null })}
+                    />
+                  </>
+                ) : null}
+              </div>
+              {normalized.typeL1 === TYPE_L1_ALL ? (
+                <p className="text-xs text-basalt-muted-foreground">
+                  跨类型混排不可比，行内百分位仍按完整基金类型。
+                </p>
+              ) : null}
+            </div>
           }
         />
-        {l2Options.length > 0 ? (
-          <FilterChips
-            label="细类"
-            value={normalized.typeL2 || 'all'}
-            options={l2Options}
-            includeAll
-            allLabel="全部细类"
-            onChange={(value) => set({ typeL2: value === 'all' ? '' : value })}
-          />
-        ) : null}
-        <div className="max-w-sm">
-          <Input
-            value={search.value}
-            placeholder="搜索代码 / 简称 / 拼音"
-            onChange={search.onChange}
-            onCompositionStart={search.onCompositionStart}
-            onCompositionEnd={search.onCompositionEnd}
-          />
-        </div>
-        <FilterChips
-          label="维度"
-          value={dim.key}
-          options={dimOptions}
-          onChange={(value) =>
-            set({
-              dim:
-                dimsFor(lens, normalized.typeL1).find((item) => item.key === value) ??
-                defaultDim(lens, normalized.typeL1),
-            })
-          }
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterCheck
-            label="仅 4433"
-            checked={normalized.pass4433}
-            onChange={(checked) => set({ pass4433: checked })}
-          />
-          {lens === 'picks' ? (
-            <>
-              <FilterCheck
-                label="仅 MVP"
-                checked={normalized.mvpOnly}
-                onChange={(checked) => set({ mvpOnly: checked })}
-              />
-              <FilterCheck
-                label="样本≥200"
-                checked={normalized.minSamples != null}
-                onChange={(checked) => set({ minSamples: checked ? 200 : null })}
-              />
-              <FilterCheck
-                label="费率前50%"
-                checked={normalized.feePeer != null}
-                onChange={(checked) => set({ feePeer: checked ? 50 : null })}
-              />
-              <FilterCheck
-                label="回撤前50%"
-                checked={normalized.ddPeer != null}
-                onChange={(checked) => set({ ddPeer: checked ? 50 : null })}
-              />
-              <FilterCheck
-                label="规模前50%"
-                checked={normalized.scalePeer != null}
-                onChange={(checked) => set({ scalePeer: checked ? 50 : null })}
-              />
-              <FilterCheck
-                label="前十大≤60%"
-                checked={normalized.top10Max != null}
-                onChange={(checked) => set({ top10Max: checked ? 60 : null })}
-              />
-            </>
-          ) : null}
-        </div>
-        {normalized.typeL1 === TYPE_L1_ALL ? (
-          <p className="text-xs text-muted-foreground">
-            跨类型混排不可比，行内百分位仍按完整基金类型。
-          </p>
-        ) : null}
-      </div>
 
-      {error && <p className="text-sm text-destructive-text">{error.message}</p>}
-      {isLoading && !data && <p className="text-sm text-muted-foreground">加载中…</p>}
+        {error && <p className="text-sm text-basalt-destructive">{error.message}</p>}
+        {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
 
-      {data && (
-        <div className="rounded-card bg-secondary ring-1 ring-border/40">
-          <p className="px-3 pt-3 text-xs text-muted-foreground">
-            共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)} 页 ·
-            每页 {formatCount(SELECT_PAGE_SIZE)}
-            {isValidating ? ' · 更新中…' : ''}
-          </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16 text-right">名次</TableHead>
-                <TableHead>代码</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead className="text-right">{dim.label}</TableHead>
-                {dim.rankPct ? <TableHead className="text-right">同类%</TableHead> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={dim.rankPct ? 6 : 5} className="text-muted-foreground">
-                    {emptyHint}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.items.map((row, index) => (
-                  <TableRow
-                    key={row.fund_code}
-                    className="cursor-pointer"
-                    onClick={(event) => {
-                      if ((event.target as HTMLElement).closest('a')) return;
-                      openDetail(row.fund_code);
-                    }}
-                  >
-                    <TableCell className="text-right tabular-nums">
-                      {formatCount(listRank(data.page, data.pageSize, index))}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        className="text-foreground"
-                        to={fundDetailLink(row.fund_code, listOrigin).to}
-                        state={fundDetailLink(row.fund_code, listOrigin).state}
-                        onClick={() => writeListOrigin(listOrigin)}
-                      >
-                        {row.fund_code}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{row.fund_name}</TableCell>
-                    <TableCell>
-                      <FundTypeBadges type={row.fund_type} />
-                    </TableCell>
-                    <TableCell>
-                      {dim.key === 'recovery_days_1y' && row.recovery_status_1y === 'open' ? (
-                        <p className="text-right text-sm text-muted-foreground">未收复</p>
-                      ) : (
-                        <div className="flex flex-col items-end gap-0.5">
-                          <Metric
-                            value={
-                              dim.key === 'all_in_fee_pct'
-                                ? (row.all_in_fee_pct ?? row.fee_shown_pct)
-                                : row[dim.key]
-                            }
-                            kind={dim.kind}
-                            signed={dim.signed}
-                            align="end"
-                          />
-                          {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
-                            <span className="text-[11px] text-muted-foreground">销服未知</span>
-                          ) : null}
-                        </div>
-                      )}
-                    </TableCell>
-                    {dim.rankPct ? (
-                      <TableCell>
-                        <Metric value={row[dim.rankPct]} kind="percent" align="end" />
-                      </TableCell>
-                    ) : null}
+        {data && (
+          <LayerCard>
+            <LayerCard.Header className="flex items-center justify-between text-xs text-basalt-muted-foreground">
+              <span>
+                共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)}{' '}
+                页 · 每页 {formatCount(SELECT_PAGE_SIZE)}
+                {isValidating ? ' · 更新中…' : ''}
+              </span>
+            </LayerCard.Header>
+            <LayerCard.Body className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16 text-right">名次</TableHead>
+                    <TableHead>代码</TableHead>
+                    <TableHead>名称</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead className="text-right">{dim.label}</TableHead>
+                    {dim.rankPct ? <TableHead className="text-right">同类%</TableHead> : null}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          <div className="flex gap-2 p-3">
-            <button
-              type="button"
-              className="text-sm text-muted-foreground"
-              disabled={normalized.page <= 1}
-              onClick={() => set({ page: normalized.page - 1 })}
-            >
-              上一页
-            </button>
-            <button
-              type="button"
-              className="text-sm text-muted-foreground"
-              disabled={normalized.page >= pages}
-              onClick={() => set({ page: normalized.page + 1 })}
-            >
-              下一页
-            </button>
-          </div>
-        </div>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {data.items.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={dim.rankPct ? 6 : 5}
+                        className="text-center text-basalt-muted-foreground py-8"
+                      >
+                        {emptyHint}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    data.items.map((row, index) => (
+                      <TableRow
+                        key={row.fund_code}
+                        className="cursor-pointer"
+                        onClick={(event: React.MouseEvent) => {
+                          if ((event.target as HTMLElement).closest('a')) return;
+                          openDetail(row.fund_code);
+                        }}
+                      >
+                        <TableCell className="text-right tabular-nums">
+                          {formatCount(listRank(data.page, data.pageSize, index))}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            className="font-medium text-basalt-primary hover:underline"
+                            to={fundDetailLink(row.fund_code, listOrigin).to}
+                            state={fundDetailLink(row.fund_code, listOrigin).state}
+                            onClick={() => writeListOrigin(listOrigin)}
+                          >
+                            {row.fund_code}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{row.fund_name}</TableCell>
+                        <TableCell>
+                          <FundTypeBadges type={row.fund_type} />
+                        </TableCell>
+                        <TableCell>
+                          {dim.key === 'recovery_days_1y' && row.recovery_status_1y === 'open' ? (
+                            <p className="text-right text-sm text-basalt-muted-foreground">
+                              未收复
+                            </p>
+                          ) : (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <Metric
+                                value={
+                                  dim.key === 'all_in_fee_pct'
+                                    ? (row.all_in_fee_pct ?? row.fee_shown_pct)
+                                    : row[dim.key]
+                                }
+                                kind={dim.kind}
+                                signed={dim.signed}
+                                align="end"
+                              />
+                              {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
+                                <span className="text-[11px] text-basalt-muted-foreground">
+                                  销服未知
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+                        </TableCell>
+                        {dim.rankPct ? (
+                          <TableCell>
+                            <Metric value={row[dim.rankPct]} kind="percent" align="end" />
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </LayerCard.Body>
+            <LayerCard.Footer className="flex items-center gap-2 p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={normalized.page <= 1}
+                onClick={() => set({ page: normalized.page - 1 })}
+              >
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={normalized.page >= pages}
+                onClick={() => set({ page: normalized.page + 1 })}
+              >
+                下一页
+              </Button>
+            </LayerCard.Footer>
+          </LayerCard>
+        )}
+      </div>
     </AppShell>
   );
 }

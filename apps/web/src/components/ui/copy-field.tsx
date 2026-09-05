@@ -3,8 +3,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { writeClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 
-const SHELL =
-  'min-w-0 rounded-widget border border-border bg-secondary px-3 py-2 text-sm shadow-xs';
+const SHELL = 'min-w-0 rounded-lg border border-basalt-border bg-basalt-control px-3 py-2 text-sm';
 
 export function CopyField({
   label,
@@ -26,8 +25,8 @@ export function CopyField({
   if (!text) {
     return (
       <div className={cn(SHELL, 'flex flex-col items-start gap-0.5')}>
-        <span className="text-muted-foreground">{label}</span>
-        <span className="text-muted-foreground">暂无数据</span>
+        <span className="text-xs text-basalt-muted-foreground">{label}</span>
+        <span className="text-sm text-basalt-muted-foreground">暂无数据</span>
       </div>
     );
   }
@@ -44,16 +43,16 @@ export function CopyField({
       className={cn(
         SHELL,
         'group relative flex cursor-pointer flex-col items-start gap-0.5 text-left outline-none transition-colors',
-        'hover:border-foreground/20 hover:bg-accent',
-        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        'hover:border-basalt-foreground/20 hover:bg-basalt-accent',
+        'focus-visible:border-basalt-ring focus-visible:ring-[3px] focus-visible:ring-basalt-ring/50',
       )}
     >
-      <span className="text-muted-foreground">{label}</span>
-      <div className="w-full min-w-0 pr-6">{children ?? text}</div>
+      <span className="text-xs text-basalt-muted-foreground">{label}</span>
+      <div className="w-full min-w-0 pr-6 text-basalt-foreground">{children ?? text}</div>
       <span
         aria-hidden
         className={cn(
-          'absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-opacity',
+          'absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md text-basalt-muted-foreground transition-opacity',
           copied
             ? 'opacity-100'
             : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',

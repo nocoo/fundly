@@ -1,3 +1,6 @@
+import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
+import { SectionRule } from '@nocoo/basalt/components/section-rule';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { SeriesChart } from '@/components/charts/series-chart';
@@ -30,44 +33,65 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <h1 className="mb-4 text-xl font-semibold">仪表盘</h1>
-      {isLoading && !stats && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {error && (
-        <p className="mb-3 text-sm text-destructive-text">
-          {error.message}{' '}
-          <button type="button" className="underline" onClick={() => void mutate()}>
-            重试
-          </button>
-        </p>
-      )}
-      <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <KpiCard label="基金只数" value={formatCount(fundCount)} />
-        <KpiCard label="净值行" value={formatCount(navCount)} />
-        <KpiCard
-          label="净值区间"
-          value={stats ? `${stats.navSpan.min ?? '—'} → ${stats.navSpan.max ?? '—'}` : '—'}
-          compact
+      <div className="space-y-6">
+        <PageHeader
+          title="仪表盘"
+          description={
+            isLoading && !stats
+              ? '加载中…'
+              : '中国公募基金全市场数据全景，包含基础只数、净值行数与类型分布。'
+          }
+          actions={
+            error ? (
+              <Button variant="outline" size="sm" onClick={() => void mutate()}>
+                重试
+              </Button>
+            ) : null
+          }
         />
+
+        {error && <p className="text-sm text-basalt-destructive">{error.message}</p>}
+
+        <SectionRule title="数据概览" hint="全市场基金基础信息与净值采集总计。">
+          <div className="grid gap-3 md:grid-cols-3">
+            <KpiCard label="基金只数" value={formatCount(fundCount)} />
+            <KpiCard label="净值行" value={formatCount(navCount)} />
+            <KpiCard
+              label="净值区间"
+              value={stats ? `${stats.navSpan.min ?? '—'} → ${stats.navSpan.max ?? '—'}` : '—'}
+              compact
+            />
+          </div>
+        </SectionRule>
+
+        <SectionRule title="分类统计" hint="按基金大类统计前 12 大分类只数分布。">
+          <LayerCard>
+            <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
+              基金类型分布（前 12）
+            </LayerCard.Header>
+            <LayerCard.Body>
+              {typesError && (
+                <p className="text-sm text-basalt-destructive">
+                  类型分布加载失败：{typesError.message}
+                </p>
+              )}
+              {chart.length > 0 ? (
+                <SeriesChart
+                  type="bar"
+                  orientation="horizontal"
+                  points={chart}
+                  series={[{ key: 'n', label: '基金只数' }]}
+                  height={CHART_HEIGHTS.standard}
+                  valueFormatter={formatCompact}
+                  ariaLabel="基金类型分布"
+                />
+              ) : (
+                !typesError && <p className="text-sm text-basalt-muted-foreground">暂无类型数据</p>
+              )}
+            </LayerCard.Body>
+          </LayerCard>
+        </SectionRule>
       </div>
-      <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-        <p className="mb-4 text-sm font-semibold text-foreground">基金类型分布（前 12）</p>
-        {typesError && (
-          <p className="text-sm text-destructive-text">类型分布加载失败：{typesError.message}</p>
-        )}
-        {chart.length > 0 ? (
-          <SeriesChart
-            type="bar"
-            orientation="horizontal"
-            points={chart}
-            series={[{ key: 'n', label: '基金只数' }]}
-            height={CHART_HEIGHTS.standard}
-            valueFormatter={formatCompact}
-            ariaLabel="基金类型分布"
-          />
-        ) : (
-          !typesError && <p className="text-sm text-muted-foreground">暂无类型数据</p>
-        )}
-      </article>
     </AppShell>
   );
 }
@@ -82,18 +106,18 @@ function KpiCard({
   compact?: boolean;
 }) {
   return (
-    <article className="rounded-card bg-secondary p-4 ring-1 ring-border/40 md:p-5">
-      <div className="mb-4 h-1 w-10 rounded-full bg-primary" />
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <LayerCard>
+      <div className="mb-4 h-1 w-10 rounded-full bg-basalt-primary" />
+      <p className="text-xs text-basalt-muted-foreground">{label}</p>
       <p
         className={
           compact
-            ? 'mt-2 text-right text-sm font-medium tabular-nums'
-            : 'mt-2 text-right text-2xl font-semibold tracking-tight tabular-nums'
+            ? 'mt-2 text-right text-sm font-medium tabular-nums text-basalt-foreground'
+            : 'mt-2 text-right text-2xl font-semibold tracking-tight tabular-nums text-basalt-foreground'
         }
       >
         {value}
       </p>
-    </article>
+    </LayerCard>
   );
 }

@@ -28,7 +28,7 @@ export function FilterChips({
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1.5">
       {label ? (
-        <span className="mr-1 text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="mr-1 text-xs font-medium text-basalt-muted-foreground">{label}</span>
       ) : null}
       {items.map((item) => {
         const active = item.value === value;
@@ -39,10 +39,10 @@ export function FilterChips({
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              'rounded-widget border px-3 py-1.5 text-sm font-medium shadow-xs transition-colors',
+              'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
               active
-                ? 'border-primary/40 bg-accent text-primary'
-                : 'border-border bg-secondary text-foreground hover:border-foreground/20 hover:bg-accent',
+                ? 'border-basalt-primary/40 bg-basalt-accent text-basalt-primary font-semibold'
+                : 'border-basalt-border bg-basalt-control text-basalt-foreground hover:border-basalt-foreground/20 hover:bg-basalt-accent',
             )}
           >
             {item.label}

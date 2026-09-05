@@ -7,7 +7,9 @@ import { cn } from '@/lib/utils';
 
 function Column({ children }: { children: ReactNode }) {
   return (
-    <div className="h-full w-44 shrink-0 overflow-y-auto border-r border-border">{children}</div>
+    <div className="h-full w-44 shrink-0 overflow-y-auto border-r border-basalt-border">
+      {children}
+    </div>
   );
 }
 
@@ -27,13 +29,18 @@ function Row({
       type="button"
       onClick={onSelect}
       className={cn(
-        'flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-sm',
-        selected ? 'bg-accent text-foreground' : 'text-foreground hover:bg-muted/70',
+        'flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-sm transition-colors',
+        selected
+          ? 'bg-basalt-accent text-basalt-foreground font-medium'
+          : 'text-basalt-foreground hover:bg-basalt-muted/70',
       )}
     >
       <span className="min-w-0 truncate">{children}</span>
       {hasChild ? (
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+        <ChevronRight
+          className="h-3.5 w-3.5 shrink-0 text-basalt-muted-foreground"
+          strokeWidth={1.5}
+        />
       ) : null}
     </button>
   );
@@ -58,7 +65,7 @@ export function BenchmarkBrowser({
   const custom = Boolean(type && fallback && code !== fallback.code);
 
   return (
-    <div className="mt-4 flex h-[22rem] overflow-hidden rounded-widget bg-secondary ring-1 ring-border/40">
+    <div className="mt-2 flex h-[22rem] overflow-hidden rounded-lg bg-basalt-control ring-1 ring-basalt-border">
       <Column>
         {tree.map((node) => (
           <Row
@@ -94,18 +101,20 @@ export function BenchmarkBrowser({
               {selected?.l2 ? <TypeBadge label={selected.l2} /> : null}
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">当前基准</p>
-              <p className="mt-1 font-mono text-sm tabular-nums">{code}</p>
-              <p className="mt-0.5 text-sm">{fallback?.name ?? '—'}</p>
-              {custom ? <p className="mt-1 text-[11px] text-muted-foreground">已覆盖默认</p> : null}
+              <p className="text-xs text-basalt-muted-foreground">当前基准</p>
+              <p className="mt-1 font-mono text-sm tabular-nums text-basalt-foreground">{code}</p>
+              <p className="mt-0.5 text-sm text-basalt-foreground">{fallback?.name ?? '—'}</p>
+              {custom ? (
+                <p className="mt-1 text-[11px] text-basalt-muted-foreground">已覆盖默认</p>
+              ) : null}
             </div>
-            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            <label className="flex flex-col gap-1 text-xs text-basalt-muted-foreground">
               基金代码
               <input
                 key={`${type}-${code}`}
                 defaultValue={code}
                 spellCheck={false}
-                className="h-9 rounded-widget border border-border bg-secondary px-3 font-mono text-sm text-foreground"
+                className="h-9 rounded-lg border border-basalt-border bg-basalt-control px-3 font-mono text-sm text-basalt-foreground"
                 onBlur={(e) => {
                   const next = e.target.value.trim();
                   onChange(type, next || fallback?.code || code);
@@ -115,7 +124,7 @@ export function BenchmarkBrowser({
             {custom ? (
               <button
                 type="button"
-                className="self-start text-xs text-muted-foreground hover:text-foreground"
+                className="self-start text-xs text-basalt-muted-foreground hover:text-basalt-foreground"
                 onClick={() => onChange(type, fallback?.code || code)}
               >
                 恢复默认
@@ -123,7 +132,7 @@ export function BenchmarkBrowser({
             ) : null}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">选择一个分类</p>
+          <p className="text-sm text-basalt-muted-foreground">选择一个分类</p>
         )}
       </div>
     </div>
