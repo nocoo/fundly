@@ -147,7 +147,7 @@ export default function LoginPage() {
             </p>
 
             {error ? (
-              <div className="mt-4 w-full rounded-lg bg-basalt-destructive/10 px-3 py-2 text-center text-xs text-basalt-destructive">
+              <div className="mt-4 w-full rounded-lg bg-basalt-danger/10 px-3 py-2 text-center text-xs text-basalt-danger">
                 {error}
               </div>
             ) : null}

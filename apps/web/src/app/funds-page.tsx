@@ -204,7 +204,7 @@ export default function FundsPage() {
           }
         />
 
-        {error && <p className="text-sm text-basalt-destructive">{error.message}</p>}
+        {error && <p className="text-sm text-basalt-danger">{error.message}</p>}
         {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
 
         {data && (

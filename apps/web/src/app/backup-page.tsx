@@ -112,7 +112,7 @@ export default function BackupPage() {
                 <p
                   className={cn(
                     'text-sm',
-                    message.ok ? 'text-basalt-muted-foreground' : 'text-basalt-destructive',
+                    message.ok ? 'text-basalt-muted-foreground' : 'text-basalt-danger',
                   )}
                 >
                   {message.text}

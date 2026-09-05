@@ -168,7 +168,7 @@ export default function FundDetailPage() {
           </div>
           <LayerCard className="py-12 text-center">
             <LayerCard.Body className="flex flex-col items-center justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-basalt-destructive/10 text-basalt-destructive mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-basalt-danger/10 text-basalt-danger mb-4">
                 <CircleOff className="h-8 w-8" strokeWidth={1.5} />
               </div>
               <h2 className="text-lg font-semibold text-basalt-foreground">
@@ -417,13 +417,13 @@ export default function FundDetailPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
                 {extras.scores?.avr != null
                   ? `五维能力（均分 ${formatMetric(extras.scores.avr, 'nav')}）`
                   : '五维能力'}
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {extras.scores && extras.scores.items.length > 0 ? (
                   <ScoreRadar items={extras.scores.items} height={CHART_HEIGHTS.standard} />
                 ) : (
@@ -432,11 +432,11 @@ export default function FundDetailPage() {
               </LayerCard.Body>
             </LayerCard>
             <SnapshotBar title="最新配置" items={extras.allocation?.latest ?? []} kind="percent" />
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
                 最新持有人
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {extras.holders && extras.holders.latest.length > 0 ? (
                   <>
                     <SharePie items={extras.holders.latest} height={CHART_HEIGHTS.compact} />
@@ -581,11 +581,11 @@ function SnapshotBar({
 }) {
   const points = items.map((item) => ({ name: item.name, value: item.value }));
   return (
-    <LayerCard>
+    <LayerCard className="overflow-visible">
       <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
         {title}
       </LayerCard.Header>
-      <LayerCard.Body>
+      <LayerCard.Body className="overflow-visible">
         {points.length === 0 ? (
           <ChartEmptyMask label={`暂无${title}`} />
         ) : (

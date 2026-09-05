@@ -33,7 +33,7 @@ export function DataOverview() {
   return (
     <SectionRule title="数据概览" hint="库表规模、覆盖率和抓取状态。">
       {isLoading && !stats ? <p className="text-sm text-basalt-muted-foreground">加载中…</p> : null}
-      {error ? <p className="text-sm text-basalt-destructive">{error.message}</p> : null}
+      {error ? <p className="text-sm text-basalt-danger">{error.message}</p> : null}
       {stats ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
@@ -50,11 +50,11 @@ export function DataOverview() {
             ))}
           </div>
           <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-xs font-semibold text-basalt-foreground">
                 大类分布
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {l1.length > 0 ? (
                   <SeriesChart
                     type="bar"
@@ -71,11 +71,11 @@ export function DataOverview() {
               </LayerCard.Body>
             </LayerCard>
 
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-xs font-semibold text-basalt-foreground">
                 覆盖缺口
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {coverage.length > 0 ? (
                   <SeriesChart
                     type="bar"
@@ -95,11 +95,11 @@ export function DataOverview() {
               </LayerCard.Body>
             </LayerCard>
 
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-xs font-semibold text-basalt-foreground">
                 抓取状态
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {fetchSlices.length > 0 ? (
                   <SharePie items={fetchSlices} height={CHART_HEIGHTS.compact} />
                 ) : (
@@ -108,11 +108,11 @@ export function DataOverview() {
               </LayerCard.Body>
             </LayerCard>
 
-            <LayerCard>
+            <LayerCard className="overflow-visible">
               <LayerCard.Header className="text-xs font-semibold text-basalt-foreground">
                 卫星表行数
               </LayerCard.Header>
-              <LayerCard.Body>
+              <LayerCard.Body className="overflow-visible">
                 {satellites.length > 0 ? (
                   <SeriesChart
                     type="bar"

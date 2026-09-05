@@ -50,7 +50,7 @@ export default function Dashboard() {
           }
         />
 
-        {error && <p className="text-sm text-basalt-destructive">{error.message}</p>}
+        {error && <p className="text-sm text-basalt-danger">{error.message}</p>}
 
         <SectionRule title="数据概览" hint="全市场基金基础信息与净值采集总计。">
           <div className="grid gap-3 md:grid-cols-3">
@@ -65,15 +65,13 @@ export default function Dashboard() {
         </SectionRule>
 
         <SectionRule title="分类统计" hint="按基金大类统计前 12 大分类只数分布。">
-          <LayerCard>
+          <LayerCard className="overflow-visible">
             <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
               基金类型分布（前 12）
             </LayerCard.Header>
-            <LayerCard.Body>
+            <LayerCard.Body className="overflow-visible">
               {typesError && (
-                <p className="text-sm text-basalt-destructive">
-                  类型分布加载失败：{typesError.message}
-                </p>
+                <p className="text-sm text-basalt-danger">类型分布加载失败：{typesError.message}</p>
               )}
               {chart.length > 0 ? (
                 <SeriesChart
