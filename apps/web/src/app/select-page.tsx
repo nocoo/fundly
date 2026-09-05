@@ -272,89 +272,91 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
               </span>
             </LayerCard.Header>
             <LayerCard.Body className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16 text-right">名次</TableHead>
-                    <TableHead>代码</TableHead>
-                    <TableHead>名称</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead className="text-right">{dim.label}</TableHead>
-                    {dim.rankPct ? <TableHead className="text-right">同类%</TableHead> : null}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.items.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={dim.rankPct ? 6 : 5}
-                        className="text-center text-basalt-muted-foreground py-8"
-                      >
-                        {emptyHint}
-                      </TableCell>
+                      <TableHead className="w-16 text-right">名次</TableHead>
+                      <TableHead>代码</TableHead>
+                      <TableHead>名称</TableHead>
+                      <TableHead>类型</TableHead>
+                      <TableHead className="text-right">{dim.label}</TableHead>
+                      {dim.rankPct ? <TableHead className="text-right">同类%</TableHead> : null}
                     </TableRow>
-                  ) : (
-                    data.items.map((row, index) => (
-                      <TableRow
-                        key={row.fund_code}
-                        className="cursor-pointer"
-                        onClick={(event: React.MouseEvent) => {
-                          if ((event.target as HTMLElement).closest('a')) return;
-                          openDetail(row.fund_code);
-                        }}
-                      >
-                        <TableCell className="text-right tabular-nums">
-                          {formatCount(listRank(data.page, data.pageSize, index))}
+                  </TableHeader>
+                  <TableBody>
+                    {data.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={dim.rankPct ? 6 : 5}
+                          className="text-center text-basalt-muted-foreground py-8"
+                        >
+                          {emptyHint}
                         </TableCell>
-                        <TableCell>
-                          <Link
-                            className="font-medium text-basalt-primary hover:underline"
-                            to={fundDetailLink(row.fund_code, listOrigin).to}
-                            state={fundDetailLink(row.fund_code, listOrigin).state}
-                            onClick={() => writeListOrigin(listOrigin)}
-                          >
-                            {row.fund_code}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{row.fund_name}</TableCell>
-                        <TableCell>
-                          <FundTypeBadges type={row.fund_type} />
-                        </TableCell>
-                        <TableCell>
-                          {dim.key === 'recovery_days_1y' && row.recovery_status_1y === 'open' ? (
-                            <p className="text-right text-sm text-basalt-muted-foreground">
-                              未收复
-                            </p>
-                          ) : (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <Metric
-                                value={
-                                  dim.key === 'all_in_fee_pct'
-                                    ? (row.all_in_fee_pct ?? row.fee_shown_pct)
-                                    : row[dim.key]
-                                }
-                                kind={dim.kind}
-                                signed={dim.signed}
-                                align="end"
-                              />
-                              {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
-                                <span className="text-[11px] text-basalt-muted-foreground">
-                                  销服未知
-                                </span>
-                              ) : null}
-                            </div>
-                          )}
-                        </TableCell>
-                        {dim.rankPct ? (
-                          <TableCell>
-                            <Metric value={row[dim.rankPct]} kind="percent" align="end" />
-                          </TableCell>
-                        ) : null}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      data.items.map((row, index) => (
+                        <TableRow
+                          key={row.fund_code}
+                          className="cursor-pointer"
+                          onClick={(event: React.MouseEvent) => {
+                            if ((event.target as HTMLElement).closest('a')) return;
+                            openDetail(row.fund_code);
+                          }}
+                        >
+                          <TableCell className="text-right tabular-nums">
+                            {formatCount(listRank(data.page, data.pageSize, index))}
+                          </TableCell>
+                          <TableCell>
+                            <Link
+                              className="font-medium text-basalt-primary hover:underline"
+                              to={fundDetailLink(row.fund_code, listOrigin).to}
+                              state={fundDetailLink(row.fund_code, listOrigin).state}
+                              onClick={() => writeListOrigin(listOrigin)}
+                            >
+                              {row.fund_code}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{row.fund_name}</TableCell>
+                          <TableCell>
+                            <FundTypeBadges type={row.fund_type} />
+                          </TableCell>
+                          <TableCell>
+                            {dim.key === 'recovery_days_1y' && row.recovery_status_1y === 'open' ? (
+                              <p className="text-right text-sm text-basalt-muted-foreground">
+                                未收复
+                              </p>
+                            ) : (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <Metric
+                                  value={
+                                    dim.key === 'all_in_fee_pct'
+                                      ? (row.all_in_fee_pct ?? row.fee_shown_pct)
+                                      : row[dim.key]
+                                  }
+                                  kind={dim.kind}
+                                  signed={dim.signed}
+                                  align="end"
+                                />
+                                {dim.key === 'all_in_fee_pct' && row.sales_fee_known === 0 ? (
+                                  <span className="text-[11px] text-basalt-muted-foreground">
+                                    销服未知
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
+                          </TableCell>
+                          {dim.rankPct ? (
+                            <TableCell>
+                              <Metric value={row[dim.rankPct]} kind="percent" align="end" />
+                            </TableCell>
+                          ) : null}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </LayerCard.Body>
             <LayerCard.Footer className="flex items-center gap-2 p-3">
               <Button

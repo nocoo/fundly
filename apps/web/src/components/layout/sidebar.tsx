@@ -10,8 +10,6 @@ import {
   CollapsibleTrigger,
   SidebarFooter,
   SidebarHeader,
-  SidebarIconItem,
-  SidebarItem,
   SidebarNav,
   SidebarPartition,
   Tooltip,
@@ -36,7 +34,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useMe } from '@/hooks/use-me';
 import { readListOrigin } from '@/lib/list-origin';
 import {
@@ -203,7 +201,7 @@ function NavGroupSection({
   group: NavGroup;
   pathname: string;
   listOrigin: ReturnType<typeof readListOrigin>;
-  onNavigate: (href: string) => void;
+  onNavigate: () => void;
 }) {
   const [open, setOpen] = useState(shouldGroupBeOpenOnMount(group, pathname, listOrigin));
 
@@ -230,15 +228,21 @@ function NavGroupSection({
           {group.items.map((item) => {
             const isActive = isItemActive(item.href, pathname, listOrigin);
             return (
-              <SidebarItem
+              <Link
                 key={item.href}
-                active={isActive}
-                onClick={() => onNavigate(item.href)}
+                to={item.href}
+                onClick={onNavigate}
                 aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors',
+                  isActive
+                    ? 'bg-basalt-accent text-basalt-foreground font-medium'
+                    : 'text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground',
+                )}
               >
                 <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 <span className="flex-1 truncate text-left">{item.label}</span>
-              </SidebarItem>
+              </Link>
             );
           })}
         </div>
@@ -252,7 +256,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobile = false }: SidebarProps) {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   const listOrigin = readListOrigin();
   const { collapsed, toggle, setMobileOpen } = useSidebar();
@@ -265,9 +268,8 @@ export function Sidebar({ mobile = false }: SidebarProps) {
     avatar: userAvatar,
   } = sidebarUserState(userLoading, userError, user, host);
 
-  const handleNavigate = (href: string) => {
+  const handleNavigate = () => {
     setMobileOpen(false);
-    navigate(href);
   };
   const isCollapsed = mobile ? false : collapsed;
 
@@ -293,15 +295,20 @@ export function Sidebar({ mobile = false }: SidebarProps) {
               return (
                 <Tooltip key={item.href} delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <SidebarIconItem
-                      active={isActive}
+                    <Link
+                      to={item.href}
+                      onClick={handleNavigate}
                       aria-label={item.label}
-                      className="self-center"
-                      onClick={() => handleNavigate(item.href)}
                       aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-basalt-accent text-basalt-foreground'
+                          : 'text-basalt-muted-foreground hover:bg-basalt-accent hover:text-basalt-foreground',
+                      )}
                     >
                       <item.icon className="h-4 w-4" strokeWidth={1.5} />
-                    </SidebarIconItem>
+                    </Link>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={8}>
                     {item.label}

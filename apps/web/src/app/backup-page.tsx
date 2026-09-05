@@ -142,74 +142,76 @@ export default function BackupPage() {
         >
           <LayerCard>
             <LayerCard.Body className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>时间</TableHead>
-                    <TableHead>标签</TableHead>
-                    <TableHead>环境</TableHead>
-                    <TableHead className="text-right">大小</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-center text-basalt-muted-foreground py-8"
-                      >
-                        {status?.error ?? '还没有备份记录。'}
-                      </TableCell>
+                      <TableHead>时间</TableHead>
+                      <TableHead>标签</TableHead>
+                      <TableHead>环境</TableHead>
+                      <TableHead className="text-right">大小</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
                     </TableRow>
-                  ) : (
-                    rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="whitespace-nowrap text-basalt-muted-foreground">
-                          {formatTimeAgo(row.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="truncate" title={row.tag}>
-                            {row.tag || row.id}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-                              envBadgeClass(row.environment),
-                            )}
-                          >
-                            {row.environment}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatFileSize(row.file_size)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy !== null}
-                            onClick={() => {
-                              if (
-                                window.confirm('用这份备份覆盖本机数据库？请先停采集和本机 API。')
-                              ) {
-                                void restore(row.id);
-                              }
-                            }}
-                          >
-                            {busy === 'restore' ? (
-                              <Loader2 className="animate-spin h-3.5 w-3.5 mr-1" />
-                            ) : null}
-                            恢复
-                          </Button>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="text-center text-basalt-muted-foreground py-8"
+                        >
+                          {status?.error ?? '还没有备份记录。'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="whitespace-nowrap text-basalt-muted-foreground">
+                            {formatTimeAgo(row.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <span className="truncate" title={row.tag}>
+                              {row.tag || row.id}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+                                envBadgeClass(row.environment),
+                              )}
+                            >
+                              {row.environment}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatFileSize(row.file_size)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={busy !== null}
+                              onClick={() => {
+                                if (
+                                  window.confirm('用这份备份覆盖本机数据库？请先停采集和本机 API。')
+                                ) {
+                                  void restore(row.id);
+                                }
+                              }}
+                            >
+                              {busy === 'restore' ? (
+                                <Loader2 className="animate-spin h-3.5 w-3.5 mr-1" />
+                              ) : null}
+                              恢复
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </LayerCard.Body>
           </LayerCard>
         </SectionRule>

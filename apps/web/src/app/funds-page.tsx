@@ -217,69 +217,71 @@ export default function FundsPage() {
               </span>
             </LayerCard.Header>
             <LayerCard.Body className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {SORTS.map(([key, label]) => (
-                      <TableHead
-                        key={key}
-                        aria-sort={
-                          sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
-                        }
-                        className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
-                      >
-                        <button
-                          type="button"
-                          className="font-medium hover:text-basalt-foreground transition-colors"
-                          onClick={() => toggleSort(key)}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {SORTS.map(([key, label]) => (
+                        <TableHead
+                          key={key}
+                          aria-sort={
+                            sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
+                          }
+                          className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
                         >
-                          {label}
-                          {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                        </button>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.items.map((row) => {
-                    const loc = fundDetailLink(row.fund_code, listOrigin);
-                    return (
-                      <TableRow
-                        key={row.fund_code}
-                        className="cursor-pointer"
-                        onClick={() => openDetail(row.fund_code)}
-                      >
-                        <TableCell>
-                          <Link
-                            className="font-medium text-basalt-primary hover:underline"
-                            to={loc.to}
-                            state={loc.state}
-                            onClick={() => writeListOrigin(listOrigin)}
+                          <button
+                            type="button"
+                            className="font-medium hover:text-basalt-foreground transition-colors"
+                            onClick={() => toggleSort(key)}
                           >
-                            {row.fund_code}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{row.fund_name}</TableCell>
-                        <TableCell>
-                          <FundTypeBadges type={row.fund_type} />
-                        </TableCell>
-                        <TableCell>
-                          <Metric value={row.return_1y} kind="percent" signed align="end" />
-                        </TableCell>
-                        <TableCell>
-                          <Metric value={row.return_1m} kind="percent" signed align="end" />
-                        </TableCell>
-                        <TableCell>
-                          <Metric value={row.return_3m} kind="percent" signed align="end" />
-                        </TableCell>
-                        <TableCell>
-                          <Metric value={row.return_6m} kind="percent" signed align="end" />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            {label}
+                            {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                          </button>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.items.map((row) => {
+                      const loc = fundDetailLink(row.fund_code, listOrigin);
+                      return (
+                        <TableRow
+                          key={row.fund_code}
+                          className="cursor-pointer"
+                          onClick={() => openDetail(row.fund_code)}
+                        >
+                          <TableCell>
+                            <Link
+                              className="font-medium text-basalt-primary hover:underline"
+                              to={loc.to}
+                              state={loc.state}
+                              onClick={() => writeListOrigin(listOrigin)}
+                            >
+                              {row.fund_code}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{row.fund_name}</TableCell>
+                          <TableCell>
+                            <FundTypeBadges type={row.fund_type} />
+                          </TableCell>
+                          <TableCell>
+                            <Metric value={row.return_1y} kind="percent" signed align="end" />
+                          </TableCell>
+                          <TableCell>
+                            <Metric value={row.return_1m} kind="percent" signed align="end" />
+                          </TableCell>
+                          <TableCell>
+                            <Metric value={row.return_3m} kind="percent" signed align="end" />
+                          </TableCell>
+                          <TableCell>
+                            <Metric value={row.return_6m} kind="percent" signed align="end" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </LayerCard.Body>
             <LayerCard.Footer className="flex items-center gap-2 p-3">
               <Button

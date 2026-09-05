@@ -149,6 +149,12 @@
  * Overrides default Basalt blue primary to vermilion
  */
 :root {
+	--foreground: var(--basalt-foreground);
+	--secondary: var(--basalt-secondary);
+	--background: var(--basalt-background);
+	--card: var(--basalt-card);
+	--border: var(--basalt-border);
+
 	--basalt-primary: 16 81% 54%;
 	--basalt-primary-foreground: 0 0% 100%;
 	--basalt-ring: 16 81% 54%;
@@ -225,6 +231,12 @@
 }
 
 .dark {
+	--foreground: var(--basalt-foreground);
+	--secondary: var(--basalt-secondary);
+	--background: var(--basalt-background);
+	--card: var(--basalt-card);
+	--border: var(--basalt-border);
+
 	--basalt-primary: 16 75% 56%;
 	--basalt-primary-foreground: 16 80% 96%;
 	--basalt-ring: 16 75% 56%;

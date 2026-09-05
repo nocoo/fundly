@@ -245,88 +245,90 @@ export default function RankingPage() {
               </span>
             </LayerCard.Header>
             <LayerCard.Body className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16 text-right">名次</TableHead>
-                    <TableHead>代码</TableHead>
-                    <TableHead>名称</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead className="text-right">{dim.label}</TableHead>
-                    {contextKeys.map((key) => (
-                      <TableHead key={key} className="text-right">
-                        {CONTEXT_LABEL[key]}
-                      </TableHead>
-                    ))}
-                    {rankPctKey ? <TableHead className="text-right">同类%</TableHead> : null}
-                    {showSamples ? <TableHead className="text-right">样本</TableHead> : null}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.items.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={colSpan}
-                        className="text-center text-basalt-muted-foreground py-8"
-                      >
-                        这一页没有基金。
-                      </TableCell>
+                      <TableHead className="w-16 text-right">名次</TableHead>
+                      <TableHead>代码</TableHead>
+                      <TableHead>名称</TableHead>
+                      <TableHead>类型</TableHead>
+                      <TableHead className="text-right">{dim.label}</TableHead>
+                      {contextKeys.map((key) => (
+                        <TableHead key={key} className="text-right">
+                          {CONTEXT_LABEL[key]}
+                        </TableHead>
+                      ))}
+                      {rankPctKey ? <TableHead className="text-right">同类%</TableHead> : null}
+                      {showSamples ? <TableHead className="text-right">样本</TableHead> : null}
                     </TableRow>
-                  ) : (
-                    data.items.map((row, index) => (
-                      <TableRow
-                        key={row.fund_code}
-                        className="cursor-pointer"
-                        onClick={(event: React.MouseEvent) => {
-                          if ((event.target as HTMLElement).closest('a')) return;
-                          openDetail(row.fund_code);
-                        }}
-                      >
-                        <TableCell className="text-right tabular-nums">
-                          {formatCount(listRank(data.page, data.pageSize, index))}
+                  </TableHeader>
+                  <TableBody>
+                    {data.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={colSpan}
+                          className="text-center text-basalt-muted-foreground py-8"
+                        >
+                          这一页没有基金。
                         </TableCell>
-                        <TableCell>
-                          <Link
-                            className="font-medium text-basalt-primary hover:underline"
-                            to={fundDetailLink(row.fund_code, listOrigin).to}
-                            state={fundDetailLink(row.fund_code, listOrigin).state}
-                            onClick={() => writeListOrigin(listOrigin)}
-                          >
-                            {row.fund_code}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{row.fund_name}</TableCell>
-                        <TableCell>
-                          <FundTypeBadges type={row.fund_type} />
-                        </TableCell>
-                        <TableCell>
-                          <Metric
-                            value={row[dim.key]}
-                            kind={dim.kind}
-                            signed={dim.signed}
-                            align="end"
-                          />
-                        </TableCell>
-                        {contextKeys.map((key) => (
-                          <TableCell key={key}>
-                            <Metric value={row[key]} kind="percent" signed align="end" />
-                          </TableCell>
-                        ))}
-                        {rankPctKey ? (
-                          <TableCell>
-                            <Metric value={row[rankPctKey]} kind="percent" align="end" />
-                          </TableCell>
-                        ) : null}
-                        {showSamples ? (
-                          <TableCell className="text-right tabular-nums">
-                            {formatCount(row.nav_samples_1y)}
-                          </TableCell>
-                        ) : null}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      data.items.map((row, index) => (
+                        <TableRow
+                          key={row.fund_code}
+                          className="cursor-pointer"
+                          onClick={(event: React.MouseEvent) => {
+                            if ((event.target as HTMLElement).closest('a')) return;
+                            openDetail(row.fund_code);
+                          }}
+                        >
+                          <TableCell className="text-right tabular-nums">
+                            {formatCount(listRank(data.page, data.pageSize, index))}
+                          </TableCell>
+                          <TableCell>
+                            <Link
+                              className="font-medium text-basalt-primary hover:underline"
+                              to={fundDetailLink(row.fund_code, listOrigin).to}
+                              state={fundDetailLink(row.fund_code, listOrigin).state}
+                              onClick={() => writeListOrigin(listOrigin)}
+                            >
+                              {row.fund_code}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{row.fund_name}</TableCell>
+                          <TableCell>
+                            <FundTypeBadges type={row.fund_type} />
+                          </TableCell>
+                          <TableCell>
+                            <Metric
+                              value={row[dim.key]}
+                              kind={dim.kind}
+                              signed={dim.signed}
+                              align="end"
+                            />
+                          </TableCell>
+                          {contextKeys.map((key) => (
+                            <TableCell key={key}>
+                              <Metric value={row[key]} kind="percent" signed align="end" />
+                            </TableCell>
+                          ))}
+                          {rankPctKey ? (
+                            <TableCell>
+                              <Metric value={row[rankPctKey]} kind="percent" align="end" />
+                            </TableCell>
+                          ) : null}
+                          {showSamples ? (
+                            <TableCell className="text-right tabular-nums">
+                              {formatCount(row.nav_samples_1y)}
+                            </TableCell>
+                          ) : null}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </LayerCard.Body>
             <LayerCard.Footer className="flex items-center gap-2 p-3">
               <Button

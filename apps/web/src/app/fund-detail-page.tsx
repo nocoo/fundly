@@ -510,11 +510,11 @@ function TimeCard({
   type?: 'line' | 'bar';
 }) {
   return (
-    <LayerCard>
+    <LayerCard className="overflow-visible">
       <LayerCard.Header className="text-sm font-semibold text-basalt-foreground">
         {title}
       </LayerCard.Header>
-      <LayerCard.Body>
+      <LayerCard.Body className="overflow-visible">
         {empty ? (
           <ChartEmptyMask label={emptyLabel} />
         ) : (
