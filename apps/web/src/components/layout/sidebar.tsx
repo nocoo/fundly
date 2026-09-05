@@ -1,4 +1,24 @@
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Sidebar as BasaltSidebar,
+  SidebarUser as BasaltSidebarUser,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarIconItem,
+  SidebarItem,
+  SidebarNav,
+  SidebarPartition,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@nocoo/basalt';
+import {
   CalendarRange,
   ChevronUp,
   Cloud,
@@ -16,10 +36,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLocation, useNavigate } from 'react-router';
 import { useMe } from '@/hooks/use-me';
 import { readListOrigin } from '@/lib/list-origin';
 import {
@@ -33,6 +50,8 @@ import {
 import { sidebarUserState } from '@/lib/user';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
+
+const APP_VERSION = '0.3.0';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   CalendarRange,
@@ -86,7 +105,7 @@ async function signOut() {
   window.location.assign('/login');
 }
 
-function SidebarUser({
+function UserCard({
   collapsed = false,
   name,
   initial,
@@ -102,7 +121,7 @@ function SidebarUser({
   canSignOut: boolean;
 }) {
   const face = (
-    <Avatar className={cn('h-9 w-9', !collapsed && 'shrink-0')}>
+    <Avatar className={cn('h-8 w-8', !collapsed && 'shrink-0')}>
       {avatar ? <AvatarImage src={avatar} alt={name} /> : null}
       <AvatarFallback className={cn('text-xs text-white', getAvatarColor(name))}>
         {initial}
@@ -112,49 +131,66 @@ function SidebarUser({
 
   if (collapsed) {
     if (!canSignOut) {
-      return <div className="flex w-full justify-center py-3">{face}</div>;
+      return (
+        <SidebarFooter className="flex w-full justify-center px-0">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">{face}</span>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              {name}
+            </TooltipContent>
+          </Tooltip>
+        </SidebarFooter>
+      );
     }
     return (
-      <div className="flex w-full justify-center py-3">
-        <Tooltip>
+      <SidebarFooter className="flex w-full justify-center px-0">
+        <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <button type="button" onClick={() => void signOut()} className="cursor-pointer">
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="cursor-pointer"
+              aria-label={`${name} — 退出登录`}
+            >
               {face}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            {name} — Sign out
+            {name} — 退出登录
           </TooltipContent>
         </Tooltip>
-      </div>
+      </SidebarFooter>
     );
   }
 
   return (
-    <div className="px-4 py-3">
-      <div className="flex items-center gap-3">
-        {face}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{name}</p>
-          {email ? <p className="truncate text-xs text-muted-foreground">{email}</p> : null}
-        </div>
-        {canSignOut ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                aria-label="Sign out"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Sign out</TooltipContent>
-          </Tooltip>
-        ) : null}
-      </div>
-    </div>
+    <SidebarFooter>
+      <BasaltSidebarUser
+        name={name}
+        email={email ?? undefined}
+        avatar={face}
+        action={
+          canSignOut ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+                  onClick={() => void signOut()}
+                  aria-label="退出登录"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">退出登录</TooltipContent>
+            </Tooltip>
+          ) : undefined
+        }
+      />
+    </SidebarFooter>
   );
 }
 
@@ -167,19 +203,21 @@ function NavGroupSection({
   group: NavGroup;
   pathname: string;
   listOrigin: ReturnType<typeof readListOrigin>;
-  onNavigate: () => void;
+  onNavigate: (href: string) => void;
 }) {
   const [open, setOpen] = useState(shouldGroupBeOpenOnMount(group, pathname, listOrigin));
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="mt-2 px-3">
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2">
-          <span className="text-[11px] font-medium text-muted-foreground/70">{group.label}</span>
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-1.5 text-basalt-muted-foreground transition-colors hover:text-basalt-foreground">
+          <SidebarPartition className="px-0 text-[11px] font-medium">
+            {group.label}
+          </SidebarPartition>
           <span className="flex h-5 w-5 shrink-0 items-center justify-center">
             <ChevronUp
               className={cn(
-                'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200',
+                'h-3.5 w-3.5 text-basalt-muted-foreground transition-transform duration-200',
                 !open && 'rotate-180',
               )}
               strokeWidth={1.5}
@@ -192,21 +230,15 @@ function NavGroupSection({
           {group.items.map((item) => {
             const isActive = isItemActive(item.href, pathname, listOrigin);
             return (
-              <Link
+              <SidebarItem
                 key={item.href}
-                to={item.href}
-                onClick={onNavigate}
+                active={isActive}
+                onClick={() => onNavigate(item.href)}
                 aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-normal transition-colors',
-                  isActive
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
               >
                 <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                <span className="flex-1 text-left">{item.label}</span>
-              </Link>
+                <span className="flex-1 truncate text-left">{item.label}</span>
+              </SidebarItem>
             );
           })}
         </div>
@@ -220,6 +252,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobile = false }: SidebarProps) {
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const listOrigin = readListOrigin();
   const { collapsed, toggle, setMobileOpen } = useSidebar();
@@ -232,120 +265,107 @@ export function Sidebar({ mobile = false }: SidebarProps) {
     avatar: userAvatar,
   } = sidebarUserState(userLoading, userError, user, host);
 
-  const handleNavigate = () => setMobileOpen(false);
+  const handleNavigate = (href: string) => {
+    setMobileOpen(false);
+    navigate(href);
+  };
   const isCollapsed = mobile ? false : collapsed;
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <aside
-        aria-label={mobile ? '主导航抽屉' : '主导航'}
-        className={cn(
-          'sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden bg-background transition-all duration-300 ease-in-out',
-          isCollapsed ? 'w-[68px]' : 'w-[260px]',
-        )}
-      >
-        {isCollapsed ? (
-          <div className="flex h-screen w-[68px] flex-col items-center">
-            <div className="flex h-14 w-full items-center justify-start pr-3 pl-6">
-              <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
-            </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
+    <BasaltSidebar collapsed={isCollapsed} aria-label={mobile ? '主导航抽屉' : '主导航'}>
+      {isCollapsed ? (
+        <>
+          <SidebarHeader className="justify-center px-0">
+            <img src="/logo.svg" alt="Fundly" width={22} height={22} className="shrink-0" />
+          </SidebarHeader>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mb-1 self-center text-basalt-muted-foreground hover:text-basalt-foreground"
+            onClick={toggle}
+            aria-label="展开侧边栏"
+          >
+            <PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+          </Button>
+          <SidebarNav className="w-full items-center gap-1 pt-1">
+            {ALL_NAV_ITEMS.map((item) => {
+              const isActive = isItemActive(item.href, pathname, listOrigin);
+              return (
+                <Tooltip key={item.href} delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <SidebarIconItem
+                      active={isActive}
+                      aria-label={item.label}
+                      className="self-center"
+                      onClick={() => handleNavigate(item.href)}
+                      aria-current={isActive ? 'page' : undefined}
+                    >
+                      <item.icon className="h-4 w-4" strokeWidth={1.5} />
+                    </SidebarIconItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </SidebarNav>
+          <UserCard
+            collapsed
+            name={userName}
+            initial={userInitial}
+            email={userEmail}
+            avatar={userAvatar}
+            canSignOut={Boolean(user?.authenticated)}
+          />
+        </>
+      ) : (
+        <>
+          <SidebarHeader>
+            <div className="flex w-full items-center justify-between">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <img src="/logo.svg" alt="Fundly" width={22} height={22} className="shrink-0" />
+                <span className="truncate text-lg font-bold tracking-tight text-basalt-foreground">
+                  fundly
+                </span>
+                <span className="shrink-0 rounded-md bg-basalt-secondary px-1.5 py-0.5 text-[10px] leading-none font-medium text-basalt-muted-foreground">
+                  v{APP_VERSION}
+                </span>
+              </div>
+              {!mobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
                   onClick={toggle}
-                  aria-label="展开侧边栏"
-                  className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="收起侧边栏"
                 >
                   <PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                展开侧边栏
-              </TooltipContent>
-            </Tooltip>
-            <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto pt-1">
-              {ALL_NAV_ITEMS.map((item) => {
-                const isActive = isItemActive(item.href, pathname, listOrigin);
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={item.href}
-                        onClick={handleNavigate}
-                        aria-label={item.label}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={cn(
-                          'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
-                          isActive
-                            ? 'bg-accent text-foreground'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" strokeWidth={1.5} />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={8}>
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </nav>
-            <SidebarUser
-              collapsed
-              name={userName}
-              initial={userInitial}
-              email={userEmail}
-              avatar={userAvatar}
-              canSignOut={Boolean(user?.authenticated)}
-            />
-          </div>
-        ) : (
-          <div className="flex h-screen w-[260px] flex-col">
-            <div className="flex h-14 items-center px-3">
-              <div className="flex w-full items-center justify-between px-3">
-                <div className="flex items-center gap-3">
-                  <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
-                  <span className="text-lg font-bold tracking-tighter">fundly</span>
-                  <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] leading-none font-medium text-muted-foreground">
-                    v0.3.0
-                  </span>
-                </div>
-                {!mobile && (
-                  <button
-                    type="button"
-                    onClick={toggle}
-                    aria-label="收起侧边栏"
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <PanelLeft className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-                  </button>
-                )}
-              </div>
+                </Button>
+              )}
             </div>
-            <nav className="flex-1 overflow-y-auto pt-1">
-              {NAV_GROUPS.map((group) => (
-                <NavGroupSection
-                  key={group.label}
-                  group={group}
-                  pathname={pathname}
-                  listOrigin={listOrigin}
-                  onNavigate={handleNavigate}
-                />
-              ))}
-            </nav>
-            <SidebarUser
-              name={userName}
-              initial={userInitial}
-              email={userEmail}
-              avatar={userAvatar}
-              canSignOut={Boolean(user?.authenticated)}
-            />
-          </div>
-        )}
-      </aside>
-    </TooltipProvider>
+          </SidebarHeader>
+          <SidebarNav className="pt-1">
+            {NAV_GROUPS.map((group) => (
+              <NavGroupSection
+                key={group.label}
+                group={group}
+                pathname={pathname}
+                listOrigin={listOrigin}
+                onNavigate={handleNavigate}
+              />
+            ))}
+          </SidebarNav>
+          <UserCard
+            name={userName}
+            initial={userInitial}
+            email={userEmail}
+            avatar={userAvatar}
+            canSignOut={Boolean(user?.authenticated)}
+          />
+        </>
+      )}
+    </BasaltSidebar>
   );
 }
 

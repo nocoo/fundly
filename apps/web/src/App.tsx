@@ -1,5 +1,6 @@
+import { LinkProvider, ThemeProvider, TooltipProvider } from '@nocoo/basalt';
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router';
+import { Route, Link as RouterLink, Routes } from 'react-router';
 import LoadingScreen from '@/components/loading-screen';
 import { RequireAuth } from '@/components/require-auth';
 
@@ -19,76 +20,101 @@ function Guard({ children }: { children: React.ReactNode }) {
   return <RequireAuth>{children}</RequireAuth>;
 }
 
+function AppLink({
+  href,
+  children,
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href?: string }) {
+  if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <RouterLink to={href} {...props}>
+      {children}
+    </RouterLink>
+  );
+}
+
 export function App() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/"
-          element={
-            <Guard>
-              <Dashboard />
-            </Guard>
-          }
-        />
-        <Route
-          path="/funds"
-          element={
-            <Guard>
-              <Funds />
-            </Guard>
-          }
-        />
-        <Route
-          path="/funds/:code"
-          element={
-            <Guard>
-              <FundDetail />
-            </Guard>
-          }
-        />
-        <Route
-          path="/select/:lens"
-          element={
-            <Guard>
-              <Select />
-            </Guard>
-          }
-        />
-        <Route
-          path="/ranking"
-          element={
-            <Guard>
-              <RankingRedirect />
-            </Guard>
-          }
-        />
-        <Route
-          path="/backup"
-          element={
-            <Guard>
-              <Backup />
-            </Guard>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <Guard>
-              <Settings />
-            </Guard>
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <Guard>
-              <NotFound />
-            </Guard>
-          }
-        />
-      </Routes>
-    </Suspense>
+    <ThemeProvider>
+      <LinkProvider render={AppLink}>
+        <TooltipProvider>
+          <Suspense fallback={<LoadingScreen />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/"
+                element={
+                  <Guard>
+                    <Dashboard />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/funds"
+                element={
+                  <Guard>
+                    <Funds />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/funds/:code"
+                element={
+                  <Guard>
+                    <FundDetail />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/select/:lens"
+                element={
+                  <Guard>
+                    <Select />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/ranking"
+                element={
+                  <Guard>
+                    <RankingRedirect />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/backup"
+                element={
+                  <Guard>
+                    <Backup />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <Guard>
+                    <Settings />
+                  </Guard>
+                }
+              />
+              <Route
+                path="*"
+                element={
+                  <Guard>
+                    <NotFound />
+                  </Guard>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </TooltipProvider>
+      </LinkProvider>
+    </ThemeProvider>
   );
 }

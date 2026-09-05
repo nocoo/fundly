@@ -1,52 +1,47 @@
+@source "../node_modules/@nocoo/basalt/dist/**/*.{js,jsx,ts,tsx}";
+@import "@nocoo/basalt/styles/tailwind";
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/*
- * Map CSS-variable design tokens to Tailwind v4 theme namespace
- * so utilities like bg-background, text-foreground, etc. work.
- *
- * Color space: HSL (basalt design system).
- * Primary: logo orange-red (#E85D2A).
- * Luminance: 4-layer (L0 body > L1 island > L2 card > L3 control).
- */
+/* Map legacy tokens so existing custom chart/quote utilities work seamlessly */
 @theme inline {
-	--color-border: hsl(var(--border));
-	--color-input: hsl(var(--input));
-	--color-ring: hsl(var(--ring));
-	--color-background: hsl(var(--background));
-	--color-foreground: hsl(var(--foreground));
+	--color-border: hsl(var(--basalt-border));
+	--color-input: hsl(var(--basalt-input));
+	--color-ring: hsl(var(--basalt-ring));
+	--color-background: hsl(var(--basalt-background));
+	--color-foreground: hsl(var(--basalt-foreground));
 
-	--color-primary: hsl(var(--primary));
-	--color-primary-foreground: hsl(var(--primary-foreground));
+	--color-primary: hsl(var(--basalt-primary));
+	--color-primary-foreground: hsl(var(--basalt-primary-foreground));
 
-	--color-secondary: hsl(var(--secondary));
-	--color-secondary-foreground: hsl(var(--secondary-foreground));
+	--color-secondary: hsl(var(--basalt-secondary));
+	--color-secondary-foreground: hsl(var(--basalt-secondary-foreground));
 
-	--color-destructive: hsl(var(--destructive));
-	--color-destructive-foreground: hsl(var(--destructive-foreground));
+	--color-destructive: hsl(var(--basalt-destructive));
+	--color-destructive-foreground: hsl(var(--basalt-destructive-foreground));
 
-	--color-muted: hsl(var(--muted));
-	--color-muted-foreground: hsl(var(--muted-foreground));
+	--color-muted: hsl(var(--basalt-muted));
+	--color-muted-foreground: hsl(var(--basalt-muted-foreground));
 
-	--color-accent: hsl(var(--accent));
-	--color-accent-foreground: hsl(var(--accent-foreground));
+	--color-accent: hsl(var(--basalt-accent));
+	--color-accent-foreground: hsl(var(--basalt-accent-foreground));
 
-	--color-popover: hsl(var(--popover));
-	--color-popover-foreground: hsl(var(--popover-foreground));
+	--color-popover: hsl(var(--basalt-popover));
+	--color-popover-foreground: hsl(var(--basalt-popover-foreground));
 
-	--color-card: hsl(var(--card));
-	--color-card-foreground: hsl(var(--card-foreground));
+	--color-card: hsl(var(--basalt-card));
+	--color-card-foreground: hsl(var(--basalt-card-foreground));
 
-	--color-sidebar: hsl(var(--sidebar-background));
-	--color-sidebar-foreground: hsl(var(--sidebar-foreground));
-	--color-sidebar-primary: hsl(var(--sidebar-primary));
-	--color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-	--color-sidebar-accent: hsl(var(--sidebar-accent));
-	--color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-	--color-sidebar-border: hsl(var(--sidebar-border));
-	--color-sidebar-ring: hsl(var(--sidebar-ring));
+	--color-sidebar: hsl(var(--basalt-background));
+	--color-sidebar-foreground: hsl(var(--basalt-foreground));
+	--color-sidebar-primary: hsl(var(--basalt-primary));
+	--color-sidebar-primary-foreground: hsl(var(--basalt-primary-foreground));
+	--color-sidebar-accent: hsl(var(--basalt-accent));
+	--color-sidebar-accent-foreground: hsl(var(--basalt-accent-foreground));
+	--color-sidebar-border: hsl(var(--basalt-border));
+	--color-sidebar-ring: hsl(var(--basalt-ring));
 
 	/* Semantic badge colors */
 	--color-success: hsl(var(--success));
@@ -65,19 +60,13 @@
 	--color-badge-red: hsl(var(--badge-red));
 	--color-badge-red-foreground: hsl(var(--badge-red-foreground));
 
-	/* Semantic *text* tokens — for inline notices and helper text where
-     the matching fill token would fail WCAG AA on body backgrounds. */
+	/* Semantic text tokens */
 	--color-success-text: hsl(var(--success-text));
 	--color-warning-text: hsl(var(--warning-text));
 	--color-info-text: hsl(var(--info-text));
 	--color-destructive-text: hsl(var(--destructive-text));
 
-	/* Avatar palette — 16 hand-tuned slots that all clear ≥ 5.3:1 vs
-     white text in BOTH light and dark mode, so getAvatarColor() can
-     safely pair its bg with text-white. Do NOT use these as chart fills:
-     they're tuned to be foregrounds-for-white, so when used as a fill
-     under colored text they fight for contrast. Chart fills should keep
-     using --chart-1..24 (lighter, fill-friendly). */
+	/* Avatar palette — 16 slots */
 	--color-avatar-1: hsl(var(--avatar-1));
 	--color-avatar-2: hsl(var(--avatar-2));
 	--color-avatar-3: hsl(var(--avatar-3));
@@ -128,9 +117,9 @@
 	/* Radius tokens */
 	--radius-card: 14px;
 	--radius-widget: 10px;
-	--radius-lg: var(--radius);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-sm: calc(var(--radius) - 4px);
+	--radius-lg: var(--basalt-radius);
+	--radius-md: calc(var(--basalt-radius) - 2px);
+	--radius-sm: calc(var(--basalt-radius) - 4px);
 
 	/* Animations */
 	--animate-accordion-down: accordion-down 0.2s ease-out;
@@ -156,57 +145,13 @@
 }
 
 /*
- * Design tokens — light (default) & dark mode
- * 4-layer luminance:
- *   L0 body    → --background  (~94%, chrome + sidebar)
- *   L1 well    → --muted       (~92%, inset / hover)
- *   L2 island  → --card        (100% white, AppShell content panel)
- *   L3 control → --secondary + border (KPI / charts / filters)
- * Primary: logo orange-red (#E85D2A)
+ * Fundly tokens: Vermilion orange-red primary (#E85D2A / hsl(16 81% 54%))
+ * Overrides default Basalt blue primary to vermilion
  */
 :root {
-	/* L0 body */
-	--background: 220 14% 94%;
-	--foreground: 0 0% 12%;
-
-	/* L2 content island — top surface of the right pane */
-	--card: 0 0% 100%;
-	--card-foreground: 0 0% 12%;
-
-	/* L3 inner cards / controls */
-	--secondary: 0 0% 100%;
-	--secondary-foreground: 0 0% 12%;
-
-	--popover: 0 0% 100%;
-	--popover-foreground: 0 0% 12%;
-
-	/* Logo orange-red #E85D2A */
-	--primary: 16 81% 54%;
-	--primary-foreground: 0 0% 100%;
-
-	--muted: 220 14% 92%;
-	--muted-foreground: 0 0% 45%;
-
-	--accent: 220 14% 92%;
-	--accent-foreground: 0 0% 12%;
-
-	--destructive: 0 72% 48%;
-	--destructive-foreground: 0 0% 100%;
-
-	--border: 220 13% 88%;
-	--input: 220 13% 88%;
-	--ring: 16 81% 54%;
-
-	--radius: 0.75rem;
-
-	--sidebar-background: 220 14% 94%;
-	--sidebar-foreground: 0 0% 12%;
-	--sidebar-primary: 16 81% 54%;
-	--sidebar-primary-foreground: 0 0% 100%;
-	--sidebar-accent: 220 14% 90%;
-	--sidebar-accent-foreground: 0 0% 12%;
-	--sidebar-border: 220 13% 88%;
-	--sidebar-ring: 16 81% 54%;
+	--basalt-primary: 16 81% 54%;
+	--basalt-primary-foreground: 0 0% 100%;
+	--basalt-ring: 16 81% 54%;
 
 	/* Semantic badge colors */
 	--success: 142 71% 32%;
@@ -224,19 +169,12 @@
 	--badge-red: 340 82% 50%;
 	--badge-red-foreground: 0 0% 100%;
 
-	/* Semantic *text* tokens — same hue as the fill tokens above but with
-     lightness pushed to clear ~4.5:1 against the page background, so they
-     can be used for inline notices, helper messages, and small status
-     text. The fill tokens (--success / --warning / --info / --destructive)
-     are tuned for solid backgrounds that put white on top — using them as
-     foreground colors directly fails WCAG AA. */
 	--success-text: 142 71% 28%;
 	--warning-text: 35 85% 32%;
 	--info-text: 217 70% 38%;
 	--destructive-text: 0 72% 38%;
 
-	/* Avatar palette (light) — every slot ≥ 5.3:1 vs #fff. See note in
-     @theme block: do not reuse these for chart fills. */
+	/* Avatar palette (light) */
 	--avatar-1: 348 65% 42%;
 	--avatar-2: 22 75% 34%;
 	--avatar-3: 38 80% 28%;
@@ -254,7 +192,7 @@
 	--avatar-15: 0 60% 40%;
 	--avatar-16: 210 14% 38%;
 
-	/* Chart / badge: logo orange-red first, purple last. */
+	/* Chart / badge: logo orange-red first, purple last */
 	--chart-1: 16 81% 54%;
 	--chart-2: 30 88% 48%;
 	--chart-3: 350 78% 50%;
@@ -280,7 +218,6 @@
 	--chart-23: 55 92% 42%;
 	--chart-24: 75 88% 38%;
 
-	/* Chart utility tokens */
 	--chart-axis: 0 0% 40%;
 	--chart-muted: 0 0% 70%;
 	--chart-ref-1: 220 6% 46%;
@@ -288,48 +225,10 @@
 }
 
 .dark {
-	/* L0 body: #171717 */
-	--background: 0 0% 9%;
-	--foreground: 0 0% 93%;
+	--basalt-primary: 16 75% 56%;
+	--basalt-primary-foreground: 16 80% 96%;
+	--basalt-ring: 16 75% 56%;
 
-	/* L2 content island — brightest pane */
-	--card: 0 0% 12.2%;
-	--card-foreground: 0 0% 93%;
-
-	/* L3 inner cards / controls */
-	--secondary: 0 0% 14%;
-	--secondary-foreground: 0 0% 93%;
-
-	--popover: 0 0% 10.6%;
-	--popover-foreground: 0 0% 93%;
-
-	/* Logo orange-red, slightly muted for dark */
-	--primary: 16 75% 56%;
-	--primary-foreground: 16 80% 96%;
-
-	--muted: 0 0% 12.2%;
-	--muted-foreground: 0 0% 48%;
-
-	--accent: 0 0% 14%;
-	--accent-foreground: 0 0% 93%;
-
-	--destructive: 0 70% 50%;
-	--destructive-foreground: 0 70% 95%;
-
-	--border: 0 0% 16%;
-	--input: 0 0% 12%;
-	--ring: 16 75% 56%;
-
-	--sidebar-background: 0 0% 9%;
-	--sidebar-foreground: 0 0% 93%;
-	--sidebar-primary: 16 75% 56%;
-	--sidebar-primary-foreground: 16 80% 96%;
-	--sidebar-accent: 0 0% 14%;
-	--sidebar-accent-foreground: 0 0% 93%;
-	--sidebar-border: 0 0% 16%;
-	--sidebar-ring: 16 75% 56%;
-
-	/* Semantic badge colors (dark mode — vivid hue, controlled brightness) */
 	--success: 142 70% 42%;
 	--success-foreground: 142 70% 95%;
 	--warning: 45 80% 42%;
@@ -345,14 +244,12 @@
 	--badge-red: 340 70% 52%;
 	--badge-red-foreground: 340 70% 95%;
 
-	/* Dark-mode text tokens — pull lightness up so the same names read
-     against the L0/L1 dark surfaces with at least ~4.5:1 contrast. */
 	--success-text: 142 60% 78%;
 	--warning-text: 45 80% 78%;
 	--info-text: 217 75% 78%;
 	--destructive-text: 0 70% 78%;
 
-	/* Avatar palette (dark) — every slot ≥ 5.3:1 vs #fff. */
+	/* Avatar palette (dark) */
 	--avatar-1: 348 55% 42%;
 	--avatar-2: 22 65% 38%;
 	--avatar-3: 38 65% 33%;
@@ -370,7 +267,7 @@
 	--avatar-15: 0 50% 44%;
 	--avatar-16: 210 14% 42%;
 
-	/* Chart / badge: logo orange-red first, purple last. */
+	/* Chart / badge */
 	--chart-1: 16 80% 58%;
 	--chart-2: 30 90% 58%;
 	--chart-3: 350 80% 60%;
@@ -396,31 +293,26 @@
 	--chart-23: 55 95% 52%;
 	--chart-24: 75 90% 48%;
 
-	/* Chart utility tokens */
 	--chart-axis: 0 0% 50%;
 	--chart-muted: 0 0% 35%;
 	--chart-ref-1: 220 6% 62%;
 	--chart-ref-2: 220 5% 44%;
 }
 
-/*
- * Base styles
- */
 @layer base {
-	* {
-		@apply border-border;
+	html,
+	body,
+	#root {
+		height: 100%;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-basalt-background text-basalt-foreground antialiased;
 		font-family:
 			var(--font-inter), "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
 			system-ui, sans-serif;
 	}
 }
 
-/*
- * Custom utilities
- */
 @utility font-display {
 	font-family: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
 }
@@ -442,15 +334,6 @@
 
 /*
  * Recharts focus suppression
- *
- * Recharts marks pie sectors / bars / surfaces as focusable so keyboard
- * users can tab through them, but it surfaces as an unwanted blue
- * default focus ring whenever the user clicks a chart. Charts in this
- * app are display-only (no per-segment action), so there's nothing to
- * focus on — drop the visible outline and the default behaviour goes
- * away. Tooltips still work; keyboard tab order isn't broken because
- * these elements weren't doing anything actionable on Enter/Space
- * either.
  */
 .recharts-wrapper :focus,
 .recharts-wrapper :focus-visible,

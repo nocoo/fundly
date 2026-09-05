@@ -1,7 +1,7 @@
+import { ThemeToggle } from '@nocoo/basalt';
 import { useMemo } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { Github } from '@/components/icons/github';
-import { ThemeToggle } from '@/components/layout/theme-toggle';
 import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';
 import { googleStartUrl, loginErrorMessage, loginIdLabel } from '@/lib/login-vm';
@@ -37,7 +37,7 @@ function Barcode() {
       {BARCODE.map((bar, index) => (
         <div
           key={bar.id}
-          className="rounded-[0.5px] bg-primary-foreground"
+          className="rounded-[0.5px] bg-basalt-primary-foreground"
           style={{ width: `${bar.w * 1.5}px`, opacity: index % 3 === 0 ? 0.9 : 0.5 }}
         />
       ))}
@@ -56,20 +56,20 @@ export default function LoginPage() {
   if (user?.authenticated) return <Navigate to="/" replace />;
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-basalt-background p-4">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background: [
             'radial-gradient(ellipse 70% 55% at 50% 50%,',
-            'hsl(var(--foreground) / 0.045) 0%,',
-            'hsl(var(--foreground) / 0.042) 10%,',
-            'hsl(var(--foreground) / 0.036) 20%,',
-            'hsl(var(--foreground) / 0.028) 32%,',
-            'hsl(var(--foreground) / 0.020) 45%,',
-            'hsl(var(--foreground) / 0.012) 58%,',
-            'hsl(var(--foreground) / 0.006) 72%,',
-            'hsl(var(--foreground) / 0.002) 86%,',
+            'hsl(var(--basalt-foreground) / 0.045) 0%,',
+            'hsl(var(--basalt-foreground) / 0.042) 10%,',
+            'hsl(var(--basalt-foreground) / 0.036) 20%,',
+            'hsl(var(--basalt-foreground) / 0.028) 32%,',
+            'hsl(var(--basalt-foreground) / 0.020) 45%,',
+            'hsl(var(--basalt-foreground) / 0.012) 58%,',
+            'hsl(var(--basalt-foreground) / 0.006) 72%,',
+            'hsl(var(--basalt-foreground) / 0.002) 86%,',
             'transparent 100%)',
           ].join(' '),
         }}
@@ -81,16 +81,17 @@ export default function LoginPage() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="GitHub repository"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
         >
           <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
         </a>
-        <ThemeToggle />
+        <ThemeToggle aria-label="切换主题" />
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center">
         <div
-          className="relative flex aspect-[54/86] w-72 flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/[0.08]"
+          data-basalt-surface-root=""
+          className="relative flex aspect-[54/86] w-72 flex-col overflow-hidden rounded-2xl bg-basalt-card ring-1 ring-black/[0.08] dark:ring-white/[0.06]"
           style={{
             boxShadow: [
               '0 1px 2px rgba(0,0,0,0.06)',
@@ -102,10 +103,10 @@ export default function LoginPage() {
             ].join(', '),
           }}
         >
-          <div className="relative bg-primary px-5 py-4">
+          <div className="relative bg-basalt-primary px-5 py-4">
             <div className="flex items-center justify-between">
               <div
-                className="h-4 w-8 rounded-full bg-background/80"
+                className="h-4 w-8 rounded-full bg-basalt-background/80"
                 style={{
                   boxShadow:
                     'inset 0 1.5px 3px rgba(0,0,0,0.35), inset 0 -0.5px 1px rgba(255,255,255,0.1)',
@@ -113,14 +114,14 @@ export default function LoginPage() {
               />
               <div className="flex items-center gap-2">
                 <img src="/logo.svg" alt="Fundly" width={16} height={16} />
-                <span className="text-sm font-semibold text-primary-foreground">Fundly</span>
+                <span className="text-sm font-semibold text-basalt-primary-foreground">Fundly</span>
               </div>
-              <span className="text-[10px] font-medium tracking-widest text-primary-foreground/60 uppercase">
+              <span className="text-[10px] font-medium tracking-widest text-basalt-primary-foreground/60 uppercase">
                 v{APP_VERSION}
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <span className="font-mono text-[10px] tracking-wider text-primary-foreground/40">
+              <span className="font-mono text-[10px] tracking-wider text-basalt-primary-foreground/40">
                 {today}
               </span>
               <div className="h-6">
@@ -130,7 +131,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex flex-1 flex-col items-center px-6 pt-6 pb-14">
-            <div className="h-24 w-24 overflow-hidden rounded-full bg-secondary p-2.5 ring-1 ring-border dark:bg-background">
+            <div className="h-24 w-24 overflow-hidden rounded-full bg-basalt-secondary p-2.5 ring-1 ring-basalt-border dark:bg-basalt-background">
               <img
                 src="/logo.svg"
                 alt="Fundly"
@@ -140,23 +141,23 @@ export default function LoginPage() {
               />
             </div>
 
-            <p className="mt-5 text-lg font-semibold text-foreground">Welcome</p>
-            <p className="mt-1 text-center text-xs text-muted-foreground">
+            <p className="mt-5 text-lg font-semibold text-basalt-foreground">Welcome</p>
+            <p className="mt-1 text-center text-xs text-basalt-muted-foreground">
               Sign in to browse fund rankings
             </p>
 
             {error ? (
-              <div className="mt-4 w-full rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+              <div className="mt-4 w-full rounded-lg bg-basalt-destructive/10 px-3 py-2 text-center text-xs text-basalt-destructive">
                 {error}
               </div>
             ) : null}
 
-            <div className="mt-5 h-px w-full bg-border" />
+            <div className="mt-5 h-px w-full bg-basalt-border" />
             <div className="flex-1" />
 
             <a
               href={startUrl}
-              className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-basalt-secondary px-4 py-3 text-sm font-medium text-basalt-foreground transition-colors hover:bg-basalt-accent"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -179,21 +180,23 @@ export default function LoginPage() {
               Sign in with Google
             </a>
 
-            <p className="mt-3 text-center text-[10px] leading-relaxed text-muted-foreground/60">
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-basalt-muted-foreground/60">
               Only authorized email addresses can access this application
             </p>
           </div>
 
-          <div className="absolute right-0 bottom-0 left-0 flex items-center justify-center border-t border-border bg-secondary/50 py-2.5">
+          <div className="absolute right-0 bottom-0 left-0 flex items-center justify-center border-t border-basalt-border bg-basalt-secondary/50 py-2.5">
             <div className="flex items-center gap-1.5">
-              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-              <span className="font-mono text-[10px] text-muted-foreground">Secure Connection</span>
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-basalt-heatmap-green-3" />
+              <span className="font-mono text-[10px] text-basalt-muted-foreground">
+                Secure Connection
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="py-4 text-center text-xs text-muted-foreground/50">
+      <footer className="py-4 text-center text-xs text-basalt-muted-foreground/50">
         &copy; {new Date().getFullYear()} Fundly
       </footer>
     </div>

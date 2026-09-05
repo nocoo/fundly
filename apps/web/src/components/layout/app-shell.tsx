@@ -1,19 +1,17 @@
+import { Button, ContentIsland, Sheet, SheetContent, SheetTitle, ThemeToggle } from '@nocoo/basalt';
+import { AppHeader } from '@nocoo/basalt/components/app-header';
+import {
+  AppMain,
+  AppSkipLink,
+  AppShell as BasaltAppShell,
+} from '@nocoo/basalt/components/app-shell';
 import { Menu } from 'lucide-react';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { Github } from '@/components/icons/github';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Breadcrumbs } from './breadcrumbs';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
-import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -41,62 +39,69 @@ function AppShellInner({ children, breadcrumbs = [] }: AppShellProps) {
     };
   }, [mobileOpen]);
 
-  return (
-    <div className="flex min-h-screen w-full bg-background">
-      {!isMobile && <Sidebar />}
+  // The last crumb is the current page title in AppHeader
+  const fullCrumbs = [{ label: '首页', href: '/' }, ...breadcrumbs];
+  const currentTitle = fullCrumbs.length > 1 ? fullCrumbs[fullCrumbs.length - 1]?.label : undefined;
+  const ancestorCrumbs =
+    fullCrumbs.length > 1
+      ? fullCrumbs.slice(0, -1).map((c) => ({ label: c.label, href: c.href }))
+      : [];
 
-      {isMobile && (
+  return (
+    <BasaltAppShell>
+      <AppSkipLink>跳至主内容</AppSkipLink>
+      {!isMobile ? <Sidebar /> : null}
+
+      {isMobile ? (
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent
             side="left"
-            className="w-[260px] p-0 sm:max-w-[260px]"
-            showCloseButton={false}
+            className="w-[260px] max-w-[260px] border-0 bg-basalt-background p-0"
           >
-            <SheetHeader className="sr-only">
-              <SheetTitle>导航菜单</SheetTitle>
-              <SheetDescription>浏览 Fundly 的主要页面</SheetDescription>
-            </SheetHeader>
+            <SheetTitle className="sr-only">导航菜单</SheetTitle>
             <Sidebar mobile />
           </SheetContent>
         </Sheet>
-      )}
+      ) : null}
 
-      <main className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            {isMobile && (
-              <button
-                type="button"
+      <AppMain>
+        <AppHeader
+          leading={
+            isMobile ? (
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setMobileOpen(true)}
                 aria-label="打开导航菜单"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
               >
                 <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
-              </button>
-            )}
-            <Breadcrumbs items={[{ label: '首页', href: '/' }, ...breadcrumbs]} />
-          </div>
-          <div className="flex items-center gap-1">
-            <a
-              href="https://github.com/nocoo/fundly"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="GitHub repository"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
-            </a>
-            <ThemeToggle />
-          </div>
-        </header>
+              </Button>
+            ) : null
+          }
+          breadcrumbs={ancestorCrumbs}
+          title={currentTitle}
+          actions={
+            <div className="flex items-center gap-1">
+              <a
+                href="https://github.com/nocoo/fundly"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub repository"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
+              >
+                <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
+              </a>
+              <ThemeToggle aria-label="切换主题" />
+            </div>
+          }
+        />
 
-        <div className="flex-1 px-2 pb-2 md:px-3 md:pb-3">
-          <div className="h-full min-h-[calc(100vh-4.5rem)] overflow-y-auto rounded-[16px] bg-card p-3 shadow-sm ring-1 ring-border/40 md:rounded-[20px] md:p-5">
-            {children}
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col px-2 pb-2 md:px-3 md:pb-3">
+          <ContentIsland className="overflow-y-auto p-3 md:p-5">{children}</ContentIsland>
         </div>
-      </main>
-    </div>
+      </AppMain>
+    </BasaltAppShell>
   );
 }
 
