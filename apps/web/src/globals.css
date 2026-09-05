@@ -158,6 +158,7 @@
 	--basalt-primary: 16 81% 54%;
 	--basalt-primary-foreground: 0 0% 100%;
 	--basalt-ring: 16 81% 54%;
+	--basalt-muted-foreground: 220 14% 42%;
 
 	/* Semantic badge colors */
 	--success: 142 71% 32%;
@@ -240,6 +241,7 @@
 	--basalt-primary: 16 75% 56%;
 	--basalt-primary-foreground: 16 80% 96%;
 	--basalt-ring: 16 75% 56%;
+	--basalt-muted-foreground: 0 0% 55%;
 
 	--success: 142 70% 42%;
 	--success-foreground: 142 70% 95%;

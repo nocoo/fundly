@@ -247,16 +247,16 @@ export default function FundDetailPage() {
             </div>
           }
           description={
-            <div className="mt-1">
+            <span className="block mt-1">
               {fundType ? <FundTypeBadges type={fundType} wrap className="mt-1" /> : null}
               {siblings?.items.length ? (
-                <p className="mt-1.5 text-xs text-basalt-muted-foreground">
+                <span className="mt-1.5 block text-xs text-basalt-muted-foreground">
                   兄弟份额{' '}
                   {siblings.items.map((item, index) => (
                     <span key={item.fund_code}>
                       {index > 0 ? ' · ' : ''}
                       <Link
-                        className="text-basalt-primary hover:underline font-medium"
+                        className="text-basalt-foreground hover:text-basalt-primary hover:underline font-medium"
                         to={`/funds/${item.fund_code}`}
                       >
                         {item.share_class || item.fund_code}
@@ -267,9 +267,9 @@ export default function FundDetailPage() {
                       {item.sales_fee_known === 0 ? ' 销服未知' : ''}
                     </span>
                   ))}
-                </p>
+                </span>
               ) : null}
-            </div>
+            </span>
           }
           actions={
             <fieldset className="m-0 inline-flex items-center gap-0.5 rounded-full bg-basalt-muted p-0.5 ring-1 ring-basalt-border/70">

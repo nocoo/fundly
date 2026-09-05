@@ -218,7 +218,7 @@ export default function FundsPage() {
             </LayerCard.Header>
             <LayerCard.Body className="p-0">
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                   <TableHeader>
                     <TableRow>
                       {SORTS.map(([key, label]) => (
@@ -252,7 +252,7 @@ export default function FundsPage() {
                         >
                           <TableCell>
                             <Link
-                              className="font-medium text-basalt-primary hover:underline"
+                              className="font-medium text-basalt-foreground hover:text-basalt-primary hover:underline"
                               to={loc.to}
                               state={loc.state}
                               onClick={() => writeListOrigin(listOrigin)}

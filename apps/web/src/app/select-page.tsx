@@ -273,7 +273,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
             </LayerCard.Header>
             <LayerCard.Body className="p-0">
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16 text-right">名次</TableHead>
@@ -309,7 +309,7 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
                           </TableCell>
                           <TableCell>
                             <Link
-                              className="font-medium text-basalt-primary hover:underline"
+                              className="font-medium text-basalt-foreground hover:text-basalt-primary hover:underline"
                               to={fundDetailLink(row.fund_code, listOrigin).to}
                               state={fundDetailLink(row.fund_code, listOrigin).state}
                               onClick={() => writeListOrigin(listOrigin)}

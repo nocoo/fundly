@@ -228,7 +228,7 @@ function NavGroupSection({
           </button>
         </CollapsibleTrigger>
       </div>
-      <CollapsibleContent>
+      <CollapsibleContent unstyled>
         <div className="flex flex-col gap-0.5 px-3">
           {group.items.map((item) => {
             const isActive = isItemActive(item.href, pathname, listOrigin);

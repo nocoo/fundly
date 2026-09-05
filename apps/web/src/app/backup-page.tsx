@@ -143,7 +143,7 @@ export default function BackupPage() {
           <LayerCard>
             <LayerCard.Body className="p-0">
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td:first-child]:pl-3 [&_td:last-child]:pr-3 [&_th:first-child]:pl-3 [&_th:last-child]:pr-3">
                   <TableHeader>
                     <TableRow>
                       <TableHead>时间</TableHead>
