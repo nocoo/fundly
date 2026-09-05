@@ -29,7 +29,12 @@ writeFileSync(versionPath, `export const APP_VERSION = '${next}';\n`);
 
 const sidebarPath = resolve(root, 'apps/web/src/components/layout/sidebar.tsx');
 const sidebar = readFileSync(sidebarPath, 'utf8');
-writeFileSync(sidebarPath, sidebar.replace(`v${previous}`, `v${next}`));
+writeFileSync(
+  sidebarPath,
+  sidebar.includes(`'${previous}'`)
+    ? sidebar.replace(`'${previous}'`, `'${next}'`)
+    : sidebar.replace(`v${previous}`, `v${next}`),
+);
 
 const loginPath = resolve(root, 'apps/web/src/app/login-page.tsx');
 const login = readFileSync(loginPath, 'utf8');
