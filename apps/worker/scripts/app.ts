@@ -23,6 +23,13 @@ import {
   listFunds,
   listFundTypes,
 } from '../src/lib/funds-service.ts';
+import {
+  getEtfDetail,
+  getIndustryConstituents,
+  getMarketBars,
+  getMarketObservations,
+  getMarketOverview,
+} from '../src/lib/market-service.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
 
 export function defaultSqlitePath(): string {
@@ -45,6 +52,25 @@ export function openReadonlySqlite(sqlitePath: string): QueryExec {
     throw new Error(`database not found: ${sqlitePath}`);
   }
   return sqliteExec(new Database(sqlitePath, { readonly: true }));
+}
+
+/** A private connection keeps every query in one response on the same published snapshot. */
+export async function withMarketSnapshot<T>(
+  sqlitePath: string,
+  read: (executor: QueryExec) => Promise<T>,
+): Promise<T> {
+  const db = new Database(sqlitePath, { readonly: true });
+  try {
+    db.exec('PRAGMA busy_timeout = 5000');
+    db.exec('BEGIN');
+    return await read(sqliteExec(db));
+  } finally {
+    try {
+      if (db.inTransaction) db.exec('ROLLBACK');
+    } finally {
+      db.close();
+    }
+  }
 }
 
 export function createApi(
@@ -208,6 +234,56 @@ export function createApi(
     const detail = await getFundDetail(sqlite, c.req.param('code'));
     if (!detail) return c.json({ error: 'Not found' }, 404);
     return c.json(detail);
+  });
+
+  // 宏观大屏与跨资产接口
+  app.get('/api/market/overview', async (c) => {
+    return c.json(await withMarketSnapshot(sqlitePath, getMarketOverview));
+  });
+
+  app.get('/api/market/bars/:id', async (c) => {
+    const limit = Number(c.req.query('limit') ?? 60);
+    const rawYears = c.req.query('years');
+    const rawInterval = c.req.query('interval');
+    if (rawYears !== undefined && !['1', '3', '5'].includes(rawYears))
+      return c.json({ error: 'years must be 1, 3 or 5' }, 400);
+    if (rawInterval !== undefined && (!rawYears || !['day', 'week', 'month'].includes(rawInterval)))
+      return c.json({ error: 'interval requires years and must be day, week or month' }, 400);
+    const years = Number(rawYears) as 1 | 3 | 5;
+    const interval = (rawInterval ?? (years === 1 ? 'day' : years === 3 ? 'week' : 'month')) as
+      | 'day'
+      | 'week'
+      | 'month';
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getMarketBars(exec, c.req.param('id'), rawYears ? { years, interval } : limit),
+    );
+    if (!data.instrument) return c.json({ error: 'Instrument not found' }, 404);
+    return c.json(data);
+  });
+
+  app.get('/api/market/series/:id', async (c) => {
+    const limit = Number(c.req.query('limit') ?? 60);
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getMarketObservations(exec, c.req.param('id'), limit),
+    );
+    if (!data.instrument) return c.json({ error: 'Series not found' }, 404);
+    return c.json(data);
+  });
+
+  app.get('/api/market/industries/:id/constituents', async (c) => {
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getIndustryConstituents(exec, c.req.param('id')),
+    );
+    if (!data.industry) return c.json({ error: 'Industry not found' }, 404);
+    return c.json(data);
+  });
+
+  app.get('/api/market/etfs/:id', async (c) => {
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getEtfDetail(exec, c.req.param('id')),
+    );
+    if (!data.instrument) return c.json({ error: 'ETF not found' }, 404);
+    return c.json(data);
   });
 
   if (opts.staticDir) {

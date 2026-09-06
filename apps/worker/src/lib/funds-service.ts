@@ -273,16 +273,39 @@ export async function getFundDetail(exec: QueryExec, code: string) {
     applyExtraFallbacks(mapFundDetail(full), extras),
     full.rank_stats_json,
   );
-  const [navCount, moneyCount, live] = await Promise.all([
+  const [navCount, moneyCount, live, marketInstrument] = await Promise.all([
     exec.first<{ n: number }>('SELECT COUNT(*) AS n FROM fund_nav WHERE fund_code = ?', [code]),
     countMoneyYield(exec, code),
     loadLiveReturns(exec, code, fields),
+    getFundMarketInstrument(exec, code),
   ]);
   return {
     fields: applyReturnFallbacks(fields, live),
     extras,
     navCount: (navCount?.n ?? 0) > 0 ? (navCount?.n ?? 0) : moneyCount,
+    marketInstrument,
   };
+}
+
+/** Only expose a unique, verified fund identity with actual exchange OHLC. */
+async function getFundMarketInstrument(exec: QueryExec, code: string) {
+  const tables = await Promise.all(
+    ['market_instrument', 'market_symbol_alias', 'market_daily_bar'].map((name) =>
+      hasTable(exec, name),
+    ),
+  );
+  if (tables.some((exists) => !exists)) return null;
+  const instruments = await exec.all<{ id: string; symbol: string; name: string }>(
+    `SELECT DISTINCT i.instrument_id AS id, i.symbol, i.name
+     FROM market_symbol_alias a
+     JOIN market_instrument i ON i.instrument_id = a.instrument_id
+     WHERE a.linked_fund_code = ? AND a.source = 'fuyao'
+       AND i.asset_class = 'etf' AND i.is_active = 1
+       AND EXISTS (SELECT 1 FROM market_daily_bar b WHERE b.instrument_id = i.instrument_id)
+     LIMIT 2`,
+    [code],
+  );
+  return instruments.length === 1 ? (instruments[0] ?? null) : null;
 }
 
 async function countMoneyYield(exec: QueryExec, code: string): Promise<number> {
