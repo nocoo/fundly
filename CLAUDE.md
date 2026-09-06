@@ -4,7 +4,7 @@
 
 ## 🎯 项目定位
 
-Fundly 是**公募基金研究与宏观市场大屏**，由 Bun 采集、SQLite 和私人 Web 浏览层组成。
+Fundly 是**基金、ETF、股票研究与宏观市场大屏**，由 Bun 采集、SQLite 和私人 Web 浏览层组成。
 
 - **语言/运行时**：Bun + TypeScript 7.0.2（不是 Node，参考 `README.md`）
 - **数据库**：`bun:sqlite`（原生内置，**不要引入 better-sqlite3**）
@@ -125,13 +125,14 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 ## ✅ 当前进度（截至最后一次更新）
 
 - ✅ Phase 1 MVP 完成：3.7GB 数据库、27,527 只基金、3069 万净值行
-- ✅ 覆盖率 99.15% 行 / 92.86% 函数、50/50 单测通过
+- ✅ 当前验收（2026-09-06）：514 项测试通过，行覆盖率 89.62% / 函数 87.13%；尚未达到 95% 目标，不沿用 Phase 1 的旧覆盖率数字
 - ✅ 每日增量脚本 `fetch:daily` 上线
 - ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页、Google 登录
 - ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
 - ✅ Phase 2 卫星数据：风险指标/分红/费率/经理履历/持仓
 - ✅ 宏观大屏代码已随 v0.5.0 部署：Basalt 2.0.3、真实日 K、沪深广度、行业 / ETF / 基金下钻、23 个跨资产指标；`fetch:macro` 及 `--watch`；生产 SQLite 的宏观数据需单独采集/同步
-- 📋 选 ETF / 选股：docs/15、16 规划完成，基于实测 API 实施专业筛选与详情页
+- ✅ 选 ETF / 选股：docs/15、16 规划及实现完成；六个 ETF 列表、七个股票列表、两个独立详情，Basalt 2.0.3；真实目录 1,670 / 5,567，K 线深度池 60 / 80，股票年报 80。代码在本地 main，新功能尚未发布
+- ✅ `fetch:selection` 独立表、只读 API、有界深采与失败保留；本轮完成实采但没有启用 `--watch` / 常驻调度，生产 SQLite 需另行同步
 - 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
 
 ## Retrospective
@@ -151,3 +152,4 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - UI 入口：`apps/web/src/`
 - 本机 / Railway API 入口：`apps/worker/scripts/app.ts`
 - 宏观采集入口：`scripts/fetch-macro.ts`（密钥只读服务端 `HITHINK_FINANCE_API_KEY`，不得放进前端）
+- ETF / 股票采集入口：`scripts/fetch-selection.ts`；网络流程 `src/fetchers/selection-collection.ts`；只读 API `apps/worker/src/lib/selection-service.ts`

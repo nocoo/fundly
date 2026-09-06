@@ -1,16 +1,16 @@
 # Fundly 🪴
 
-> 中国公募基金研究与宏观市场大屏
+> 基金、ETF、股票研究与宏观市场大屏
 
-**Fundly** 在私人 Web 中展示中国公募基金、沪深大盘和跨资产宏观环境，支持从行业、ETF 深入基金研究。采集是 Bun CLI + SQLite；浏览是 Vite SPA + Hono 只读 API。
+**Fundly** 在私人 Web 中展示中国公募基金、ETF、A 股和跨资产宏观环境，支持从市场与行业比较深入单个产品的价格、风险和财报研究。采集是 Bun CLI + SQLite；浏览是 Vite SPA + Hono 只读 API。
 
 ## 🎯 项目定位
 
 - 📊 **数据源**：东方财富 / 天天基金、扶摇 Financial-API（服务端 Key）、上期所、Cboe、ECB、中国货币网、FRED
-- 🎯 **范围**：公募基金研究，沪深指数 / 广度、行业观察池、ETF、商品、汇率和利率
-- 🖥️ **浏览**：全站统一 Basalt 风格；基金列表、六维选基、基金详情与宏观大屏，已关联 ETF 默认展示真实 K 线
+- 🎯 **范围**：公募基金、1,670 只 ETF 与 5,567 只 A 股目录，沪深指数 / 广度、行业观察、商品、汇率和利率；各指标覆盖独立统计
+- 🖥️ **浏览**：Basalt 2.0.3；六维选基、ETF / 股票专业筛选与宏观大屏。列表行内曲线，详情真实 K 线，支持 1 / 3 / 5 年及日 / 周 / 月
 - 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono 本机 API + Biome
-- 🧪 **质量**：单元测试覆盖率 ≥ 95%，Biome lint 零告警
+- 🧪 **质量**：2026-09-06 全仓 514 项测试通过；行覆盖率 89.62%（目标 ≥ 95%），保留一项既有 lint warning，详见文档 16
 
 给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。完整规约见 [`CLAUDE.md`](CLAUDE.md)。
 
@@ -20,12 +20,13 @@
 |---|---|---|
 | **Phase 1 · MVP** | 基本信息 + 净值 + 阶段业绩爬取，SQLite 存储 | ✅ 完成 |
 | Phase 2 · 筛选 | 4433 法则、夏普/卡玛榜、多因子打分 | 📋 计划中 |
+| ETF / 股票研究 | 专业比较、可调门槛、真实 K 线、财报与跨页面下钻 | ✅ 本地 main 已实现 |
 | Phase 3 · 回测 | 定投、网格、均线择时等策略回测 | 📋 计划中 |
 | Phase 4 · 服务 | HTTP API + 定时增量 + Discord 推送 | 📋 计划中 |
 
 宏观大屏已随 `v0.5.0` 部署：真实日 K、沪深广度、行业 → ETF → 基金下钻，以及 23 个跨资产指标。来源与边界见 [13 · 数据调研](docs/13-MACRO-DASHBOARD.md)，采集、持续更新、API 与实测见 [14 · 宏观大屏实现](docs/14-MACRO-IMPLEMENTATION.md)。生产数据覆盖取决于 Volume 内实际采集，代码发布不会自动同步本地 SQLite。
 
-选 ETF 与选股的新页面规划见 [15 · 选 ETF](docs/15-ETF-SCREENING.md) 和 [16 · 选股](docs/16-STOCK-SCREENING.md)，以已验证 API 和本地基金资料为基础，按专业研究问题拆分筛选视角。
+选 ETF 与选股已完成规划、实现与本地实采，见 [15 · 选 ETF](docs/15-ETF-SCREENING.md) 和 [16 · 选股](docs/16-STOCK-SCREENING.md)。ETF 提供配置、流动性、成本、风险与条件精选；股票提供估值、盈利、增长、现金、趋势与条件精选。当前 60 只 ETF、80 只股票有真实日 K，80 只股票有年报与财务指标；其他目录成员保留已获取的资料和缺失状态。新功能尚未发布，网页访问不会启动上游采集，本轮未启用常驻调度。
 
 ## 📁 项目结构
 
@@ -97,6 +98,10 @@ bun run fetch:daily
 # 宏观市场与跨资产（扶摇 Key 配置在服务端环境，见文档 14）
 bun run fetch:macro
 # 持续采集：bun run fetch:macro --watch --interval-minutes 60
+
+# ETF / 股票全目录、股票快照估值与默认 60 / 80 只深度池
+bun run fetch:selection
+# 有界补采：bun run fetch:selection --symbols 510300.SH,600519.SH
 ```
 
 详见 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md)。
