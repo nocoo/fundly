@@ -121,15 +121,20 @@ Fundly 默认配置：**全局 5 QPS**，可通过 `FUNDLY_QPS` 环境变量调�
 |---|---|---|
 | `/api/meta/tickers/list?asset_type=fund-etf` | ETF 独立全目录 | 1,670 只，核验本地 1,614 只 |
 | `/api/meta/tickers/list?asset_type=a-share` | A 股独立全目录 | 5,567 只全市场标的 |
+| `/api/a-share/calendar/trading-days` | 交易日推断 | 周末、休市和开盘前使用最近适用交易日，记录推断标志 |
 | `/api/a-share/prices/snapshot` | A 股全市场行情快照 | 分页批量，包含最新价、涨跌幅、成交额 |
+| `/api/fund/market/snapshot` | ETF 有界研究池快照 | 单只请求，没有已验证的全市场 ETF 批量快照接口 |
 | `/api/a-share/valuations/snapshot` | A 股全市场批量估值快照 | 每批最多 100 只，包含 PE TTM/MRQ, PB MRQ, PS TTM, PCF TTM |
 | `/api/a-share/financials/indicators` | 股票能力评估指标 | 特殊 envelope: `data.abilities[].indicators[]`，按最新完整财年 `YYYY-4` 取数 |
 | `/api/a-share/financials/*-statements` | 股票年报三张表 | 利润表、资产负债表、现金流量表，按财年、期末日与币种严格对齐 |
 | `/api/a-share/prices/historical` | 股票五年日 K 线 | `adjust=forward` 前复权真实价格走势，失败整窗保留 |
-| `/api/fund/market/historical` | ETF 五年日 K 线 | `adjust=none` 真实市场价格走势，分窗合并 |
+| `/api/fund/market/historical` | ETF 五年日 K 线 | 无复权请求参数，库内标为 `none`；实测包含结束日，裁剪重叠日期后分窗合并 |
 | `/api/fund/performance/nav` | ETF 五年净值 | `range=fyear&nav_type=unit,adj`，单位与复权净值分离 |
 | `/api/fund/profile/detail` | ETF 基础资料与费率 | 费率枚举支持 `management` 与 `custody`，无日期规模不混入当日规模 |
 | `/api/fund/financials/indicators` | ETF 披露财务指标 | 定期披露规模 `asset_nav`，优先于无日期 profile 规模 |
 | `/api/fund/portfolio/holdings` | ETF 定期披露重仓 | 披露持仓明细，优先保留带交易所后缀代码 |
 | `/api/a-share-index/constituents/ths-stock-list` | 行业成分与金融业标记 | 银行 (881155)、证券 (881157)、保险 (881156) 成员识别 |
 
+股票行业当前覆盖宏观七个观察行业与证券、保险，不能称为全市场统一一级行业分类。金融行业成员读取失败时拒绝股票基础批次，保留原分类，避免错误地让金融股进入通用现金质量筛选。
+
+HTTP 成功还需业务 `code === 0`。必需身份、股票前复权 `adjust`、日线 `interval`、年报期间与币种严格校验；不把缺数据 `3002` 转成 0。日 K 全窗通过几何和日期检查才替换；前复权的非正历史值可以保留，但含非正收盘的窗口不算百分比风险。收盘前采到的当日 K 仍可能变化，不能用于收盘折溢价。指标数值的空字符串为 null，百分数原值不重复乘 100。来源只通过服务端环境鉴权，日志及浏览层不包含 Key。

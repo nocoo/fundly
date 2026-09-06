@@ -146,6 +146,16 @@ export const SELECTION_SCHEMA_DDL = [
     collected_at     INTEGER NOT NULL
   )`,
 
+  // ETF 研究池独立快照，不能写入或扩大宏观观察池。
+  `CREATE TABLE IF NOT EXISTS selection_etf_snapshot (
+    symbol TEXT PRIMARY KEY,
+    trade_date TEXT NOT NULL,
+    price REAL, prev_close REAL, change_pct REAL,
+    open REAL, high REAL, low REAL, volume REAL, turnover REAL,
+    is_inferred_date INTEGER NOT NULL DEFAULT 0,
+    collected_at INTEGER NOT NULL
+  )`,
+
   // 9. 股票财报原始三张表 (按年期保存)
   `CREATE TABLE IF NOT EXISTS selection_stock_financial_statement (
     symbol         TEXT NOT NULL,

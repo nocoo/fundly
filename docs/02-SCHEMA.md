@@ -243,6 +243,7 @@ CREATE TABLE schema_version (
 | `selection_etf_profile` | `symbol` | ETF 基础资料与费率结构 (`mgmt_fee_pct`, `custody_fee_pct`) |
 | `selection_etf_financials` | `(symbol, end_date, publish_date)` | ETF 定期披露财务指标 (披露规模资产净值 `asset_nav`) |
 | `selection_etf_holding` | `(symbol, report_date, stock_code)` | ETF 定期披露重仓持股明细 |
+| `selection_etf_snapshot` | `symbol` | ETF 研究池快照，与宏观观察池隔离；包含交易日推断标志 |
 | `selection_stock_snapshot` | `symbol` | A 股全市场最新行情快照 (价格、涨跌幅、成交量、成交额) |
 | `selection_stock_valuation` | `symbol` | A 股全市场批量估值快照 (`pe_ttm`, `pe_mrq`, `pb_mrq`, `ps_ttm`, `pcf_ttm`, `timestamp`) |
 | `selection_stock_financial_statement` | `(symbol, statement_type, fiscal_year)` | 股票财报原始三张表 (按年期、期末日与币种保存) |
@@ -251,3 +252,6 @@ CREATE TABLE schema_version (
 | `selection_etf_materialized` | `symbol` | 选 ETF 物化宽表 (毫秒级响应，含规模对齐、折溢价与几何收益/回撤) |
 | `selection_stock_materialized` | `symbol` | 选股物化宽表 (毫秒级响应，含估值、前复权趋势与年报对齐财务指标) |
 
+共 15 张独立表。`history_asof`、`nav_risk_asof`、`valuation_timestamp`、财报期末/披露日保留各资源实际日期，`updated_at` 仅表示本地物化时间。ETF 的 `nav_risk_basis` 区分 `adj_nav` 与已核验基金的 `local_total_return`。`has_*` 表示有相应资料，不能解释成五年完整覆盖；周期指标另有最少样本与边界检查。
+
+目录仅保留已验证的最新全体成员；被移出目录的旧深采历史可以保留供审计，但不继续进入筛选物化表。成功状态与本组数据及物化事务提交，失败状态保留原 `last_success_at`。深采 `details_json` 记录资源覆盖、缺项和本轮池组成。生产只读 API 不运行迁移；由采集命令幂等初始化这些表。

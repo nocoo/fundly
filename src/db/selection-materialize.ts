@@ -13,6 +13,7 @@ import type { Database } from 'bun:sqlite';
 import { buildTotalReturn } from '../analytics/total-return.ts';
 import { computeEtfPremiumDiscount, computeRollingReturn } from '../metrics/market-calc.ts';
 import {
+  canUseDailyClose,
   compute20DayAvgTurnover,
   computeCashMinusCapex,
   computeCashProfitRatio,
@@ -24,6 +25,7 @@ import {
   deriveEtfDirectionTag,
   evaluateReturnWindow,
 } from '../metrics/selection-calc.ts';
+import { marketNumber } from '../utils/market-validation.ts';
 import type {
   SelectionEtfMaterialized,
   SelectionStockMaterialized,
@@ -179,9 +181,32 @@ export function materializeAllEtfs(db: Database): SelectionEtfMaterialized[] {
     }
   }
 
+  const selectionQuotes = db.query('SELECT * FROM selection_etf_snapshot').all() as Array<{
+    symbol: string;
+    trade_date: string;
+    price: number | null;
+    change_pct: number | null;
+    turnover: number | null;
+    volume: number | null;
+    is_inferred_date: number;
+  }>;
+  for (const q of selectionQuotes) {
+    const old = quoteMap.get(q.symbol);
+    if (q.price !== null && q.price > 0 && (!old || q.trade_date >= old.tradeDate)) {
+      quoteMap.set(q.symbol, {
+        tradeDate: q.trade_date,
+        price: q.price,
+        changePct: q.change_pct,
+        turnover: q.turnover,
+        volume: q.volume,
+        isInferredDate: q.is_inferred_date === 1,
+      });
+    }
+  }
+
   // 准备查询单只 ETF 的 日 K 与 NAV
   const barStmt = db.prepare(
-    `SELECT trade_date, open, high, low, close, volume, turnover
+    `SELECT trade_date, open, high, low, close, volume, turnover, collected_at
      FROM selection_daily_bar
      WHERE asset_type = 'etf' AND symbol = ? AND adjust = 'none'
      ORDER BY trade_date ASC`,
@@ -255,6 +280,7 @@ export function materializeAllEtfs(db: Database): SelectionEtfMaterialized[] {
     // C. 市场行情与 20 日均成交额
     const q = quoteMap.get(symbol);
     const bars = barStmt.all(symbol) as Array<{
+      collected_at: number;
       trade_date: string;
       open: number;
       high: number;
@@ -302,7 +328,7 @@ export function materializeAllEtfs(db: Database): SelectionEtfMaterialized[] {
       unit_nav: number;
       adj_nav: number | null;
     }>;
-    const hasNavHistory = navPoints.length > 0;
+    let hasNavHistory = navPoints.length > 0;
 
     let navDate: string | null = null;
     let unitNav: number | null = null;
@@ -323,6 +349,7 @@ export function materializeAllEtfs(db: Database): SelectionEtfMaterialized[] {
         )
         .get(linkedCode) as { nav_date: string; unit_nav: number } | null;
       if (localLast) {
+        hasNavHistory = true;
         navDate = localLast.nav_date;
         unitNav = localLast.unit_nav;
       }
@@ -333,13 +360,10 @@ export function materializeAllEtfs(db: Database): SelectionEtfMaterialized[] {
     let closingPrice: number | null = null;
     if (bars.length > 0) {
       const lastBar = bars.at(-1);
-      if (lastBar) {
+      if (lastBar && canUseDailyClose(lastBar.trade_date, lastBar.collected_at)) {
         closingTradeDate = lastBar.trade_date;
         closingPrice = lastBar.close;
       }
-    } else if (q && !q.isInferredDate) {
-      closingTradeDate = q.tradeDate;
-      closingPrice = q.price;
     }
 
     const premiumDiscountPct = computeEtfPremiumDiscount(
@@ -793,7 +817,7 @@ export function materializeAllStocks(db: Database): SelectionStockMaterialized[]
           }>;
           for (const a of abilities) {
             for (const ind of a.indicators) {
-              const num = ind.value != null ? Number(ind.value) : null;
+              const num = marketNumber(ind.value);
               if (num !== null && Number.isFinite(num)) {
                 if (ind.index_id === 'index_weighted_avg_roe') roeWeighted = num;
                 if (ind.index_id === 'index_deduct_weighted_avg_roe') roeDeductedWeighted = num;

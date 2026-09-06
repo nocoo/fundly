@@ -3,11 +3,11 @@
  * 校验约束：
  * 1. 严格核验响应中的 thscode、report、adjust、interval，杜绝把错误代码或复权口径混入
  * 2. ETF Profile 费用字段：rate_type 枚举支持 management/custody 与中文，standard_rate 支持 "0.15%" 百分数字符串与数字
- * 3. K 线几何严格校验：low <= min(open, close) <= max(open, close) <= high，且 OHLC 严格正且有限，按日期严格升序去重
+ * 3. K 线几何严格校验；前复权可出现非正历史价，保留源值；未复权 ETF 价格严格为正
  * 4. 持仓持股代码优先保留带交易所后缀的完整 thscode（如 600519.SH），防止降级成无后缀 ticker
  */
 
-import { marketNumber } from '../utils/market-validation.ts';
+import { isMarketDate, marketNumber } from '../utils/market-validation.ts';
 import type {
   SelectionDailyBar,
   SelectionEtfFinancialIndicator,
@@ -19,6 +19,7 @@ import type {
   SelectionStockValuation,
 } from '../utils/selection-types.ts';
 import { beijingMsToDateString } from './fuyao.ts';
+import { assertSymbolSet } from './market-fuyao-collection.ts';
 import type { MarketReader } from './market-reader.ts';
 import { MarketReadError } from './market-reader.ts';
 
@@ -30,21 +31,8 @@ function record(value: unknown): value is Record<string, unknown> {
  * 将可能带 % 的费率字符串或数值安全转换为数字百分比（如 "0.15%" -> 0.15）
  */
 export function parseFeePercent(val: unknown): number | null {
-  if (val === null || val === undefined) return null;
-  if (typeof val === 'number') {
-    return Number.isFinite(val) ? val : null;
-  }
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (!trimmed) return null;
-    if (trimmed.endsWith('%')) {
-      const num = Number(trimmed.slice(0, -1).trim());
-      return Number.isFinite(num) ? num : null;
-    }
-    const num = Number(trimmed);
-    return Number.isFinite(num) ? num : null;
-  }
-  return null;
+  const num = marketNumber(typeof val === 'string' ? val.trim().replace(/%$/, '').trim() : val);
+  return num !== null && num >= 0 ? num : null;
 }
 
 /**
@@ -83,12 +71,12 @@ export async function fetchStockIndicators(
   }
 
   // 严格核验响应中的 thscode 与 report
-  if (typeof data.thscode === 'string' && data.thscode !== symbol) {
+  if (data.thscode !== symbol) {
     throw new MarketReadError(
       `Mismatched thscode in indicators: expected ${symbol}, got ${data.thscode}`,
     );
   }
-  if (typeof data.report === 'string' && data.report !== report) {
+  if (data.report !== report) {
     throw new MarketReadError(
       `Mismatched report in indicators: expected ${report}, got ${data.report}`,
     );
@@ -134,6 +122,7 @@ export async function fetchStockValuationsBatch(
   const res = await reader.fuyao('/api/a-share/valuations/snapshot', {
     thscodes: symbols.join(','),
   });
+  assertSymbolSet(res.item, new Set(symbols));
 
   const list: SelectionStockValuation[] = [];
   for (const item of res.item) {
@@ -185,19 +174,30 @@ export async function fetchStockStatements(
 
   const statements: SelectionStockFinancialStatement[] = [];
   for (const item of res.item) {
-    if (typeof item.thscode === 'string' && item.thscode !== symbol) {
+    if (item.thscode !== symbol) {
       throw new MarketReadError(
         `Mismatched thscode in item: expected ${symbol}, got ${item.thscode}`,
       );
     }
 
     const fiscalYear = Number(item.fiscal_year);
-    if (!Number.isInteger(fiscalYear)) continue;
+    if (!Number.isInteger(fiscalYear) || fiscalYear < 1900 || item.fiscal_period !== 'FY') {
+      throw new MarketReadError(`Invalid annual statement period for ${symbol}`);
+    }
 
     const periodEndMs = marketNumber(item.period_end_ms);
     const reportDateMs = marketNumber(item.report_date_ms);
     const periodEnd = periodEndMs ? beijingMsToDateString(periodEndMs) : '';
     const reportDate = reportDateMs ? beijingMsToDateString(reportDateMs) : '';
+    if (
+      !isMarketDate(periodEnd) ||
+      !isMarketDate(reportDate) ||
+      periodEnd !== `${fiscalYear}-12-31` ||
+      typeof item.currency !== 'string' ||
+      !item.currency
+    ) {
+      throw new MarketReadError(`Invalid annual statement date or currency for ${symbol}`);
+    }
 
     const cleanData: Record<string, number | string | null> = {};
     for (const [k, v] of Object.entries(item)) {
@@ -210,10 +210,10 @@ export async function fetchStockStatements(
       symbol,
       statementType,
       fiscalYear,
-      fiscalPeriod: typeof item.fiscal_period === 'string' ? item.fiscal_period : 'FY',
+      fiscalPeriod: item.fiscal_period,
       periodEnd,
       reportDate,
-      currency: typeof item.currency === 'string' ? item.currency : 'CNY',
+      currency: item.currency,
       data: cleanData,
       collectedAt: res.collectedAt,
     });
@@ -224,28 +224,30 @@ export async function fetchStockStatements(
 
 /**
  * 校验并规范化 K 线几何：
- * 1. open > 0, high > 0, low > 0, close > 0 且有限
+ * 1. OHLC 有限；股票前复权允许非正历史值，未复权 ETF 必须为正
  * 2. low <= min(open, close) 且 max(open, close) <= high
  * 3. volume 与 turnover 非负且有限 (若提供)
  */
 export function validateAndCleanDailyBars(bars: readonly SelectionDailyBar[]): SelectionDailyBar[] {
   const byDate = new Map<string, SelectionDailyBar>();
   for (const b of bars) {
-    if (!b.tradeDate) continue;
+    if (!isMarketDate(b.tradeDate)) continue;
     if (
       !Number.isFinite(b.open) ||
       !Number.isFinite(b.high) ||
       !Number.isFinite(b.low) ||
-      !Number.isFinite(b.close) ||
-      b.open <= 0 ||
-      b.high <= 0 ||
-      b.low <= 0 ||
-      b.close <= 0
+      !Number.isFinite(b.close)
     ) {
       continue;
     }
+    if (
+      !(b.assetType === 'stock' && b.adjust === 'forward') &&
+      [b.open, b.high, b.low, b.close].some((v) => v <= 0)
+    )
+      continue;
     const minOc = Math.min(b.open, b.close);
     const maxOc = Math.max(b.open, b.close);
+    if ([b.volume, b.turnover].some((v) => v !== null && (!Number.isFinite(v) || v < 0))) continue;
     // 允许浮点 1e-6 极微公差
     if (b.low > minOc + 1e-6 || b.high < maxOc - 1e-6) {
       continue;
@@ -273,10 +275,10 @@ export async function fetchStockForwardBars(
     end: endDateMs,
   });
 
-  if (res.thscode && res.thscode !== symbol) {
+  if (res.thscode !== symbol || res.interval !== '1d') {
     throw new MarketReadError(`Mismatched thscode in bars: expected ${symbol}, got ${res.thscode}`);
   }
-  if (res.adjust && res.adjust !== 'forward') {
+  if (res.adjust !== 'forward') {
     throw new MarketReadError(`Mismatched adjust in bars: expected forward, got ${res.adjust}`);
   }
 
@@ -314,7 +316,10 @@ export async function fetchStockForwardBars(
     });
   }
 
-  return validateAndCleanDailyBars(rawBars);
+  const cleaned = validateAndCleanDailyBars(rawBars);
+  if (cleaned.length !== res.item.length)
+    throw new MarketReadError(`Invalid or duplicate bars for ${symbol}`);
+  return cleaned;
 }
 
 /**
@@ -333,7 +338,7 @@ export async function fetchEtfDailyBars(
     end: endDateMs,
   });
 
-  if (res.thscode && res.thscode !== symbol) {
+  if (res.thscode !== symbol || res.interval !== '1d') {
     throw new MarketReadError(`Mismatched thscode in bars: expected ${symbol}, got ${res.thscode}`);
   }
 
@@ -371,7 +376,10 @@ export async function fetchEtfDailyBars(
     });
   }
 
-  return validateAndCleanDailyBars(rawBars);
+  const cleaned = validateAndCleanDailyBars(rawBars);
+  if (cleaned.length !== res.item.length)
+    throw new MarketReadError(`Invalid or duplicate bars for ${symbol}`);
+  return cleaned;
 }
 
 /**
@@ -401,7 +409,7 @@ export async function fetchEtfNavPoints(
     } else if (typeof rawDate === 'string') {
       navDate = rawDate;
     }
-    if (!navDate) continue;
+    if (!isMarketDate(navDate)) throw new MarketReadError(`Invalid NAV date for ${symbol}`);
 
     const unitNav = marketNumber(item.unit_nav);
     if (unitNav === null || unitNav <= 0) continue;
@@ -436,8 +444,9 @@ export async function fetchEtfProfile(
 
   const first = res.item[0];
   if (!first) return null;
+  if (res.item.length !== 1) throw new MarketReadError(`Invalid profile count for ${symbol}`);
 
-  if (typeof first.thscode === 'string' && first.thscode !== symbol) {
+  if (first.thscode !== symbol) {
     throw new MarketReadError(
       `Mismatched thscode in profile: expected ${symbol}, got ${first.thscode}`,
     );

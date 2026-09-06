@@ -3,7 +3,19 @@
  * 遵循 docs/15-ETF-SCREENING.md 与 docs/16-STOCK-SCREENING.md
  */
 
+import { chinaMarketDate, isMarketDate } from '../utils/market-validation.ts';
 import { yearsBefore } from './market-bars.ts';
+
+/** A same-day history row collected before the close is still a forming candle. */
+export function canUseDailyClose(tradeDate: string, collectedAt: number): boolean {
+  if (!isMarketDate(tradeDate) || !Number.isFinite(collectedAt)) return false;
+  const day = chinaMarketDate(collectedAt);
+  const local = new Date(collectedAt + 8 * 3600000);
+  return (
+    tradeDate < day ||
+    (tradeDate === day && local.getUTCHours() * 60 + local.getUTCMinutes() >= 15 * 60)
+  );
+}
 
 export interface ReturnWindowMetric {
   windowYears: 1 | 3 | 5;
@@ -48,6 +60,7 @@ export function computeCagr(firstValue: number, lastValue: number, days: number)
  */
 export function computeMaxDrawdown(values: readonly number[]): number | null {
   if (values.length < 2) return null;
+  if (values.some((v) => !Number.isFinite(v) || v <= 0)) return null;
   let peak = -Number.POSITIVE_INFINITY;
   let maxDd = 0;
   for (const v of values) {
@@ -71,7 +84,12 @@ export function computeAnnualVolatility(
   values: readonly number[],
   minSamples: number,
 ): number | null {
-  if (values.length < minSamples || minSamples < 2) return null;
+  if (
+    values.length < minSamples ||
+    minSamples < 2 ||
+    values.some((v) => !Number.isFinite(v) || v <= 0)
+  )
+    return null;
   const dailyReturns: number[] = [];
   for (let i = 1; i < values.length; i++) {
     const prev = values[i - 1];
@@ -153,6 +171,8 @@ export function evaluateReturnWindow(
   if (!basePoint) return empty;
   const windowSlice = series.slice(baseIndex);
   const count = windowSlice.length;
+  if (windowSlice.some((p) => !Number.isFinite(p.value) || p.value <= 0))
+    return { ...empty, pointCount: count };
 
   if (count < minPoints) {
     // 样本不足

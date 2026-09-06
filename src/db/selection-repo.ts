@@ -273,8 +273,23 @@ export function upsertSelectionStockSnapshots(
   db: Database,
   snapshots: readonly SelectionStockSnapshotQuote[],
 ): void {
+  upsertSelectionSnapshots(db, snapshots, 'stock');
+}
+
+export function upsertSelectionEtfSnapshots(
+  db: Database,
+  snapshots: readonly SelectionStockSnapshotQuote[],
+): void {
+  upsertSelectionSnapshots(db, snapshots, 'etf');
+}
+
+function upsertSelectionSnapshots(
+  db: Database,
+  snapshots: readonly SelectionStockSnapshotQuote[],
+  asset: 'stock' | 'etf',
+): void {
   const stmt = db.prepare(`
-    INSERT INTO selection_stock_snapshot (
+    INSERT INTO selection_${asset}_snapshot (
       symbol, trade_date, price, prev_close, change_pct, open, high, low, volume, turnover, is_inferred_date, collected_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(symbol) DO UPDATE SET
