@@ -10,6 +10,7 @@
   "description": "中国公募基金全市场数据采集与量化选基工具 (MVP: 主动权益基金)",
   "private": true,
   "scripts": {
+    "fetch:macro": "bun run scripts/fetch-macro.ts",
     "fetch:list": "bun run scripts/fetch-fund-list.ts",
     "fetch:nav": "bun run scripts/fetch-fund-nav.ts",
     "fetch:daily": "bun run scripts/fetch-daily.ts",
