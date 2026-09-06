@@ -64,7 +64,7 @@ function parsePositiveInt(val: string | null, fallback = 1): number {
   if (val === null || val === '') return fallback;
   const n = Number(val);
   if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.floor(n);
+  return Math.min(10000, Math.max(1, Math.floor(n)));
 }
 
 function parseOrder(val: string | null, fallback: 'asc' | 'desc' = 'asc'): 'asc' | 'desc' {

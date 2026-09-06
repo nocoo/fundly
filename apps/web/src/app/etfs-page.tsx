@@ -396,7 +396,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
               <NumericDraftInput
                 ariaLabel="管理+托管费率上限"
                 step="0.05"
-                min="0.05"
+                min="0"
                 max="5"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxFeeEnabled}
@@ -558,7 +558,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                       </TableHead>
                     </>
                   )}
-                  <TableHead className="w-32 text-center">趋势走势</TableHead>
+                  <TableHead className="w-32 text-center">走势</TableHead>
                   <TableHead className="w-24 text-center">覆盖状态</TableHead>
                 </TableRow>
               </TableHeader>
@@ -733,6 +733,10 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                           <span className="px-1.5 py-0.5 rounded bg-basalt-accent text-basalt-foreground text-[10px]">
                             净值
                           </span>
+                        ) : row.scaleYi !== null ||
+                          row.mgmtFeePct !== null ||
+                          row.custodyFeePct !== null ? (
+                          <span className="text-basalt-muted-foreground text-[10px]">资料</span>
                         ) : (
                           <span className="text-basalt-muted-foreground/50 text-[10px]">
                             仅目录

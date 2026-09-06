@@ -46,6 +46,8 @@ describe('ETF search and URL round-trip serialization', () => {
     expect(parseEtfSearch('?page=NaN', 'browse').page).toBe(1);
     expect(parseEtfSearch('?page=-5', 'browse').page).toBe(1);
     expect(parseEtfSearch('?page=3.8', 'browse').page).toBe(3);
+    expect(parseEtfSearch('?page=0.5', 'browse').page).toBe(1);
+    expect(parseEtfSearch('?page=1e20', 'browse').page).toBe(10000);
   });
 });
 
@@ -130,11 +132,18 @@ describe('Stock search and URL round-trip serialization', () => {
     const allEnterprises = parseStockSearch('?excludeFin=0', 'cashflow');
     expect(allEnterprises.excludeFinancial).toBe(false);
     expect(allEnterprises.isFinancial).toBeUndefined();
+
+    const nonFinancial = parseStockSearch('?isFinancial=false', 'browse');
+    expect(parseStockSearch(stockUrlSearch(nonFinancial, 'browse'), 'browse').isFinancial).toBe(
+      false,
+    );
   });
 
   it('sanitizes NaN, Infinity and non-integer pages', () => {
     expect(parseStockSearch('?page=NaN', 'browse').page).toBe(1);
     expect(parseStockSearch('?page=Infinity', 'browse').page).toBe(1);
     expect(parseStockSearch('?page=4.2', 'browse').page).toBe(4);
+    expect(parseStockSearch('?page=0.5', 'browse').page).toBe(1);
+    expect(parseStockSearch('?page=1e20', 'browse').page).toBe(10000);
   });
 });

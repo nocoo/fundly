@@ -7,6 +7,8 @@ export function NumericDraftInput({
   disabled,
   className,
   ariaLabel,
+  min,
+  max,
 }: {
   value: number;
   onChange: (val: number) => void;
@@ -34,7 +36,11 @@ export function NumericDraftInput({
       setDraft(String(value));
       return;
     }
-    onChange(num);
+    const lower = min === undefined ? Number.NEGATIVE_INFINITY : Number(min);
+    const upper = max === undefined ? Number.POSITIVE_INFINITY : Number(max);
+    const bounded = Math.min(upper, Math.max(lower, num));
+    setDraft(String(bounded));
+    if (bounded !== value) onChange(bounded);
   };
 
   return (

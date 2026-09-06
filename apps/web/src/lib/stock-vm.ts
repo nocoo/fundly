@@ -22,7 +22,7 @@ export const STOCK_LENS_LABEL: Record<StockLens, string> = {
 };
 
 export const STOCK_LENS_DESCRIPTIONS: Record<StockLens, string> = {
-  browse: '全 A 股股票目录与快照行情，带行业归属与行内走势走势。',
+  browse: '全 A 股股票目录与快照行情，带已知行业归属与行内走势。',
   valuation: '市盈率 PE (TTM/MRQ)、市净率 PB、市销率 PS、市现率 PCF，负值与 null 排在最后。',
   quality: '加权净资产收益率 ROE、扣非 ROE、销售净利率、毛利率与资产负债率。',
   growth: '最新完整年报营收同比、归母净利润同比与营收/净利润三年复合增长率 CAGR。',
@@ -86,7 +86,7 @@ function parsePositiveInt(val: string | null, fallback = 1): number {
   if (val === null || val === '') return fallback;
   const n = Number(val);
   if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.floor(n);
+  return Math.min(10000, Math.max(1, Math.floor(n)));
 }
 
 function parseOrder(val: string | null, fallback: 'asc' | 'desc' = 'asc'): 'asc' | 'desc' {
@@ -117,7 +117,9 @@ export function parseStockSearch(search: string, lens: StockLens = 'browse'): St
     ? p.get('isFinancial') === 'true'
     : p.get('finOnly') === '1'
       ? true
-      : undefined;
+      : p.get('finOnly') === '0'
+        ? false
+        : undefined;
   if (isFinancial) {
     excludeFinancial = false;
   }

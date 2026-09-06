@@ -314,7 +314,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             </span>
           </LayerCard>
           <LayerCard className="research-stat">
-            <span className="text-xs text-basalt-muted-foreground">深度年报与财务指标</span>
+            <span className="text-xs text-basalt-muted-foreground">年报资料覆盖</span>
             <div className="research-stat-value">
               {formatCount(data.coverage.withFinancialsCount)}
             </div>
@@ -368,7 +368,11 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             label="企业属性"
             includeAll={false}
             value={
-              state.isFinancial ? 'financial' : state.excludeFinancial ? 'nonFinancial' : 'all'
+              state.isFinancial
+                ? 'financial'
+                : state.isFinancial === false || state.excludeFinancial
+                  ? 'nonFinancial'
+                  : 'all'
             }
             options={[
               { value: 'all', label: '全部企业 (含金融)' },
@@ -465,7 +469,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
               <NumericDraftInput
                 ariaLabel="市盈率 PE(TTM) 上限"
                 step="5"
-                min="1"
+                min="0"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxPeEnabled}
                 value={state.maxPe}
