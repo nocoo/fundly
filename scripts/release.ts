@@ -24,6 +24,14 @@ const next = bump(previous, process.argv[2] ?? 'patch');
 pkg.version = next;
 writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
+const packagePaths = ['apps/web/package.json', 'apps/worker/package.json'];
+for (const path of packagePaths) {
+  const absolute = resolve(root, path);
+  const child = JSON.parse(readFileSync(absolute, 'utf8')) as { version: string };
+  child.version = next;
+  writeFileSync(absolute, `${JSON.stringify(child, null, 2)}\n`);
+}
+
 const versionPath = resolve(root, 'apps/worker/src/lib/version.ts');
 writeFileSync(versionPath, `export const APP_VERSION = '${next}';\n`);
 
@@ -50,6 +58,7 @@ writeFileSync(changelogPath, `${entry}${prev}`);
 run('git', [
   'add',
   'package.json',
+  ...packagePaths,
   'CHANGELOG.md',
   'apps/worker/src/lib/version.ts',
   'apps/web/src/components/layout/sidebar.tsx',
