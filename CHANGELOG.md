@@ -1,3 +1,19 @@
+## 0.6.0 — 2026-09-06
+
+- docs: align deployment notes for 0.6.0
+- docs: record selection coverage and final acceptance
+- feat(web): deepen research details and preserve drilldown origins
+- fix(web): bound selection inputs and preserve explicit filter states
+- test(api): cover selection filters and disclosure contracts
+- fix(selection): validate collection and preserve research snapshots
+- fix(selection): refine stock currency alignment, financial slice tri-state, and filter controls
+- feat(web): add interactive sorting, filters, and pick thresholds for ETF and stock lists
+- feat(web): implement ETF and stock research screens, details, and navigation
+- fix(api): align selection DTOs, negative valuation order, and query sanitization
+- feat(api): implement selection readonly endpoints for etfs and stocks
+- feat(selection): implement selection schema, repo, calc and cli
+- docs: plan ETF and stock research workspaces
+
 ## 0.5.0 — 2026-09-06
 
 - fix: synchronize package release versions
