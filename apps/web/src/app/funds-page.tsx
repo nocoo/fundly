@@ -1,5 +1,4 @@
 import { Button, Input, LayerCard } from '@nocoo/basalt';
-import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -8,11 +7,19 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
+import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
+import { DataInfo } from '@/components/charts/market-chart-controls';
 import { AppShell } from '@/components/layout';
+import {
+  ListPagination,
+  PanelHeading,
+  ResearchEmpty,
+  ResearchHeader,
+} from '@/components/layout/research-layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { Metric } from '@/components/ui/metric';
@@ -64,6 +71,7 @@ export default function FundsPage() {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const hydrated = useRef(false);
+  const tableViewport = useRef<HTMLDivElement>(null);
   const filters = useMemo(() => parseFundsSearch(params), [params]);
   const { q, typeL1, typeL2, mvpOnly, hasNav, sort, dir, page } = filters;
 
@@ -81,7 +89,11 @@ export default function FundsPage() {
     return `/api/funds?${p}`;
   }, [q, typeL1, typeL2, mvpOnly, hasNav, sort, dir, page]);
 
-  const { data, error, isLoading, isValidating } = useSWR<ListResponse>(query, fetchAPI, {
+  useEffect(() => {
+    if (query) tableViewport.current?.scrollTo({ top: 0 });
+  }, [query]);
+
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ListResponse>(query, fetchAPI, {
     keepPreviousData: true,
   });
   const { data: types } = useSWR<{ items: { fund_type: string; n: number }[] }>(
@@ -145,79 +157,135 @@ export default function FundsPage() {
   }));
   const filterActive = Boolean(q || typeL1 || typeL2 || mvpOnly || hasNav);
 
+  const resetFilters = () =>
+    set({ q: null, typeL1: null, typeL2: null, mvpOnly: null, hasNav: null });
+  const pageDates = [
+    ...new Set((data?.items ?? []).flatMap((row) => (row.data_date ? [row.data_date] : []))),
+  ].sort();
+
   return (
     <AppShell breadcrumbs={[{ label: '基金浏览' }]}>
-      <div className="space-y-6">
-        <PageHeader
+      <div className="research-page research-list-page">
+        <ResearchHeader
           title="基金浏览"
-          description="全市场公募基金列表，支持代码名称快速检索、多级分类筛选与周期收益排序。"
+          icon={Search}
+          description="从全市场找到研究标的，按分类与阶段收益逐层筛选。"
           actions={
-            filterActive || search.value ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  set({ q: null, typeL1: null, typeL2: null, mvpOnly: null, hasNav: null })
-                }
-              >
-                重置筛选
-              </Button>
-            ) : null
-          }
-          filters={
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                id="fund-q"
-                value={search.value}
-                placeholder="代码 / 名称 / 拼音"
-                aria-label="关键词"
-                className="h-9 w-52"
-                onChange={search.onChange}
-                onCompositionStart={search.onCompositionStart}
-                onCompositionEnd={search.onCompositionEnd}
-              />
-              <FilterDropdown
-                label="大类"
-                value={typeL1 || 'all'}
-                options={l1Options}
-                onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
-              />
-              {l2Options.length > 0 ? (
-                <FilterDropdown
-                  label="细类"
-                  value={typeL2 || 'all'}
-                  options={l2Options}
-                  onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
-                />
-              ) : null}
-              <FilterCheck
-                label="MVP 池"
-                checked={mvpOnly}
-                onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
-              />
-              <FilterCheck
-                label="有净值"
-                checked={hasNav}
-                onChange={(checked) => set({ hasNav: checked ? '1' : null })}
-              />
-            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/select/return">
+                多维选基 <ArrowUp className="size-3.5 rotate-45" />
+              </Link>
+            </Button>
           }
         />
+        <LayerCard className="research-toolbar overflow-visible" padding="none">
+          <div className="research-search">
+            <Search strokeWidth={1.5} aria-hidden="true" />
+            <Input
+              id="fund-q"
+              value={search.value}
+              placeholder="代码 / 名称 / 拼音"
+              aria-label="关键词"
+              onChange={search.onChange}
+              onCompositionStart={search.onCompositionStart}
+              onCompositionEnd={search.onCompositionEnd}
+            />
+          </div>
+          <FilterDropdown
+            label="大类"
+            value={typeL1 || 'all'}
+            options={l1Options}
+            onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
+          />
+          {l2Options.length > 0 ? (
+            <FilterDropdown
+              label="细类"
+              value={typeL2 || 'all'}
+              options={l2Options}
+              onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
+            />
+          ) : null}
+          <FilterCheck
+            label="MVP 池"
+            checked={mvpOnly}
+            onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
+          />
+          <FilterCheck
+            label="有净值"
+            checked={hasNav}
+            onChange={(checked) => set({ hasNav: checked ? '1' : null })}
+          />
+          <div className="flex items-center gap-2 md:hidden">
+            <FilterDropdown
+              label="排序"
+              value={sort}
+              options={SORTS.map(([value, label]) => ({ value, label }))}
+              includeAll={false}
+              onChange={toggleSort}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="切换排序方向"
+              onClick={() => set({ dir: dir === 'asc' ? 'desc' : 'asc' })}
+            >
+              {dir === 'asc' ? '升序' : '降序'}
+            </Button>
+          </div>
+          {filterActive || search.value ? (
+            <Button variant="ghost" size="sm" className="ml-auto text-xs" onClick={resetFilters}>
+              重置筛选
+            </Button>
+          ) : null}
+        </LayerCard>
 
-        {error && <p className="text-sm text-basalt-danger">{error.message}</p>}
-        {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
-
-        {data && (
-          <LayerCard>
-            <LayerCard.Header className="flex items-center justify-between text-xs text-basalt-muted-foreground">
-              <span>
-                共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)}{' '}
-                页 · 每页 {formatCount(data.pageSize)}
-                {isValidating ? ' · 更新中…' : ''}
+        <LayerCard className="research-data-table" padding="none">
+          <PanelHeading
+            title={
+              <span className="flex items-center gap-2">
+                {filterActive ? '筛选结果' : '全部基金'}
+                <span className="font-mono text-xs font-normal text-basalt-muted-foreground">
+                  {data ? formatCount(data.total) : '—'}
+                </span>
               </span>
-            </LayerCard.Header>
-            <LayerCard.Body className="p-0">
-              <div className="overflow-x-auto">
+            }
+            action={
+              <div className="flex items-center gap-2 text-[11px] text-basalt-muted-foreground">
+                <span aria-live="polite">{isValidating ? '更新中…' : '点击基金，查看详情'}</span>
+                <DataInfo name="基金列表" date={pageDates.at(-1)} source="东方财富">
+                  <p>
+                    阶段收益按各基金可用数据展示。本页业绩日期：{pageDates[0] || '—'}
+                    {pageDates.length > 1 ? ` 至 ${pageDates.at(-1)}` : ''}。
+                  </p>
+                </DataInfo>
+              </div>
+            }
+          />
+          <LayerCard.Body className="flex min-h-0 flex-1 p-0">
+            <div ref={tableViewport} className="research-table-viewport" aria-busy={isLoading}>
+              {error ? (
+                <ResearchEmpty
+                  title="基金列表加载失败"
+                  description={error.message}
+                  action={
+                    <Button variant="outline" size="sm" onClick={() => void mutate()}>
+                      重试
+                    </Button>
+                  }
+                />
+              ) : isLoading && !data ? (
+                <LayerCard.Loading label="加载基金列表" />
+              ) : data?.items.length === 0 ? (
+                <ResearchEmpty
+                  title="没有符合条件的基金"
+                  description="试试更换关键词或放宽筛选条件。"
+                  action={
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
+                      重置筛选
+                    </Button>
+                  }
+                />
+              ) : data ? (
                 <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                   <TableHeader>
                     <TableRow>
@@ -227,16 +295,28 @@ export default function FundsPage() {
                           aria-sort={
                             sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
                           }
-                          className={RETURN_KEYS.has(key) ? 'text-right' : undefined}
+                          className={
+                            RETURN_KEYS.has(key)
+                              ? 'text-right'
+                              : key === 'fund_code' || key === 'fund_type'
+                                ? 'hidden md:table-cell'
+                                : undefined
+                          }
                         >
-                          <button
-                            type="button"
-                            className="font-medium hover:text-basalt-foreground transition-colors"
+                          <Button
+                            variant="ghost"
+                            className="research-sort"
                             onClick={() => toggleSort(key)}
                           >
                             {label}
-                            {sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                          </button>
+                            {sort === key ? (
+                              dir === 'asc' ? (
+                                <ArrowUp className="size-3 text-basalt-primary" />
+                              ) : (
+                                <ArrowDown className="size-3 text-basalt-primary" />
+                              )
+                            ) : null}
+                          </Button>
                         </TableHead>
                       ))}
                     </TableRow>
@@ -248,61 +328,56 @@ export default function FundsPage() {
                         <TableRow
                           key={row.fund_code}
                           className="cursor-pointer"
-                          onClick={() => openDetail(row.fund_code)}
+                          onClick={(event: React.MouseEvent) => {
+                            if ((event.target as HTMLElement).closest('a')) return;
+                            openDetail(row.fund_code);
+                          }}
                         >
+                          <TableCell className="hidden w-24 font-mono text-xs text-basalt-muted-foreground md:table-cell">
+                            {row.fund_code}
+                          </TableCell>
                           <TableCell>
                             <Link
-                              className="font-medium text-basalt-foreground hover:underline"
+                              className="research-fund-name block font-medium text-basalt-foreground hover:text-basalt-primary"
+                              title={row.fund_name}
                               to={loc.to}
                               state={loc.state}
                               onClick={() => writeListOrigin(listOrigin)}
                             >
-                              {row.fund_code}
+                              {row.fund_name}
                             </Link>
+                            <span className="mt-1 block font-mono text-[11px] text-basalt-muted-foreground md:hidden">
+                              {row.fund_code}
+                            </span>
                           </TableCell>
-                          <TableCell>{row.fund_name}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             <FundTypeBadges type={row.fund_type} />
                           </TableCell>
-                          <TableCell>
-                            <Metric value={row.return_1y} kind="percent" signed align="end" />
-                          </TableCell>
-                          <TableCell>
-                            <Metric value={row.return_1m} kind="percent" signed align="end" />
-                          </TableCell>
-                          <TableCell>
-                            <Metric value={row.return_3m} kind="percent" signed align="end" />
-                          </TableCell>
-                          <TableCell>
-                            <Metric value={row.return_6m} kind="percent" signed align="end" />
-                          </TableCell>
+                          {(['return_1y', 'return_1m', 'return_3m', 'return_6m'] as const).map(
+                            (key) => (
+                              <TableCell key={key}>
+                                <Metric value={row[key]} kind="percent" signed align="end" />
+                              </TableCell>
+                            ),
+                          )}
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
-              </div>
-            </LayerCard.Body>
-            <LayerCard.Footer className="flex items-center gap-2 p-3">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page <= 1}
-                onClick={() => set({ page: String(data.page - 1) })}
-              >
-                上一页
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page >= pages}
-                onClick={() => set({ page: String(data.page + 1) })}
-              >
-                下一页
-              </Button>
-            </LayerCard.Footer>
-          </LayerCard>
-        )}
+              ) : null}
+            </div>
+          </LayerCard.Body>
+          {data ? (
+            <ListPagination
+              page={data.page}
+              pages={pages}
+              total={data.total}
+              pageSize={data.pageSize}
+              onPageChange={(value) => set({ page: String(value) })}
+            />
+          ) : null}
+        </LayerCard>
       </div>
     </AppShell>
   );

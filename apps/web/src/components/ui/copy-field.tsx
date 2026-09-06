@@ -1,18 +1,21 @@
+import { Button } from '@nocoo/basalt';
 import { Check, Copy } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { writeClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 
-const SHELL = 'min-w-0 rounded-lg border border-basalt-border bg-basalt-control px-3 py-2 text-sm';
+const SHELL = 'research-field min-w-0 text-sm';
 
 export function CopyField({
   label,
   text,
   children,
+  className,
 }: {
   label: string;
   text?: string | null;
   children?: ReactNode;
+  className?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -24,16 +27,16 @@ export function CopyField({
 
   if (!text) {
     return (
-      <div className={cn(SHELL, 'flex flex-col items-start gap-0.5')}>
+      <div className={cn(SHELL, 'flex flex-col items-start gap-1', className)}>
         <span className="text-xs text-basalt-muted-foreground">{label}</span>
-        <span className="text-sm text-basalt-muted-foreground">暂无数据</span>
+        <span className="text-sm text-basalt-muted-foreground">—</span>
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       onClick={() => {
         void writeClipboard(text).then((ok) => {
           if (ok) setCopied(true);
@@ -42,9 +45,8 @@ export function CopyField({
       aria-label={copied ? `已复制${label}` : `复制${label}`}
       className={cn(
         SHELL,
-        'group relative flex cursor-pointer flex-col items-start gap-0.5 text-left outline-none transition-colors',
-        'hover:border-basalt-foreground/20 hover:bg-basalt-accent',
-        'focus-visible:border-basalt-ring focus-visible:ring-[3px] focus-visible:ring-basalt-ring/50',
+        'group relative flex h-auto w-full cursor-pointer flex-col items-start gap-1 whitespace-normal text-left font-normal',
+        className,
       )}
     >
       <span className="text-xs text-basalt-muted-foreground">{label}</span>
@@ -60,6 +62,6 @@ export function CopyField({
       >
         {copied ? <Check className="size-3.5" strokeWidth={1.75} /> : <Copy className="size-3.5" />}
       </span>
-    </button>
+    </Button>
   );
 }

@@ -21,7 +21,7 @@ export function Metric({
   return (
     <span
       className={cn(
-        'font-medium tabular-nums',
+        'font-mono font-medium tabular-nums',
         align === 'end'
           ? 'inline-block w-full text-right'
           : 'block w-full text-left whitespace-normal break-words',

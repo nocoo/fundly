@@ -1,27 +1,46 @@
 import { Button, LayerCard } from '@nocoo/basalt';
-import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { FileQuestion } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, FileQuestion } from 'lucide-react';
 import { Link } from 'react-router';
 import { AppShell } from '@/components/layout';
+import { ResearchHeader } from '@/components/layout/research-layout';
 
 export default function NotFoundPage() {
   return (
     <AppShell breadcrumbs={[{ label: '未找到' }]}>
-      <div className="space-y-6">
-        <PageHeader title="404" description="请求的页面不存在或已被移除。" />
-        <LayerCard className="py-12 text-center">
-          <LayerCard.Body className="flex flex-col items-center justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-basalt-muted text-basalt-muted-foreground mb-4">
-              <FileQuestion className="h-8 w-8" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-lg font-semibold text-basalt-foreground">页面不存在</h2>
-            <p className="mt-1 text-sm text-basalt-muted-foreground mb-6">
-              这个路径没有对应页面，请检查链接或返回仪表盘。
+      <div className="research-page">
+        <ResearchHeader
+          title="页面未找到"
+          icon={FileQuestion}
+          description="这个路径没有对应的研究页面。"
+        />
+        <LayerCard className="flex min-h-[420px] flex-col items-center justify-center gap-5 p-8 text-center">
+          <span className="font-mono text-6xl font-medium tracking-tight text-basalt-primary/75">
+            404
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold">换个入口，继续研究</h2>
+            <p className="mt-2 text-sm text-basalt-muted-foreground">
+              可以回到仪表盘，或直接进入市场与基金。
             </p>
-            <Button asChild>
-              <Link to="/">回到仪表盘</Link>
+          </div>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/">
+                <ArrowLeft className="size-4" strokeWidth={1.5} />
+                回到仪表盘
+              </Link>
             </Button>
-          </LayerCard.Body>
+            <Button variant="ghost" asChild>
+              <Link to="/market">
+                宏观大屏 <ArrowUpRight className="size-4" strokeWidth={1.5} />
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/funds">
+                基金浏览 <ArrowUpRight className="size-4" strokeWidth={1.5} />
+              </Link>
+            </Button>
+          </div>
         </LayerCard>
       </div>
     </AppShell>

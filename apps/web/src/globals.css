@@ -2,6 +2,7 @@
 @import "@nocoo/basalt/styles/tailwind";
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./app/research-pages.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
