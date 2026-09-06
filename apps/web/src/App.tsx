@@ -10,6 +10,7 @@ const Settings = lazy(() => import('@/app/settings-page'));
 const Backup = lazy(() => import('@/app/backup-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
 const Select = lazy(() => import('@/app/select-page'));
+const Market = lazy(() => import('@/app/market-page'));
 const RankingRedirect = lazy(() =>
   import('@/app/select-page').then((mod) => ({ default: mod.RankingRedirect })),
 );
@@ -52,6 +53,14 @@ export function App() {
                 element={
                   <Guard>
                     <Dashboard />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/market"
+                element={
+                  <Guard>
+                    <Market />
                   </Guard>
                 }
               />

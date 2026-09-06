@@ -16,7 +16,10 @@ export const NAV_GROUPS: NavGroupDef[] = [
   {
     label: '总览',
     defaultOpen: true,
-    items: [{ href: '/', label: '仪表盘', icon: 'LayoutDashboard' }],
+    items: [
+      { href: '/', label: '仪表盘', icon: 'LayoutDashboard' },
+      { href: '/market', label: '宏观大屏', icon: 'LineChart' },
+    ],
   },
   {
     label: '选基',
@@ -42,6 +45,18 @@ export const NAV_GROUPS: NavGroupDef[] = [
 ];
 
 export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
+
+const DASHBOARD_ENTRY_COPY = [
+  { href: '/market', title: '宏观大屏', description: '市场指数、行业与跨资产环境' },
+  { href: '/funds', title: '基金浏览', description: '检索产品，深入净值与基金档案' },
+  { href: '/select/return', title: '收益比较', description: '阶段收益与同类位置' },
+  { href: '/select/risk', title: '风险观察', description: '回撤、波动与风险调整收益' },
+];
+
+export const DASHBOARD_ENTRIES = DASHBOARD_ENTRY_COPY.flatMap((entry) => {
+  const nav = ALL_NAV_ITEMS.find((item) => item.href === entry.href);
+  return nav ? [{ ...nav, ...entry }] : [];
+});
 
 export function isItemActive(
   href: string,

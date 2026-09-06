@@ -12,6 +12,7 @@ export const LIST_PATHS = [
   '/select/dca',
   '/select/cost',
   '/select/picks',
+  '/market',
 ] as const;
 
 export type ListPath = (typeof LIST_PATHS)[number];
@@ -30,6 +31,7 @@ export const LIST_LABEL: Record<ListPath, string> = {
   '/select/dca': '定投',
   '/select/cost': '成本',
   '/select/picks': '精选',
+  '/market': '宏观大屏',
 };
 
 export function isListPath(path: string): path is ListPath {

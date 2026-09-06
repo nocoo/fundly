@@ -1,3 +1,5 @@
+import { quoteTone } from './format-number';
+
 export type QuoteColor = 'red-up' | 'green-up';
 
 export const QUOTE_COLOR_KEY = 'fundly_quote_color';
@@ -28,4 +30,8 @@ export function quoteToneClass(tone: 'up' | 'down' | 'flat', scheme: QuoteColor)
   const upIsRed = scheme === 'red-up';
   if (tone === 'up') return upIsRed ? 'text-destructive-text' : 'text-success-text';
   return upIsRed ? 'text-success-text' : 'text-destructive-text';
+}
+
+export function quoteChangeClass(value: number | null | undefined, scheme: QuoteColor): string {
+  return quoteToneClass(quoteTone(value), scheme);
 }
