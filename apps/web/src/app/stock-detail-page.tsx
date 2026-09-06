@@ -1,3 +1,4 @@
+import './selection-details.css';
 import { Button, LayerCard } from '@nocoo/basalt';
 import {
   Table,
@@ -9,20 +10,28 @@ import {
 } from '@nocoo/basalt/components/table';
 import { ArrowLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import useSWR from 'swr';
-import { fetchAPI } from '@/api';
+import { ApiError, fetchAPI } from '@/api';
 import { CandlestickChart } from '@/components/charts/candlestick-chart';
 import {
   ChartControls,
   type ChartInterval,
   type ChartYears,
   DataInfo,
+  defaultInterval,
 } from '@/components/charts/market-chart-controls';
+import { StockFinancialChart } from '@/components/charts/stock-financial-chart';
 import { AppShell } from '@/components/layout';
-import { PanelHeading, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import {
+  PanelHeading,
+  ResearchEmpty,
+  ResearchHeader,
+  StatTile,
+} from '@/components/layout/research-layout';
+import { Metric } from '@/components/ui/metric';
 import { formatMetric, formatPercent } from '@/lib/format-number';
-import { listBackLabel, resolveListOrigin } from '@/lib/list-origin';
+import { listBackLabel, listHref, readReturnEtf, resolveListOrigin } from '@/lib/list-origin';
 
 import type { StockRowDto } from '../../../../apps/worker/src/lib/selection-service';
 
@@ -77,6 +86,7 @@ export function StockDetailPage() {
   const [interval, setInterval] = useState<ChartInterval>('day');
 
   const origin = useMemo(() => resolveListOrigin(location.state, '/stocks'), [location.state]);
+  const returnEtf = readReturnEtf(location.state);
 
   const {
     data: detailData,
@@ -118,6 +128,8 @@ export function StockDetailPage() {
   );
 
   const detail = detailData?.detail;
+  const notFound = detailError instanceof ApiError && detailError.status === 404;
+  const notReady = detailError instanceof ApiError && detailError.status === 503;
 
   return (
     <AppShell>
@@ -125,11 +137,15 @@ export function StockDetailPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(origin.search ? `${origin.path}${origin.search}` : origin.path)}
+          onClick={() =>
+            returnEtf
+              ? navigate(`/etfs/${returnEtf}`, { state: { list: listHref(origin) } })
+              : navigate(listHref(origin))
+          }
           className="text-xs text-basalt-muted-foreground hover:text-basalt-foreground gap-1"
         >
           <ArrowLeft className="h-4 w-4" />
-          {listBackLabel(origin)}
+          {returnEtf ? '返回 ETF 详情' : listBackLabel(origin)}
         </Button>
       </div>
 
@@ -137,14 +153,18 @@ export function StockDetailPage() {
         <LayerCard.Loading label="正在读取股票档案详情..." className="py-24" />
       ) : detailError || !detailData?.found || !detail ? (
         <ResearchEmpty
-          title={detailError ? '股票详情加载失败' : '未找到该股票标的'}
+          title={notFound ? '未找到该股票标的' : notReady ? '股票资料尚未就绪' : '股票详情加载失败'}
           description={
-            detailError
-              ? '网络请求或服务暂不可用，请稍后重试。'
-              : '该标的可能未在当前 A 股目录中，或数据表尚未就绪。'
+            notFound
+              ? '当前目录中没有这个代码，可以返回列表重新查找。'
+              : notReady
+                ? '研究资料尚未完成首次同步，请稍后查看。'
+                : detailError
+                  ? '网络请求或服务暂不可用，请稍后重试。'
+                  : '当前没有可用的标的资料，请稍后重试。'
           }
           action={
-            detailError ? (
+            !notFound ? (
               <Button variant="outline" size="sm" onClick={() => void mutateDetail()}>
                 重试加载
               </Button>
@@ -155,88 +175,77 @@ export function StockDetailPage() {
         <>
           <ResearchHeader
             title={detail.catalog.name}
-            description={`${detail.catalog.symbol} · ${detail.catalog.industryName ?? '未分类行业'} · ${detail.catalog.isFinancial ? '金融业' : '一般企业'} · 交易所 ${detail.catalog.exchange}`}
+            description={`${detail.catalog.symbol} · ${detail.catalog.industryName ?? '行业未分类'} · 交易所 ${detail.catalog.exchange}`}
             actions={
-              <div className="flex items-center gap-3">
-                <DataInfo name="股票口径提示">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs text-basalt-muted-foreground">
+                  扶摇 · 行情 {detail.metrics.tradeDate ?? '暂无'}
+                  {detail.metrics.fiscalYear ? ` · ${detail.metrics.fiscalYear} 年报` : ''}
+                </span>
+                {detail.catalog.industryName && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link
+                      to={`/select-stock/valuation?exchange=all&industry=${encodeURIComponent(detail.catalog.industryName)}`}
+                    >
+                      同行业比较
+                    </Link>
+                  </Button>
+                )}
+                <DataInfo name="股票口径提示" source="fuyao" date={detail.metrics.tradeDate}>
                   <p>
                     日 K
                     走势为前复权历史价格（经企业行动分红送配等连续调整计算，允许除权产生的负值，非原始撮合价）；财务数据按年度会计期间严格对齐；金融股不参与通用现金质量筛选。
+                  </p>
+                  <p>
+                    估值源日期{' '}
+                    {detail.metrics.valuationTimestamp
+                      ? new Date(detail.metrics.valuationTimestamp).toLocaleDateString('zh-CN')
+                      : '暂无'}
+                    （上游批内最新有效时间，并非每项指标同时更新）；财报期末{' '}
+                    {detail.metrics.periodEnd ?? '暂无'}，披露/修订日{' '}
+                    {detail.metrics.reportDate ?? '暂无'}。历史图不代表原始成交价。
                   </p>
                 </DataInfo>
               </div>
             }
           />
 
-          {/* 核心指标 KPI */}
-          <div className="research-stats mb-4">
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">最新价格</span>
-              <div
-                className={`research-stat-value ${
-                  (detail.metrics.changePct ?? 0) > 0
-                    ? 'text-basalt-red'
-                    : (detail.metrics.changePct ?? 0) < 0
-                      ? 'text-basalt-green'
-                      : ''
-                }`}
-              >
-                {formatMetric(detail.metrics.price, 'nav')}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                {detail.metrics.changePct !== null
-                  ? `${detail.metrics.changePct > 0 ? `+${detail.metrics.changePct}` : detail.metrics.changePct}%`
-                  : '—'}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">市盈率 PE (TTM)</span>
-              <div className="research-stat-value">
-                {detail.metrics.peTtm !== null ? detail.metrics.peTtm.toFixed(2) : '—'}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                PB {detail.metrics.pbMrq !== null ? detail.metrics.pbMrq.toFixed(2) : '—'}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">加权 ROE</span>
-              <div className="research-stat-value">{formatPercent(detail.metrics.roeWeighted)}</div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                扣非 ROE {formatPercent(detail.metrics.roeDeductedWeighted)}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">营收同比</span>
-              <div className="research-stat-value">
-                {detail.metrics.revenueYoy !== null
-                  ? `${detail.metrics.revenueYoy > 0 ? `+${detail.metrics.revenueYoy}` : detail.metrics.revenueYoy}%`
-                  : '—'}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                {detail.metrics.profitYoy !== null
-                  ? `净利润 ${detail.metrics.profitYoy > 0 ? `+${detail.metrics.profitYoy}` : detail.metrics.profitYoy}%`
-                  : '—'}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">现金利润比</span>
-              <div className="research-stat-value">
-                {detail.metrics.cashProfitRatio !== null
-                  ? detail.metrics.cashProfitRatio.toFixed(2)
-                  : '—'}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                {detail.catalog.isFinancial
-                  ? '金融业不直接可比'
-                  : `负债率 ${formatPercent(detail.metrics.debtRatio)}`}
-              </span>
-            </LayerCard>
+          <div className="selection-summary" data-selection-summary>
+            <StatTile
+              label="最新价格"
+              value={formatMetric(detail.metrics.price, 'ratio')}
+              hint={<Metric value={detail.metrics.changePct} kind="percent" signed />}
+            />
+            <StatTile
+              label="PE / TTM"
+              value={formatMetric(detail.metrics.peTtm, 'ratio')}
+              hint={`PB / MRQ ${formatMetric(detail.metrics.pbMrq, 'ratio')}`}
+            />
+            <StatTile
+              label="加权 ROE"
+              value={formatPercent(detail.metrics.roeWeighted)}
+              hint={`扣非 ROE ${formatPercent(detail.metrics.roeDeductedWeighted)}`}
+            />
+            <StatTile
+              label="年报营收同比"
+              value={<Metric value={detail.metrics.revenueYoy} kind="percent" signed />}
+              hint={`归母净利润 ${formatMetric(detail.metrics.profitYoy, 'percent', { signed: true })}`}
+            />
+            <StatTile
+              label="经营现金流 / 净利润"
+              value={formatMetric(detail.metrics.cashProfitRatio, 'ratio')}
+              hint={
+                detail.catalog.isFinancial
+                  ? '金融行业单独比较'
+                  : `资产负债率 ${formatPercent(detail.metrics.debtRatio)}`
+              }
+            />
           </div>
 
           {/* 大 K 线主体区 (前复权) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             <div className="lg:col-span-2">
-              <LayerCard className="p-4 flex flex-col h-[520px]">
+              <LayerCard className="selection-candle-panel">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">前复权价格走势</span>
@@ -247,12 +256,15 @@ export function StockDetailPage() {
                   <ChartControls
                     years={years}
                     interval={interval}
-                    onYearsChange={setYears}
+                    onYearsChange={(value) => {
+                      setYears(value);
+                      setInterval(defaultInterval(value));
+                    }}
                     onIntervalChange={setInterval}
                   />
                 </div>
 
-                <div className="flex-1 min-h-[440px] relative">
+                <div className="selection-candle-body">
                   {isBarsLoading ? (
                     <LayerCard.Loading label="正在加载前复权 K 线历史走势..." className="h-full" />
                   ) : barsError ? (
@@ -275,10 +287,18 @@ export function StockDetailPage() {
                   ) : (
                     <ResearchEmpty
                       title="暂无前复权 K 线数据"
-                      description="该股票未进入深度采集池，或暂无可用的前复权日 K 历史。"
+                      description="当前研究资料尚未包含这只股票的价格历史，已有行情与估值仍可查阅。"
                     />
                   )}
                 </div>
+                {barsData?.bars.length ? (
+                  <p className="mt-2 text-[11px] text-basalt-muted-foreground">
+                    {barsData.coverage.startDate} — {barsData.coverage.endDate} ·{' '}
+                    {barsData.coverage.totalBars} 根
+                    {interval === 'day' ? '日' : interval === 'week' ? '周' : '月'} K
+                    {barsData.coverage.isFullWindow ? '' : ` · 已有历史不足 ${years} 年`}
+                  </p>
+                ) : null}
               </LayerCard>
             </div>
 
@@ -304,33 +324,31 @@ export function StockDetailPage() {
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近1年收益 / CAGR</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.return1y !== null ? `${detail.metrics.return1y}%` : '—'} /{' '}
-                      {detail.metrics.cagr1y !== null ? `${detail.metrics.cagr1y}%` : '—'}
+                      {formatPercent(detail.metrics.return1y)} /{' '}
+                      {formatPercent(detail.metrics.cagr1y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近1年最大回撤</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.maxDrawdown1y !== null
-                        ? `${detail.metrics.maxDrawdown1y}%`
-                        : '—'}
+                      {formatPercent(detail.metrics.maxDrawdown1y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">20日 / 60日涨跌</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.return20d !== null ? `${detail.metrics.return20d}%` : '—'} /{' '}
-                      {detail.metrics.return60d !== null ? `${detail.metrics.return60d}%` : '—'}
+                      {formatPercent(detail.metrics.return20d)} /{' '}
+                      {formatPercent(detail.metrics.return60d)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">60日均线偏离度</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.ma60Bias !== null ? `${detail.metrics.ma60Bias}%` : '—'}
+                      {formatPercent(detail.metrics.ma60Bias)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-basalt-muted-foreground">估值基准时点</span>
+                    <span className="text-basalt-muted-foreground">估值源更新日期</span>
                     <span className="font-mono text-[11px] text-basalt-muted-foreground">
                       {detail.metrics.valuationTimestamp
                         ? new Date(detail.metrics.valuationTimestamp).toLocaleDateString('zh-CN')
@@ -366,93 +384,112 @@ export function StockDetailPage() {
 
           {/* 下方：五年财报数据表 */}
           <LayerCard className="p-4 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <PanelHeading title="五年完整年报趋势与经营指标" />
-              <span className="text-xs text-basalt-muted-foreground">货币单位: 亿元 / CNY</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <PanelHeading
+                title="年度经营趋势与财报"
+                description="采用当前披露的年度修订值；缺失金额留空。"
+              />
+              <span className="text-xs text-basalt-muted-foreground whitespace-nowrap">
+                {detail.statements.length} 个会计年度 · 金额以亿计
+              </span>
             </div>
 
             {detail.statements.length === 0 ? (
               <ResearchEmpty
                 title="暂无年报披露数据"
-                description="该股票尚未同步五年完整年报财务报表。"
+                description="当前资料中尚无该股票的年度报表。"
               />
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-24">会计年份</TableHead>
-                      <TableHead className="w-28">期末截止日</TableHead>
-                      <TableHead className="w-28 text-right">营业收入</TableHead>
-                      <TableHead className="w-28 text-right">合并净利润</TableHead>
-                      <TableHead className="w-28 text-right">归母净利润</TableHead>
-                      <TableHead className="w-28 text-right">经营现金流</TableHead>
-                      <TableHead className="w-28 text-right">购建资产开支</TableHead>
-                      <TableHead className="w-28 text-right">现金减开支</TableHead>
-                      <TableHead className="w-28 text-right">资产负债率</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detail.statements.map((s) => {
-                      const inc = s.income ?? {};
-                      const bal = s.balance ?? {};
-                      const cf = s.cashFlow ?? {};
-                      const rev =
-                        typeof inc.operating_income === 'number'
-                          ? (inc.operating_income / 1e8).toFixed(2)
-                          : '—';
-                      const np =
-                        typeof inc.net_profit === 'number'
-                          ? (inc.net_profit / 1e8).toFixed(2)
-                          : '—';
-                      const pnp =
-                        typeof inc.parent_holder_net_profit === 'number'
-                          ? (inc.parent_holder_net_profit / 1e8).toFixed(2)
-                          : '—';
-                      const ocf =
-                        typeof cf.act_cash_flow_net === 'number'
-                          ? (cf.act_cash_flow_net / 1e8).toFixed(2)
-                          : '—';
-                      const capex =
-                        typeof cf.pay_fixed_assets_etc_cash === 'number'
-                          ? (cf.pay_fixed_assets_etc_cash / 1e8).toFixed(2)
-                          : '—';
-                      const netCf =
-                        typeof cf.act_cash_flow_net === 'number' &&
-                        typeof cf.pay_fixed_assets_etc_cash === 'number'
-                          ? ((cf.act_cash_flow_net - cf.pay_fixed_assets_etc_cash) / 1e8).toFixed(2)
-                          : '—';
-                      const debt =
-                        typeof bal.total_debt === 'number' &&
-                        typeof bal.assets_total === 'number' &&
-                        bal.assets_total > 0
-                          ? `${((bal.total_debt / bal.assets_total) * 100).toFixed(2)}%`
-                          : '—';
+              <div>
+                <StockFinancialChart
+                  statements={detail.statements}
+                  currency={detail.metrics.currency ?? detail.statements[0]?.currency ?? 'CNY'}
+                />
+                <div className="overflow-x-auto">
+                  <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-24">会计年份</TableHead>
+                        <TableHead className="w-28">期末截止日</TableHead>
+                        <TableHead className="w-28">披露/修订日</TableHead>
+                        <TableHead>币种</TableHead>
+                        <TableHead className="w-28 text-right">营业收入</TableHead>
+                        <TableHead className="w-28 text-right">合并净利润</TableHead>
+                        <TableHead className="w-28 text-right">归母净利润</TableHead>
+                        <TableHead className="w-28 text-right">经营现金流</TableHead>
+                        <TableHead className="w-28 text-right">购建资产开支</TableHead>
+                        <TableHead className="w-28 text-right">现金减开支</TableHead>
+                        <TableHead className="w-28 text-right">资产负债率</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detail.statements.map((s) => {
+                        const inc = s.income ?? {};
+                        const bal = s.balance ?? {};
+                        const cf = s.cashFlow ?? {};
+                        const rev =
+                          typeof inc.operating_income === 'number'
+                            ? (inc.operating_income / 1e8).toFixed(2)
+                            : '—';
+                        const np =
+                          typeof inc.net_profit === 'number'
+                            ? (inc.net_profit / 1e8).toFixed(2)
+                            : '—';
+                        const pnp =
+                          typeof inc.parent_holder_net_profit === 'number'
+                            ? (inc.parent_holder_net_profit / 1e8).toFixed(2)
+                            : '—';
+                        const ocf =
+                          typeof cf.act_cash_flow_net === 'number'
+                            ? (cf.act_cash_flow_net / 1e8).toFixed(2)
+                            : '—';
+                        const capex =
+                          typeof cf.pay_fixed_assets_etc_cash === 'number'
+                            ? (cf.pay_fixed_assets_etc_cash / 1e8).toFixed(2)
+                            : '—';
+                        const netCf =
+                          typeof cf.act_cash_flow_net === 'number' &&
+                          typeof cf.pay_fixed_assets_etc_cash === 'number'
+                            ? ((cf.act_cash_flow_net - cf.pay_fixed_assets_etc_cash) / 1e8).toFixed(
+                                2,
+                              )
+                            : '—';
+                        const debt =
+                          typeof bal.total_debt === 'number' &&
+                          typeof bal.assets_total === 'number' &&
+                          bal.assets_total > 0
+                            ? `${((bal.total_debt / bal.assets_total) * 100).toFixed(2)}%`
+                            : '—';
 
-                      return (
-                        <TableRow key={s.fiscalYear}>
-                          <TableCell className="font-semibold text-xs">
-                            {s.fiscalYear} 年度
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-basalt-muted-foreground">
-                            {s.periodEnd}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">{rev}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{np}</TableCell>
-                          <TableCell className="text-right font-mono text-xs font-semibold">
-                            {pnp}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">{ocf}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{capex}</TableCell>
-                          <TableCell className="text-right font-mono text-xs font-semibold">
-                            {netCf}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">{debt}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                        return (
+                          <TableRow key={s.fiscalYear}>
+                            <TableCell className="font-semibold text-xs">
+                              {s.fiscalYear} 年度
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-basalt-muted-foreground">
+                              {s.periodEnd}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-basalt-muted-foreground">
+                              {s.reportDate}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{s.currency}</TableCell>
+                            <TableCell className="text-right font-mono text-xs">{rev}</TableCell>
+                            <TableCell className="text-right font-mono text-xs">{np}</TableCell>
+                            <TableCell className="text-right font-mono text-xs font-semibold">
+                              {pnp}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-xs">{ocf}</TableCell>
+                            <TableCell className="text-right font-mono text-xs">{capex}</TableCell>
+                            <TableCell className="text-right font-mono text-xs font-semibold">
+                              {netCf}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-xs">{debt}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </LayerCard>

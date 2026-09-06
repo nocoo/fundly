@@ -50,7 +50,7 @@ import './market-page.css';
 import { AppShell } from '@/components/layout';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import { formatCompact } from '@/lib/format-number';
-import { writeListOrigin } from '@/lib/list-origin';
+import { etfDetailLink, fundDetailLink, stockDetailLink } from '@/lib/list-origin';
 import { quoteChangeClass, quoteToneClass } from '@/lib/quote-color';
 import { cn } from '@/lib/utils';
 
@@ -943,7 +943,15 @@ export default function MarketPage() {
                           成交额前 5
                         </span>
                       </span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                          <Link
+                            to={`/select-stock/valuation?exchange=SH%2CSZ&industry=${encodeURIComponent(activeIndustry.name)}`}
+                          >
+                            行业估值比较
+                            <ArrowUpRight className="ml-1 h-3 w-3" />
+                          </Link>
+                        </Button>
                         {activeIndustry.relatedEtfs.length ? (
                           <Button
                             variant="outline"
@@ -970,11 +978,9 @@ export default function MarketPage() {
                     </div>
                     <div className="market-constituents">
                       {activeIndustry.topConstituents.map((stock) => (
-                        <a
+                        <Link
                           key={stock.stockCode}
-                          href={`https://quote.eastmoney.com/${stock.stockCode.endsWith('.SH') ? 'sh' : 'sz'}${stock.stockCode.slice(0, 6)}.html`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          {...stockDetailLink(stock.stockCode, currentListOrigin)}
                           className="min-w-0 rounded-basalt p-2 transition-colors hover:bg-basalt-accent focus-visible:outline-2 focus-visible:outline-basalt-primary"
                         >
                           <span className="block truncate text-xs font-medium">
@@ -993,7 +999,7 @@ export default function MarketPage() {
                               {pct(stock.changePct)}
                             </span>
                           </span>
-                        </a>
+                        </Link>
                       ))}
                     </div>
                   </div>
@@ -1460,7 +1466,7 @@ export default function MarketPage() {
               <div className="flex items-center gap-2">
                 {etfDetailData?.instrument?.symbol && (
                   <Link
-                    to={`/etfs/${encodeURIComponent(etfDetailData.instrument.symbol)}`}
+                    {...etfDetailLink(etfDetailData.instrument.symbol, currentListOrigin)}
                     className="text-xs text-basalt-primary hover:underline font-medium inline-flex items-center bg-basalt-primary/10 px-2 py-0.5 rounded"
                   >
                     ETF深度研究详情{' '}
@@ -1469,8 +1475,7 @@ export default function MarketPage() {
                 )}
                 {etfDetailData?.instrument?.linkedFundCode ? (
                   <Link
-                    to={`/funds/${etfDetailData.instrument.linkedFundCode}`}
-                    onClick={() => writeListOrigin(currentListOrigin)}
+                    {...fundDetailLink(etfDetailData.instrument.linkedFundCode, currentListOrigin)}
                     className="text-xs text-basalt-primary hover:underline font-medium inline-flex items-center"
                   >
                     直达主基金详情{' '}
@@ -1807,7 +1812,7 @@ export default function MarketPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs font-medium">
                         <Link
-                          to={`/stocks/${encodeURIComponent(m.stockCode)}`}
+                          {...stockDetailLink(m.stockCode, currentListOrigin)}
                           className="text-basalt-primary hover:underline"
                         >
                           {m.stockCode}
@@ -1815,7 +1820,7 @@ export default function MarketPage() {
                       </TableCell>
                       <TableCell className="font-medium text-xs">
                         <Link
-                          to={`/stocks/${encodeURIComponent(m.stockCode)}`}
+                          {...stockDetailLink(m.stockCode, currentListOrigin)}
                           className="text-basalt-primary hover:underline"
                         >
                           {m.stockName}

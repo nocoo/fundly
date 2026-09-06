@@ -1,3 +1,4 @@
+import './selection-details.css';
 import { Button, LayerCard } from '@nocoo/basalt';
 import {
   Table,
@@ -11,18 +12,30 @@ import { ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import useSWR from 'swr';
-import { fetchAPI } from '@/api';
+import { ApiError, fetchAPI } from '@/api';
 import { CandlestickChart } from '@/components/charts/candlestick-chart';
 import {
   ChartControls,
   type ChartInterval,
   type ChartYears,
   DataInfo,
+  defaultInterval,
 } from '@/components/charts/market-chart-controls';
 import { AppShell } from '@/components/layout';
-import { PanelHeading, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import {
+  PanelHeading,
+  ResearchEmpty,
+  ResearchHeader,
+  StatTile,
+} from '@/components/layout/research-layout';
 import { formatMetric, formatPercent } from '@/lib/format-number';
-import { listBackLabel, resolveListOrigin, stockDetailTo } from '@/lib/list-origin';
+import {
+  fundDetailLink,
+  isDomesticStockHolding,
+  listBackLabel,
+  resolveListOrigin,
+  stockDetailLink,
+} from '@/lib/list-origin';
 
 import type { EtfRowDto } from '../../../../apps/worker/src/lib/selection-service';
 
@@ -116,6 +129,8 @@ export function EtfDetailPage() {
   );
 
   const detail = detailData?.detail;
+  const notFound = detailError instanceof ApiError && detailError.status === 404;
+  const notReady = detailError instanceof ApiError && detailError.status === 503;
 
   return (
     <AppShell>
@@ -135,14 +150,18 @@ export function EtfDetailPage() {
         <LayerCard.Loading label="正在读取 ETF 档案详情..." className="py-24" />
       ) : detailError || !detailData?.found || !detail ? (
         <ResearchEmpty
-          title={detailError ? 'ETF 详情加载失败' : '未找到该 ETF 标的'}
+          title={notFound ? '未找到该ETF标的' : notReady ? 'ETF资料尚未就绪' : 'ETF详情加载失败'}
           description={
-            detailError
-              ? '网络请求或服务暂不可用，请稍后重试。'
-              : '该标的可能未在当前目录中，或数据表尚未就绪。'
+            notFound
+              ? '当前目录中没有这个代码，可以返回列表重新查找。'
+              : notReady
+                ? '研究资料尚未完成首次同步，请稍后查看。'
+                : detailError
+                  ? '网络请求或服务暂不可用，请稍后重试。'
+                  : '当前没有可用的标的资料，请稍后重试。'
           }
           action={
-            detailError ? (
+            !notFound ? (
               <Button variant="outline" size="sm" onClick={() => void mutateDetail()}>
                 重试加载
               </Button>
@@ -155,17 +174,32 @@ export function EtfDetailPage() {
             title={detail.catalog.name}
             description={`${detail.catalog.symbol} · ${detail.catalog.assetClass} · ${detail.catalog.directionTag ?? '未分类'} · 交易所 ${detail.catalog.exchange}`}
             actions={
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs text-basalt-muted-foreground">
+                  行情 {detail.metrics.marketTradeDate ?? '暂无'} · 净值{' '}
+                  {detail.metrics.navDate ?? '暂无'}
+                </span>
                 {detail.catalog.linkedFundCode && (
                   <Link
-                    to={`/funds/${detail.catalog.linkedFundCode}`}
+                    {...fundDetailLink(detail.catalog.linkedFundCode, origin)}
                     className="text-xs text-basalt-primary hover:underline flex items-center gap-1 bg-basalt-primary/10 px-2 py-1 rounded"
                   >
-                    查看场内核验基金档案
+                    基金档案
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
                 )}
-                <DataInfo name="ETF 口径提示">
+                <DataInfo
+                  name="ETF 口径提示"
+                  source="fuyao"
+                  date={detail.metrics.marketTradeDate ?? detail.metrics.navDate}
+                >
+                  <p>
+                    行情及披露资料来自扶摇
+                    Financial-API，已核验的基金资料补充自东方财富。净值风险数据截止{' '}
+                    {detail.metrics.navRiskAsof ?? '暂无'}；规模披露日{' '}
+                    {detail.metrics.scaleDisclosureDate ?? '来源未提供'}
+                    。管理与托管费不含券商佣金及买卖价差。
+                  </p>
                   <p>
                     日K线基于交易所真实撮合成交价(无复权)；折溢价率需同日有收盘价与单位净值；披露重仓为基金定期报告公布，非实时组合。
                   </p>
@@ -175,69 +209,39 @@ export function EtfDetailPage() {
           />
 
           {/* 核心指标 KPI */}
-          <div className="research-stats mb-4">
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">最新市价 / 净值</span>
-              <div className="research-stat-value">
-                {formatMetric(detail.metrics.marketPrice, 'nav')}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                净值 {formatMetric(detail.metrics.unitNav, 'nav')}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">折溢价率</span>
-              <div
-                className={`research-stat-value ${
-                  (detail.metrics.premiumDiscountPct ?? 0) > 0
-                    ? 'text-basalt-red'
-                    : (detail.metrics.premiumDiscountPct ?? 0) < 0
-                      ? 'text-basalt-green'
-                      : ''
-                }`}
-              >
-                {detail.metrics.premiumDiscountPct !== null
-                  ? `${detail.metrics.premiumDiscountPct > 0 ? `+${detail.metrics.premiumDiscountPct}` : detail.metrics.premiumDiscountPct}%`
-                  : '—'}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                {detail.metrics.navDate ? `净值日 ${detail.metrics.navDate}` : '无同日净值'}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">管理 + 托管费</span>
-              <div className="research-stat-value">
-                {formatPercent(detail.metrics.totalExpensePct)}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                管理 {formatPercent(detail.metrics.mgmtFeePct)} / 托管{' '}
-                {formatPercent(detail.metrics.custodyFeePct)}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">披露资产规模</span>
-              <div className="research-stat-value">
-                {detail.metrics.scaleYi ? `${detail.metrics.scaleYi} 亿元` : '—'}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                {detail.metrics.scalePeriod ? `报告期 ${detail.metrics.scalePeriod}` : '暂未披露'}
-              </span>
-            </LayerCard>
-            <LayerCard className="research-stat">
-              <span className="text-xs text-basalt-muted-foreground">20日日均成交</span>
-              <div className="research-stat-value">
-                {formatMetric(detail.metrics.avgTurnover20d, 'compact')}
-              </div>
-              <span className="text-[11px] text-basalt-muted-foreground">
-                当日成交 {formatMetric(detail.metrics.turnover, 'compact')}
-              </span>
-            </LayerCard>
+          <div className="selection-summary" data-selection-summary>
+            <StatTile
+              label="最新市价"
+              value={formatMetric(detail.metrics.marketPrice, 'nav')}
+              hint={`单位净值 ${formatMetric(detail.metrics.unitNav, 'nav')}`}
+            />
+            <StatTile
+              label="同日收盘折溢价"
+              value={formatMetric(detail.metrics.premiumDiscountPct, 'percent', { signed: true })}
+              hint="仅同日收盘价与单位净值可比"
+            />
+            <StatTile
+              label="管理 + 托管费 / 年"
+              value={formatPercent(detail.metrics.totalExpensePct)}
+              hint={`管理 ${formatPercent(detail.metrics.mgmtFeePct)} · 托管 ${formatPercent(detail.metrics.custodyFeePct)}`}
+            />
+            <StatTile
+              label="披露资产规模"
+              value={`${formatMetric(detail.metrics.scaleYi, 'scale')}${detail.metrics.scaleYi === null ? '' : ' 亿'}`}
+              hint={
+                detail.metrics.scalePeriod ? `报告期 ${detail.metrics.scalePeriod}` : '暂无披露规模'
+              }
+            />
+            <StatTile
+              label="20 日均成交额"
+              value={formatMetric(detail.metrics.avgTurnover20d, 'compact')}
+              hint={`当日成交 ${formatMetric(detail.metrics.turnover, 'compact')}`}
+            />
           </div>
 
-          {/* 大 K 线主体区 (桌面约占三分之二，右侧紧凑摘要) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             <div className="lg:col-span-2">
-              <LayerCard className="p-4 flex flex-col h-[520px]">
+              <LayerCard className="selection-candle-panel">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">场内价格走势</span>
@@ -248,12 +252,15 @@ export function EtfDetailPage() {
                   <ChartControls
                     years={years}
                     interval={interval}
-                    onYearsChange={setYears}
+                    onYearsChange={(value) => {
+                      setYears(value);
+                      setInterval(defaultInterval(value));
+                    }}
                     onIntervalChange={setInterval}
                   />
                 </div>
 
-                <div className="flex-1 min-h-[440px] relative">
+                <div className="selection-candle-body">
                   {isBarsLoading ? (
                     <LayerCard.Loading label="正在加载日 K 线历史走势..." className="h-full" />
                   ) : barsError ? (
@@ -271,15 +278,23 @@ export function EtfDetailPage() {
                       bars={barsData.bars}
                       height="fill"
                       unit="元"
-                      volumeUnit="股"
+                      volumeUnit="份"
                     />
                   ) : (
                     <ResearchEmpty
                       title="暂无场内真实 K 线历史"
-                      description="该 ETF 未进入深度日 K 采集池，或近期无交易所成交撮合记录。"
+                      description="当前资料尚未包含这只 ETF 的场内价格历史，已有净值与披露资料仍可查阅。"
                     />
                   )}
                 </div>
+                {barsData?.bars.length ? (
+                  <p className="mt-2 text-[11px] text-basalt-muted-foreground">
+                    {barsData.coverage.startDate} — {barsData.coverage.endDate} ·{' '}
+                    {barsData.coverage.totalBars} 根
+                    {interval === 'day' ? '日' : interval === 'week' ? '周' : '月'} K
+                    {barsData.coverage.isFullWindow ? '' : ` · 已有历史不足 ${years} 年`}
+                  </p>
+                ) : null}
               </LayerCard>
             </div>
 
@@ -291,16 +306,14 @@ export function EtfDetailPage() {
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近1年收益 / CAGR</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.return1y !== null ? `${detail.metrics.return1y}%` : '—'} /{' '}
-                      {detail.metrics.cagr1y !== null ? `${detail.metrics.cagr1y}%` : '—'}
+                      {formatPercent(detail.metrics.return1y)} /{' '}
+                      {formatPercent(detail.metrics.cagr1y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近1年最大回撤</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.maxDrawdown1y !== null
-                        ? `${detail.metrics.maxDrawdown1y}%`
-                        : '—'}
+                      {formatPercent(detail.metrics.maxDrawdown1y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
@@ -312,25 +325,21 @@ export function EtfDetailPage() {
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近3年收益 / CAGR</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.return3y !== null ? `${detail.metrics.return3y}%` : '—'} /{' '}
-                      {detail.metrics.cagr3y !== null ? `${detail.metrics.cagr3y}%` : '—'}
+                      {formatPercent(detail.metrics.return3y)} /{' '}
+                      {formatPercent(detail.metrics.cagr3y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近3年最大回撤</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.maxDrawdown3y !== null
-                        ? `${detail.metrics.maxDrawdown3y}%`
-                        : '—'}
+                      {formatPercent(detail.metrics.maxDrawdown3y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-basalt-border/50">
                     <span className="text-basalt-muted-foreground">近5年收益 / 回撤</span>
                     <span className="font-mono font-medium">
-                      {detail.metrics.return5y !== null ? `${detail.metrics.return5y}%` : '—'} /{' '}
-                      {detail.metrics.maxDrawdown5y !== null
-                        ? `${detail.metrics.maxDrawdown5y}%`
-                        : '—'}
+                      {formatPercent(detail.metrics.return5y)} /{' '}
+                      {formatPercent(detail.metrics.maxDrawdown5y)}
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
@@ -339,7 +348,7 @@ export function EtfDetailPage() {
                       {detail.metrics.navRiskBasis === 'adj_nav'
                         ? '扶摇复权净值'
                         : detail.metrics.navRiskBasis === 'local_total_return'
-                          ? '本地全收益分红链'
+                          ? '分红再投资净值（东方财富）'
                           : '暂无净值序列'}
                     </span>
                   </div>
@@ -361,14 +370,6 @@ export function EtfDetailPage() {
                     <span className="text-basalt-muted-foreground">成立日期</span>
                     <span className="font-mono">{detail.profile.estabDate ?? '—'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-basalt-muted-foreground">未注日期静态规模</span>
-                    <span className="font-mono">
-                      {detail.profile.fundScale
-                        ? `${(detail.profile.fundScale / 1e8).toFixed(2)} 亿`
-                        : '—'}
-                    </span>
-                  </div>
                 </div>
               </LayerCard>
             </div>
@@ -387,16 +388,19 @@ export function EtfDetailPage() {
                 )}
               </div>
               {detail.holdings.length === 0 ? (
-                <ResearchEmpty title="暂无持仓披露明细" description="该产品尚未公布重仓股持仓。" />
+                <ResearchEmpty
+                  title="暂无持仓披露明细"
+                  description="当前来源没有可用的持仓明细，不代表该产品没有持仓。"
+                />
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12">序号</TableHead>
                         <TableHead>代码 / 标的</TableHead>
                         <TableHead className="text-right">持仓占比</TableHead>
-                        <TableHead className="text-right">持股市值</TableHead>
+                        <TableHead className="text-right">持仓市值</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -407,13 +411,20 @@ export function EtfDetailPage() {
                           </TableCell>
                           <TableCell>
                             {/* 支持下钻进入股票详情 */}
-                            <Link
-                              to={stockDetailTo(h.stockCode, origin).to}
-                              state={stockDetailTo(h.stockCode, origin).state}
-                              className="font-medium text-xs text-basalt-primary hover:underline block"
-                            >
-                              {h.stockName}
-                            </Link>
+                            {isDomesticStockHolding(h.stockCode, h.assetType) ? (
+                              <Link
+                                to={stockDetailLink(h.stockCode, origin).to}
+                                state={{
+                                  ...stockDetailLink(h.stockCode, origin).state,
+                                  returnEtf: detail.catalog.symbol,
+                                }}
+                                className="font-medium text-xs text-basalt-primary hover:underline block"
+                              >
+                                {h.stockName}
+                              </Link>
+                            ) : (
+                              <span className="font-medium text-xs block">{h.stockName}</span>
+                            )}
                             <span className="text-[11px] font-mono text-basalt-muted-foreground">
                               {h.stockCode}
                             </span>
@@ -442,7 +453,7 @@ export function EtfDetailPage() {
                 />
               ) : (
                 <div className="overflow-x-auto mt-2">
-                  <Table>
+                  <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
                     <TableHeader>
                       <TableRow>
                         <TableHead>报告期截止</TableHead>

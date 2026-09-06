@@ -131,25 +131,35 @@ export function writeListOrigin(origin: ListOrigin): void {
 export function resolveListOrigin(state: unknown, fallbackPath: ListPath = '/funds'): ListOrigin {
   const parsed = parseListOrigin(state);
   if (parsed) return parsed;
+  // New research detail links carry explicit router state. Direct opens start in their own group.
+  if (fallbackPath !== '/funds') return { path: fallbackPath, search: '' };
   const stored = readListOrigin();
-  if (stored) {
-    // 确保如果 fallback 是 /etfs，且 stored 也是 ETF 列表才复用，否则避免串组
-    if (fallbackPath.startsWith('/etf') || fallbackPath.startsWith('/select-etf')) {
-      if (stored.path.startsWith('/etf') || stored.path.startsWith('/select-etf')) return stored;
-    } else if (fallbackPath.startsWith('/stock') || fallbackPath.startsWith('/select-stock')) {
-      if (stored.path.startsWith('/stock') || stored.path.startsWith('/select-stock'))
-        return stored;
-    } else {
-      if (
-        !stored.path.startsWith('/etf') &&
-        !stored.path.startsWith('/stock') &&
-        !stored.path.startsWith('/select-etf') &&
-        !stored.path.startsWith('/select-stock')
-      )
-        return stored;
-    }
-  }
+  if (
+    stored &&
+    !stored.path.startsWith('/etf') &&
+    !stored.path.startsWith('/stock') &&
+    !stored.path.startsWith('/select-etf') &&
+    !stored.path.startsWith('/select-stock')
+  )
+    return stored;
   return { path: fallbackPath, search: '' };
+}
+
+export function resolveNavigationOrigin(pathname: string, state: unknown): ListOrigin | null {
+  if (isEtfDetailPath(pathname)) return resolveListOrigin(state, '/etfs');
+  if (isStockDetailPath(pathname)) return resolveListOrigin(state, '/stocks');
+  if (isFundDetailPath(pathname)) return resolveListOrigin(state, '/funds');
+  return null;
+}
+
+export function readReturnEtf(state: unknown): string | null {
+  if (!state || typeof state !== 'object') return null;
+  const symbol = (state as { returnEtf?: unknown }).returnEtf;
+  return typeof symbol === 'string' && /^\d{6}\.(SH|SZ)$/.test(symbol) ? symbol : null;
+}
+
+export function isDomesticStockHolding(symbol: string, assetType: string): boolean {
+  return assetType === 'stock' && /^\d{6}\.(SH|SZ|BJ)$/.test(symbol);
 }
 
 export function fundDetailLink(

@@ -1,3 +1,13 @@
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function fetchAPI<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: 'include' });
   if (
@@ -9,7 +19,7 @@ export async function fetchAPI<T>(url: string): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new ApiError(res.status, (body as { error?: string }).error ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }

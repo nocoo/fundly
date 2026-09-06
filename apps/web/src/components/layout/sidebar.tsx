@@ -41,7 +41,7 @@ import {
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useMe } from '@/hooks/use-me';
-import { readListOrigin } from '@/lib/list-origin';
+import { type ListOrigin, resolveNavigationOrigin } from '@/lib/list-origin';
 import {
   ALL_NAV_ITEMS as ALL_NAV_ITEMS_DEF,
   isItemActive,
@@ -211,7 +211,7 @@ function NavGroupSection({
 }: {
   group: NavGroup;
   pathname: string;
-  listOrigin: ReturnType<typeof readListOrigin>;
+  listOrigin: ListOrigin | null;
   onNavigate: () => void;
 }) {
   const [open, setOpen] = useState(shouldGroupBeOpenOnMount(group, pathname, listOrigin));
@@ -272,8 +272,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobile = false }: SidebarProps) {
-  const { pathname } = useLocation();
-  const listOrigin = readListOrigin();
+  const { pathname, state } = useLocation();
+  const listOrigin = resolveNavigationOrigin(pathname, state);
   const { collapsed, toggle, setMobileOpen } = useSidebar();
   const { data: user, error: userError, isLoading: userLoading } = useMe();
   const host = typeof window === 'undefined' ? '' : window.location.host;
@@ -378,7 +378,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
           <SidebarNav className="pt-1">
             {NAV_GROUPS.map((group) => (
               <NavGroupSection
-                key={group.label}
+                key={`${group.label}:${pathname}:${listOrigin?.path ?? ''}`}
                 group={group}
                 pathname={pathname}
                 listOrigin={listOrigin}
