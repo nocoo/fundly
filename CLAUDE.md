@@ -131,7 +131,7 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
 - ✅ Phase 2 卫星数据：风险指标/分红/费率/经理履历/持仓
 - ✅ 宏观大屏代码已随 v0.5.0 部署：Basalt 2.0.3、真实日 K、沪深广度、行业 / ETF / 基金下钻、23 个跨资产指标；`fetch:macro` 及 `--watch`；生产 SQLite 的宏观数据需单独采集/同步
-- ✅ 选 ETF / 选股：docs/15、16 规划及实现完成；六个 ETF 列表、七个股票列表、两个独立详情，Basalt 2.0.3；真实目录 1,670 / 5,567，K 线深度池 60 / 80，股票年报 80。代码在本地 main，新功能尚未发布
+- ✅ v0.6.0 选 ETF / 选股：docs/15、16 规划及实现完成；六个 ETF 列表、七个股票列表、两个独立详情，Basalt 2.0.3；本地真实目录 1,670 / 5,567，K 线深度池 60 / 80，股票年报 80，生产覆盖需以 Volume 实际数据为准
 - ✅ `fetch:selection` 独立表、只读 API、有界深采与失败保留；本轮完成实采但没有启用 `--watch` / 常驻调度，生产 SQLite 需另行同步
 - 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
 

@@ -155,6 +155,6 @@ curl -sS https://fundly.hexly.ai/api/stats
 
 SSH 灌库时不要把 restore URL 走 `railway ssh` 的 stdin（CLI 会吞掉，容器里的 bun 一直等输入）。把短链写进卷上的临时文件再 `bun /data/seed.ts`，跑完立刻删。
 
-## 宏观功能运行边界
+## 宏观与研究功能运行边界
 
-宏观模块已本地实现，当前尚未部署。未来运行 `fetch:macro` / `--watch` 的进程需访问同一 SQLite Volume，并配置服务端 `HITHINK_FINANCE_API_KEY`；浏览服务继续只读，页面刷新不触发上游补采。不要把密钥放进 Vite 构建环境。操作说明见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。
+宏观代码已随 `v0.5.0` 部署，`v0.6.0` 新增选 ETF / 选股页面与只读 API。生产数据需独立采集或同步；运行 `fetch:macro`、`fetch:selection` 或其 `--watch` 模式的进程需访问同一 SQLite Volume，并配置服务端 `HITHINK_FINANCE_API_KEY`。浏览服务继续只读，页面刷新不触发上游补采。不要把密钥放进 Vite 构建环境。操作说明见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)、[15 · 选 ETF](./15-ETF-SCREENING.md) 和 [16 · 选股](./16-STOCK-SCREENING.md)。
