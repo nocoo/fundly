@@ -19,6 +19,7 @@ import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layo
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
+import { NumericDraftInput } from '@/components/ui/numeric-draft-input';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import {
@@ -96,6 +97,8 @@ interface EtfApiResponse {
   asof: {
     tradeDate: string | null;
     navDate: string | null;
+    navDateFrom: string | null;
+    navDateTo: string | null;
     updatedAt: number | null;
   };
 }
@@ -182,7 +185,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
 
   const sortOptions = useMemo(() => {
     const list = [
-      { value: 'ticker', label: '默认（代码升序）' },
+      { value: 'ticker', label: '代码' },
       { value: 'scale', label: '规模' },
       { value: 'price', label: '最新价' },
       { value: 'changePct', label: '涨跌幅' },
@@ -235,11 +238,24 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
         description={subtitle}
         actions={
           <div className="flex items-center gap-3">
-            <DataInfo name="口径说明">
+            <DataInfo
+              name="口径说明"
+              source="fuyao / 本地已核验库"
+              date={
+                data?.asof.navDateTo
+                  ? `${data.asof.navDateFrom ?? data.asof.navDateTo} 至 ${data.asof.navDateTo}`
+                  : data?.asof.tradeDate
+              }
+            >
               <p>
-                持续费用包含管理与托管费；披露规模以定期报告为准；最大回撤为正数深度（不加正号）；折溢价仅在同日有真实收盘与净值时计算。
+                持续费用包含管理与托管费；披露规模以定期报告资产净值为准；最大回撤为正数深度（不加正号）；折溢价仅在同日有真实收盘与净值时计算。
               </p>
-              {data?.asof.navDate && <p>本地净值时效：{data.asof.navDate}</p>}
+              {data?.asof.navDateTo && (
+                <p>
+                  净值跨度范围：{data.asof.navDateFrom ?? data.asof.navDateTo} 至{' '}
+                  {data.asof.navDateTo}（深度研究池行情截至 2026-09-04）
+                </p>
+              )}
             </DataInfo>
             {data?.asof.tradeDate && (
               <span className="text-xs text-basalt-muted-foreground">
@@ -297,6 +313,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           {/* 资产类别 */}
           <FilterDropdown
             label="资产类别"
+            includeAll={false}
             value={state.category}
             options={[
               { value: 'all', label: '全部资产' },
@@ -313,6 +330,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           {/* 方向分类 */}
           <FilterDropdown
             label="名称分类"
+            includeAll={false}
             value={state.theme}
             options={[
               { value: 'all', label: '全部分类' },
@@ -349,10 +367,11 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
 
           {/* 排序下拉 */}
           <FilterDropdown
-            label="排序字段"
+            label="排序"
+            includeAll={false}
             value={state.sort || 'ticker'}
             options={sortOptions}
-            onChange={(val) => updateFilter({ sort: val === 'ticker' ? '' : val, page: 1 })}
+            onChange={(val) => updateFilter({ sort: val, page: 1 })}
           />
           <Button
             variant="outline"
@@ -374,17 +393,15 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 checked={state.maxFeeEnabled}
                 onChange={(checked) => updateFilter({ maxFeeEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="管理+托管费率上限"
                 step="0.05"
                 min="0.05"
                 max="5"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxFeeEnabled}
                 value={state.maxFee}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ maxFee: Number(e.target.value) || 0.6, page: 1 })
-                }
+                onChange={(val) => updateFilter({ maxFee: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">%</span>
             </div>
@@ -395,16 +412,14 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 checked={state.minScaleEnabled}
                 onChange={(checked) => updateFilter({ minScaleEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="资产净值规模下限"
                 step="1"
                 min="0"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.minScaleEnabled}
                 value={state.minScale}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ minScale: Number(e.target.value) || 2.0, page: 1 })
-                }
+                onChange={(val) => updateFilter({ minScale: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">亿元</span>
             </div>
@@ -415,17 +430,15 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 checked={state.maxDrawdownEnabled}
                 onChange={(checked) => updateFilter({ maxDrawdownEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="最大回撤深度上限"
                 step="5"
-                min="5"
+                min="0"
                 max="100"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxDrawdownEnabled}
                 value={state.maxDrawdown}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ maxDrawdown: Number(e.target.value) || 35.0, page: 1 })
-                }
+                onChange={(val) => updateFilter({ maxDrawdown: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">%</span>
             </div>
@@ -436,19 +449,14 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 checked={state.minTurnoverEnabled}
                 onChange={(checked) => updateFilter({ minTurnoverEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="20日日均成交额下限"
                 step="500"
                 min="0"
                 className="w-20 h-7 text-xs font-mono"
                 disabled={!state.minTurnoverEnabled}
                 value={Math.round(state.minTurnover / 10000)}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({
-                    minTurnover: (Number(e.target.value) || 1000) * 10000,
-                    page: 1,
-                  })
-                }
+                onChange={(val) => updateFilter({ minTurnover: val * 10000, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">万元</span>
             </div>
@@ -465,7 +473,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
             title={data?.ready === false ? 'ETF 研究数据表未就绪' : '数据加载异常'}
             description={
               data?.ready === false
-                ? '系统尚未生成选基与选 ETF 物化视图，请稍后刷新重试。'
+                ? '研究数据尚未准备好，请稍后刷新重试。'
                 : '网络请求失败，请检查连接后重试。'
             }
             action={
@@ -739,12 +747,12 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           </div>
         )}
 
-        {/* 分页组件 */}
-        {data && data.totalPages > 1 && (
+        {/* 分页与统计底栏 */}
+        {data && (
           <div className="border-t border-basalt-border p-3">
             <ListPagination
               page={data.page}
-              pages={data.totalPages}
+              pages={Math.max(1, data.totalPages)}
               total={data.total}
               pageSize={data.pageSize}
               onPageChange={(p) => updateFilter({ page: p })}

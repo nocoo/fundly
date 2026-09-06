@@ -19,6 +19,7 @@ import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layo
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
+import { NumericDraftInput } from '@/components/ui/numeric-draft-input';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import { formatCount, formatMetric, formatPercent } from '@/lib/format-number';
@@ -147,8 +148,11 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
     if (state.q) p.set('q', state.q);
     if (state.exchange && state.exchange !== 'all') p.set('exchange', state.exchange);
     if (state.industry && state.industry !== 'all') p.set('industry', state.industry);
-    if (state.excludeFinancial) p.set('excludeFinancial', 'true');
-    if (state.isFinancial !== undefined) p.set('isFinancial', String(state.isFinancial));
+    if (state.isFinancial !== undefined) {
+      p.set('isFinancial', String(state.isFinancial));
+    } else if (state.excludeFinancial !== undefined) {
+      p.set('excludeFinancial', state.excludeFinancial ? 'true' : 'false');
+    }
     if (state.excludeSt) p.set('excludeSt', 'true');
     if (state.years) p.set('years', state.years);
     if (state.fiscalYear) p.set('fiscalYear', String(state.fiscalYear));
@@ -214,7 +218,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
 
   const sortOptions = useMemo(() => {
     return [
-      { value: 'ticker', label: '默认（代码升序）' },
+      { value: 'ticker', label: '代码' },
       { value: 'price', label: '最新价' },
       { value: 'changePct', label: '涨跌幅' },
       { value: 'turnover', label: '成交额' },
@@ -338,6 +342,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           {/* 市场板块 */}
           <FilterDropdown
             label="交易板块"
+            includeAll={false}
             value={state.exchange}
             options={[
               { value: 'all', label: '全部市场 (含北交所)' },
@@ -352,6 +357,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           {/* 行业分类 */}
           <FilterDropdown
             label="所属行业"
+            includeAll={false}
             value={state.industry}
             options={industryOptions}
             onChange={(val) => updateFilter({ industry: val, page: 1 })}
@@ -360,12 +366,13 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           {/* 金融行业切片 */}
           <FilterDropdown
             label="企业属性"
+            includeAll={false}
             value={
               state.isFinancial ? 'financial' : state.excludeFinancial ? 'nonFinancial' : 'all'
             }
             options={[
               { value: 'all', label: '全部企业 (含金融)' },
-              { value: 'nonFinancial', label: '排除金融业 (通用企业)' },
+              { value: 'nonFinancial', label: '排除已知金融股' },
               { value: 'financial', label: '仅看金融业 (银行/证券/保险)' },
             ]}
             onChange={(val) => {
@@ -383,6 +390,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           {data?.fiscalYears && data.fiscalYears.length > 0 && (
             <FilterDropdown
               label="财报年份"
+              includeAll={false}
               value={state.fiscalYear ? String(state.fiscalYear) : 'latest'}
               options={[
                 { value: 'latest', label: '最新完整年报' },
@@ -410,17 +418,23 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
 
           {/* 覆盖开关 */}
           <FilterCheck
-            label="仅看深度池"
+            label="仅有价格历史"
             checked={state.hasHistory}
             onChange={(checked) => updateFilter({ hasHistory: checked, page: 1 })}
+          />
+          <FilterCheck
+            label="仅有年报"
+            checked={state.hasFinancials}
+            onChange={(checked) => updateFilter({ hasFinancials: checked, page: 1 })}
           />
 
           {/* 排序下拉 */}
           <FilterDropdown
-            label="排序字段"
+            label="排序"
+            includeAll={false}
             value={state.sort || 'ticker'}
             options={sortOptions}
-            onChange={(val) => updateFilter({ sort: val === 'ticker' ? '' : val, page: 1 })}
+            onChange={(val) => updateFilter({ sort: val, page: 1 })}
           />
           <Button
             variant="outline"
@@ -448,16 +462,14 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 checked={state.maxPeEnabled}
                 onChange={(checked) => updateFilter({ maxPeEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="市盈率 PE(TTM) 上限"
                 step="5"
                 min="1"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxPeEnabled}
                 value={state.maxPe}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ maxPe: Number(e.target.value) || 40, page: 1 })
-                }
+                onChange={(val) => updateFilter({ maxPe: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">倍 (正数)</span>
             </div>
@@ -468,15 +480,13 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 checked={state.minRoeEnabled}
                 onChange={(checked) => updateFilter({ minRoeEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="加权 ROE 下限"
                 step="1"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.minRoeEnabled}
                 value={state.minRoe}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ minRoe: Number(e.target.value) || 8.0, page: 1 })
-                }
+                onChange={(val) => updateFilter({ minRoe: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">%</span>
             </div>
@@ -487,15 +497,13 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 checked={state.minRevenueYoyEnabled}
                 onChange={(checked) => updateFilter({ minRevenueYoyEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="营收同比下限"
                 step="5"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.minRevenueYoyEnabled}
                 value={state.minRevenueYoy}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ minRevenueYoy: Number(e.target.value) || 0.0, page: 1 })
-                }
+                onChange={(val) => updateFilter({ minRevenueYoy: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">%</span>
             </div>
@@ -506,17 +514,15 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 checked={state.maxDrawdownEnabled}
                 onChange={(checked) => updateFilter({ maxDrawdownEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="最大回撤深度上限"
                 step="5"
-                min="5"
+                min="0"
                 max="100"
                 className="w-16 h-7 text-xs font-mono"
                 disabled={!state.maxDrawdownEnabled}
                 value={state.maxDrawdown}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({ maxDrawdown: Number(e.target.value) || 50.0, page: 1 })
-                }
+                onChange={(val) => updateFilter({ maxDrawdown: val, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">%</span>
             </div>
@@ -527,19 +533,14 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 checked={state.minTurnoverEnabled}
                 onChange={(checked) => updateFilter({ minTurnoverEnabled: checked, page: 1 })}
               />
-              <Input
-                type="number"
+              <NumericDraftInput
+                ariaLabel="当日成交额下限"
                 step="1000"
                 min="0"
                 className="w-20 h-7 text-xs font-mono"
                 disabled={!state.minTurnoverEnabled}
                 value={Math.round(state.minTurnover / 10000)}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateFilter({
-                    minTurnover: (Number(e.target.value) || 5000) * 10000,
-                    page: 1,
-                  })
-                }
+                onChange={(val) => updateFilter({ minTurnover: val * 10000, page: 1 })}
               />
               <span className="text-basalt-muted-foreground text-[11px]">万元</span>
             </div>
@@ -553,10 +554,10 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           <LayerCard.Loading label="正在查询股票列表数据..." className="py-24" />
         ) : error || !data?.ready ? (
           <ResearchEmpty
-            title={data?.ready === false ? '选股研究数据表未就绪' : '数据加载异常'}
+            title={data?.ready === false ? '股票研究数据表未就绪' : '数据加载异常'}
             description={
               data?.ready === false
-                ? '系统尚未生成股票研究物化快照，请稍后刷新重试。'
+                ? '研究数据尚未准备好，请稍后刷新重试。'
                 : '网络请求失败，请检查服务状态。'
             }
             action={
@@ -993,12 +994,12 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           </div>
         )}
 
-        {/* 分页组件 */}
-        {data && data.totalPages > 1 && (
+        {/* 分页与统计底栏 */}
+        {data && (
           <div className="border-t border-basalt-border p-3">
             <ListPagination
               page={data.page}
-              pages={data.totalPages}
+              pages={Math.max(1, data.totalPages)}
               total={data.total}
               pageSize={data.pageSize}
               onPageChange={(p) => updateFilter({ page: p })}

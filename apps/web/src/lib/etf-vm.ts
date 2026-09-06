@@ -60,6 +60,19 @@ export const DEFAULT_ETF_STATE: EtfSearchState = {
   page: 1,
 };
 
+function parsePositiveInt(val: string | null, fallback = 1): number {
+  if (val === null || val === '') return fallback;
+  const n = Number(val);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.floor(n);
+}
+
+function parseOrder(val: string | null, fallback: 'asc' | 'desc' = 'asc'): 'asc' | 'desc' {
+  if (val === 'desc' || val === 'DESC') return 'desc';
+  if (val === 'asc' || val === 'ASC') return 'asc';
+  return fallback;
+}
+
 export function parseEtfSearch(search: string, lens: EtfLens = 'browse'): EtfSearchState {
   const p = new URLSearchParams(search);
   const q = p.get('q') ?? '';
@@ -72,21 +85,32 @@ export function parseEtfSearch(search: string, lens: EtfLens = 'browse'): EtfSea
 
   // 精选门槛开闭与数值解析
   const maxFeeEnabled = p.get('feeOn') !== null ? p.get('feeOn') === '1' : true;
-  const rawMaxFee = Number(p.get('maxFee'));
-  const maxFee = Number.isFinite(rawMaxFee) && rawMaxFee > 0 ? rawMaxFee : 0.6;
+  const rawMaxFee = p.get('maxFee');
+  const maxFee =
+    rawMaxFee !== null && rawMaxFee !== '' && Number.isFinite(Number(rawMaxFee))
+      ? Number(rawMaxFee)
+      : 0.6;
 
   const minScaleEnabled = p.get('scaleOn') !== null ? p.get('scaleOn') === '1' : true;
-  const rawMinScale = Number(p.get('minScale'));
-  const minScale = Number.isFinite(rawMinScale) && rawMinScale > 0 ? rawMinScale : 2.0;
+  const rawMinScale = p.get('minScale');
+  const minScale =
+    rawMinScale !== null && rawMinScale !== '' && Number.isFinite(Number(rawMinScale))
+      ? Number(rawMinScale)
+      : 2.0;
 
   const maxDrawdownEnabled = p.get('ddOn') !== null ? p.get('ddOn') === '1' : true;
-  const rawMaxDrawdown = Number(p.get('maxDrawdown'));
-  const maxDrawdown = Number.isFinite(rawMaxDrawdown) && rawMaxDrawdown > 0 ? rawMaxDrawdown : 35.0;
+  const rawMaxDrawdown = p.get('maxDrawdown');
+  const maxDrawdown =
+    rawMaxDrawdown !== null && rawMaxDrawdown !== '' && Number.isFinite(Number(rawMaxDrawdown))
+      ? Number(rawMaxDrawdown)
+      : 35.0;
 
   const minTurnoverEnabled = p.get('toOn') !== null ? p.get('toOn') === '1' : true;
-  const rawMinTurnover = Number(p.get('minTurnover'));
+  const rawMinTurnover = p.get('minTurnover');
   const minTurnover =
-    Number.isFinite(rawMinTurnover) && rawMinTurnover > 0 ? rawMinTurnover : 10000000;
+    rawMinTurnover !== null && rawMinTurnover !== '' && Number.isFinite(Number(rawMinTurnover))
+      ? Number(rawMinTurnover)
+      : 10000000;
 
   let defaultSort = 'ticker';
   let defaultOrder: 'asc' | 'desc' = 'asc';
@@ -108,8 +132,8 @@ export function parseEtfSearch(search: string, lens: EtfLens = 'browse'): EtfSea
   }
 
   const sort = p.get('sort') ?? defaultSort;
-  const order = (p.get('order') as 'asc' | 'desc') ?? defaultOrder;
-  const page = Math.max(1, Number(p.get('page')) || 1);
+  const order = parseOrder(p.get('order'), defaultOrder);
+  const page = parsePositiveInt(p.get('page'), 1);
 
   return {
     q,
@@ -142,19 +166,20 @@ export function etfUrlSearch(state: EtfSearchState, lens: EtfLens = 'browse'): s
 
   if (lens === 'picks') {
     if (!state.maxFeeEnabled) p.set('feeOn', '0');
-    else if (state.maxFee !== 0.6) p.set('maxFee', String(state.maxFee));
+    if (state.maxFee !== 0.6) p.set('maxFee', String(state.maxFee));
 
     if (!state.minScaleEnabled) p.set('scaleOn', '0');
-    else if (state.minScale !== 2.0) p.set('minScale', String(state.minScale));
+    if (state.minScale !== 2.0) p.set('minScale', String(state.minScale));
 
     if (!state.maxDrawdownEnabled) p.set('ddOn', '0');
-    else if (state.maxDrawdown !== 35.0) p.set('maxDrawdown', String(state.maxDrawdown));
+    if (state.maxDrawdown !== 35.0) p.set('maxDrawdown', String(state.maxDrawdown));
 
     if (!state.minTurnoverEnabled) p.set('toOn', '0');
-    else if (state.minTurnover !== 10000000) p.set('minTurnover', String(state.minTurnover));
+    if (state.minTurnover !== 10000000) p.set('minTurnover', String(state.minTurnover));
   }
 
-  if (state.sort && state.sort !== 'ticker') p.set('sort', state.sort);
+  // 排序字段必须始终在显式指定时序列化，保留用户对 ticker 等字段的主动选择
+  if (state.sort) p.set('sort', state.sort);
   if (state.order) p.set('order', state.order);
   if (state.page > 1) p.set('page', String(state.page));
 

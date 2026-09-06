@@ -356,7 +356,13 @@ export function createApi(
           : c.req.query('isFinancial') === 'false'
             ? false
             : undefined,
-      excludeFinancial: c.req.query('excludeFinancial') === 'true',
+      excludeFinancial:
+        c.req.query('excludeFinancial') === 'true'
+          ? true
+          : c.req.query('excludeFinancial') === 'false'
+            ? false
+            : undefined,
+      excludeSt: c.req.query('excludeSt') === 'true',
       years: (c.req.query('years') as '1' | '3' | '5') ?? '1',
       fiscalYear: c.req.query('fiscalYear') ? Number(c.req.query('fiscalYear')) : undefined,
       lens: c.req.query('lens') as StockListQuery['lens'],

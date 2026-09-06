@@ -82,6 +82,19 @@ export const DEFAULT_STOCK_STATE: StockSearchState = {
   page: 1,
 };
 
+function parsePositiveInt(val: string | null, fallback = 1): number {
+  if (val === null || val === '') return fallback;
+  const n = Number(val);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.floor(n);
+}
+
+function parseOrder(val: string | null, fallback: 'asc' | 'desc' = 'asc'): 'asc' | 'desc' {
+  if (val === 'desc' || val === 'DESC') return 'desc';
+  if (val === 'asc' || val === 'ASC') return 'asc';
+  return fallback;
+}
+
 export function parseStockSearch(search: string, lens: StockLens = 'browse'): StockSearchState {
   const p = new URLSearchParams(search);
   const q = p.get('q') ?? '';
@@ -109,7 +122,7 @@ export function parseStockSearch(search: string, lens: StockLens = 'browse'): St
     excludeFinancial = false;
   }
 
-  const excludeSt = p.get('stOn') !== null ? p.get('stOn') !== '0' : true;
+  const excludeSt = p.get('stOn') !== null ? p.get('stOn') !== '0' : lens === 'picks';
   const rawYears = p.get('years');
   const years = rawYears === '3' ? '3' : rawYears === '5' ? '5' : '1';
   const fiscalYear = p.get('fiscalYear') ? Number(p.get('fiscalYear')) : undefined;
@@ -118,24 +131,39 @@ export function parseStockSearch(search: string, lens: StockLens = 'browse'): St
 
   // 精选门槛
   const maxPeEnabled = p.get('peOn') !== null ? p.get('peOn') === '1' : true;
-  const rawMaxPe = Number(p.get('maxPe'));
-  const maxPe = Number.isFinite(rawMaxPe) && rawMaxPe > 0 ? rawMaxPe : 40.0;
+  const rawMaxPe = p.get('maxPe');
+  const maxPe =
+    rawMaxPe !== null && rawMaxPe !== '' && Number.isFinite(Number(rawMaxPe))
+      ? Number(rawMaxPe)
+      : 40.0;
 
   const minRoeEnabled = p.get('roeOn') !== null ? p.get('roeOn') === '1' : true;
-  const rawMinRoe = Number(p.get('minRoe'));
-  const minRoe = Number.isFinite(rawMinRoe) ? rawMinRoe : 8.0;
+  const rawMinRoe = p.get('minRoe');
+  const minRoe =
+    rawMinRoe !== null && rawMinRoe !== '' && Number.isFinite(Number(rawMinRoe))
+      ? Number(rawMinRoe)
+      : 8.0;
 
   const minRevenueYoyEnabled = p.get('yoyOn') !== null ? p.get('yoyOn') === '1' : true;
-  const rawMinYoy = Number(p.get('minRevenueYoy'));
-  const minRevenueYoy = Number.isFinite(rawMinYoy) ? rawMinYoy : 0.0;
+  const rawMinYoy = p.get('minRevenueYoy');
+  const minRevenueYoy =
+    rawMinYoy !== null && rawMinYoy !== '' && Number.isFinite(Number(rawMinYoy))
+      ? Number(rawMinYoy)
+      : 0.0;
 
   const maxDrawdownEnabled = p.get('ddOn') !== null ? p.get('ddOn') === '1' : true;
-  const rawMaxDd = Number(p.get('maxDrawdown'));
-  const maxDrawdown = Number.isFinite(rawMaxDd) && rawMaxDd > 0 ? rawMaxDd : 50.0;
+  const rawMaxDd = p.get('maxDrawdown');
+  const maxDrawdown =
+    rawMaxDd !== null && rawMaxDd !== '' && Number.isFinite(Number(rawMaxDd))
+      ? Number(rawMaxDd)
+      : 50.0;
 
   const minTurnoverEnabled = p.get('toOn') !== null ? p.get('toOn') === '1' : true;
-  const rawMinTo = Number(p.get('minTurnover'));
-  const minTurnover = Number.isFinite(rawMinTo) && rawMinTo > 0 ? rawMinTo : 50000000;
+  const rawMinTo = p.get('minTurnover');
+  const minTurnover =
+    rawMinTo !== null && rawMinTo !== '' && Number.isFinite(Number(rawMinTo))
+      ? Number(rawMinTo)
+      : 50000000;
 
   let defaultSort = 'ticker';
   let defaultOrder: 'asc' | 'desc' = 'asc';
@@ -157,8 +185,8 @@ export function parseStockSearch(search: string, lens: StockLens = 'browse'): St
   }
 
   const sort = p.get('sort') ?? defaultSort;
-  const order = (p.get('order') as 'asc' | 'desc') ?? defaultOrder;
-  const page = Math.max(1, Number(p.get('page')) || 1);
+  const order = parseOrder(p.get('order'), defaultOrder);
+  const page = parsePositiveInt(p.get('page'), 1);
 
   return {
     q,
@@ -206,19 +234,19 @@ export function stockUrlSearch(state: StockSearchState, lens: StockLens = 'brows
   if (lens === 'picks') {
     if (!state.excludeSt) p.set('stOn', '0');
     if (!state.maxPeEnabled) p.set('peOn', '0');
-    else if (state.maxPe !== 40.0) p.set('maxPe', String(state.maxPe));
+    if (state.maxPe !== 40.0) p.set('maxPe', String(state.maxPe));
 
     if (!state.minRoeEnabled) p.set('roeOn', '0');
-    else if (state.minRoe !== 8.0) p.set('minRoe', String(state.minRoe));
+    if (state.minRoe !== 8.0) p.set('minRoe', String(state.minRoe));
 
     if (!state.minRevenueYoyEnabled) p.set('yoyOn', '0');
-    else if (state.minRevenueYoy !== 0.0) p.set('minRevenueYoy', String(state.minRevenueYoy));
+    if (state.minRevenueYoy !== 0.0) p.set('minRevenueYoy', String(state.minRevenueYoy));
 
     if (!state.maxDrawdownEnabled) p.set('ddOn', '0');
-    else if (state.maxDrawdown !== 50.0) p.set('maxDrawdown', String(state.maxDrawdown));
+    if (state.maxDrawdown !== 50.0) p.set('maxDrawdown', String(state.maxDrawdown));
 
     if (!state.minTurnoverEnabled) p.set('toOn', '0');
-    else if (state.minTurnover !== 50000000) p.set('minTurnover', String(state.minTurnover));
+    if (state.minTurnover !== 50000000) p.set('minTurnover', String(state.minTurnover));
   }
 
   if (state.years !== '1') p.set('years', state.years);
@@ -226,7 +254,7 @@ export function stockUrlSearch(state: StockSearchState, lens: StockLens = 'brows
   if (state.hasHistory) p.set('hasHistory', 'true');
   if (state.hasFinancials) p.set('hasFinancials', 'true');
 
-  if (state.sort && state.sort !== 'ticker') p.set('sort', state.sort);
+  if (state.sort) p.set('sort', state.sort);
   if (state.order) p.set('order', state.order);
   if (state.page > 1) p.set('page', String(state.page));
 

@@ -130,6 +130,8 @@ export interface EtfListResponse {
   asof: {
     tradeDate: string | null;
     navDate: string | null;
+    navDateFrom: string | null;
+    navDateTo: string | null;
     updatedAt: number | null;
   };
 }
@@ -223,7 +225,7 @@ export async function listSelectionEtfs(
       },
       categories: [],
       rows: [],
-      asof: { tradeDate: null, navDate: null, updatedAt: null },
+      asof: { tradeDate: null, navDate: null, navDateFrom: null, navDateTo: null, updatedAt: null },
     };
   }
 
@@ -235,6 +237,7 @@ export async function listSelectionEtfs(
     with_scale: number;
     with_fees: number;
     max_trade_date: string | null;
+    min_nav_date: string | null;
     max_nav_date: string | null;
     max_updated: number | null;
   }>(`
@@ -245,6 +248,7 @@ export async function listSelectionEtfs(
       SUM(CASE WHEN scale_yi IS NOT NULL THEN 1 ELSE 0 END) AS with_scale,
       SUM(CASE WHEN total_expense_pct IS NOT NULL THEN 1 ELSE 0 END) AS with_fees,
       MAX(market_trade_date) AS max_trade_date,
+      MIN(nav_date) AS min_nav_date,
       MAX(nav_date) AS max_nav_date,
       MAX(updated_at) AS max_updated
     FROM selection_etf_materialized
@@ -412,6 +416,8 @@ export async function listSelectionEtfs(
     asof: {
       tradeDate: covRow?.max_trade_date ?? null,
       navDate: covRow?.max_nav_date ?? null,
+      navDateFrom: covRow?.min_nav_date ?? null,
+      navDateTo: covRow?.max_nav_date ?? null,
       updatedAt: covRow?.max_updated ?? null,
     },
   };
@@ -956,14 +962,16 @@ export async function listSelectionStocks(
     }
   }
 
-  // 金融股过滤逻辑
-  if (query.excludeFinancial) {
-    whereParts.push('is_financial = 0');
-  } else if (query.isFinancial !== undefined) {
+  // 金融股过滤逻辑：isFinancial (专属切片) 优先；excludeFinancial 为明确三态 (true/false/undefined)
+  if (query.isFinancial !== undefined) {
     whereParts.push('is_financial = ?');
     params.push(query.isFinancial ? 1 : 0);
+  } else if (query.excludeFinancial === true) {
+    whereParts.push('is_financial = 0');
+  } else if (query.excludeFinancial === false) {
+    // 明确要求不排除金融（包含全部企业）
   } else if (query.lens === 'cashflow' || query.lens === 'quality' || query.lens === 'growth') {
-    // 经营现金质量、盈利质量与成长持续默认排除不可比金融股
+    // 未显式指定时，经营现金质量、盈利质量与成长持续默认排除不可比金融股
     whereParts.push('is_financial = 0');
   }
 
@@ -1212,6 +1220,27 @@ export async function getSelectionStockDetail(executor: QueryExec, symbol: strin
     [sym],
   );
 
+  // 按财年组织报表，每财年优先以 income 的期末日和币种为基准
+  // 若 income 缺失，则优先以 cash_flow，最后 balance，绝不混用不同币种或期末日
+  const stmtsByYear = new Map<
+    number,
+    Array<{
+      statement_type: string;
+      fiscal_year: number;
+      fiscal_period: string;
+      period_end: string;
+      report_date: string;
+      currency: string;
+      data_json: string;
+    }>
+  >();
+
+  for (const s of stmts) {
+    const list = stmtsByYear.get(s.fiscal_year) ?? [];
+    list.push(s);
+    stmtsByYear.set(s.fiscal_year, list);
+  }
+
   const byYearMap = new Map<
     number,
     {
@@ -1225,31 +1254,48 @@ export async function getSelectionStockDetail(executor: QueryExec, symbol: strin
     }
   >();
 
-  for (const s of stmts) {
-    let yearItem = byYearMap.get(s.fiscal_year);
-    if (!yearItem) {
-      yearItem = {
-        fiscalYear: s.fiscal_year,
-        periodEnd: s.period_end,
-        reportDate: s.report_date,
-        currency: s.currency,
-        income: null,
-        balance: null,
-        cashFlow: null,
-      };
-      byYearMap.set(s.fiscal_year, yearItem);
-    }
-    // 必须期末日与币种完全对齐，才合并到该年度
-    if (yearItem.periodEnd === s.period_end && yearItem.currency === s.currency) {
-      try {
-        const d = JSON.parse(s.data_json);
-        if (s.statement_type === 'income') yearItem.income = d;
-        if (s.statement_type === 'balance') yearItem.balance = d;
-        if (s.statement_type === 'cash_flow') yearItem.cashFlow = d;
-      } catch {
-        // ignore
+  for (const [fiscalYear, yearStmts] of stmtsByYear) {
+    // 优先寻找 income
+    const anchor =
+      yearStmts.find((s) => s.statement_type === 'income') ??
+      yearStmts.find((s) => s.statement_type === 'cash_flow') ??
+      yearStmts[0];
+
+    if (!anchor) continue;
+
+    const periodEnd = anchor.period_end;
+    const currency = anchor.currency;
+
+    let income: Record<string, unknown> | null = null;
+    let balance: Record<string, unknown> | null = null;
+    let cashFlow: Record<string, unknown> | null = null;
+    let maxReportDate = anchor.report_date;
+
+    for (const s of yearStmts) {
+      if (s.period_end === periodEnd && s.currency === currency) {
+        if (s.report_date > maxReportDate) {
+          maxReportDate = s.report_date;
+        }
+        try {
+          const d = JSON.parse(s.data_json);
+          if (s.statement_type === 'income') income = d;
+          if (s.statement_type === 'balance') balance = d;
+          if (s.statement_type === 'cash_flow') cashFlow = d;
+        } catch {
+          // ignore
+        }
       }
     }
+
+    byYearMap.set(fiscalYear, {
+      fiscalYear,
+      periodEnd,
+      reportDate: maxReportDate,
+      currency,
+      income,
+      balance,
+      cashFlow,
+    });
   }
 
   const statements = [...byYearMap.values()]
