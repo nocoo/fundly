@@ -18,6 +18,38 @@ describe('isItemActive', () => {
     expect(isItemActive('/ranking', '/funds/000001', { path: '/ranking', search: '' })).toBe(true);
     expect(isItemActive('/funds', '/funds/000001', { path: '/ranking', search: '' })).toBe(false);
   });
+
+  it('keeps the originating list active on an ETF detail', () => {
+    expect(
+      isItemActive('/select-etf/liquidity', '/etfs/510300.SH', {
+        path: '/select-etf/liquidity',
+        search: '',
+      }),
+    ).toBe(true);
+    expect(
+      isItemActive('/etfs', '/etfs/510300.SH', {
+        path: '/select-etf/liquidity',
+        search: '',
+      }),
+    ).toBe(false);
+    expect(isItemActive('/etfs', '/etfs/510300.SH', null)).toBe(true);
+  });
+
+  it('keeps the originating list active on a stock detail', () => {
+    expect(
+      isItemActive('/select-stock/valuation', '/stocks/600519.SH', {
+        path: '/select-stock/valuation',
+        search: '',
+      }),
+    ).toBe(true);
+    expect(
+      isItemActive('/stocks', '/stocks/600519.SH', {
+        path: '/select-stock/valuation',
+        search: '',
+      }),
+    ).toBe(false);
+    expect(isItemActive('/stocks', '/stocks/600519.SH', null)).toBe(true);
+  });
 });
 
 describe('shouldGroupBeOpenOnMount', () => {

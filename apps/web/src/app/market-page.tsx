@@ -1457,16 +1457,27 @@ export default function MarketPage() {
                 {etfDetailData?.instrument?.name || etfModalTarget?.name || 'ETF'}
                 {etfDetailData?.instrument?.symbol ? ` (${etfDetailData.instrument.symbol})` : ''}
               </span>
-              {etfDetailData?.instrument?.linkedFundCode ? (
-                <Link
-                  to={`/funds/${etfDetailData.instrument.linkedFundCode}`}
-                  onClick={() => writeListOrigin(currentListOrigin)}
-                  className="text-xs text-basalt-primary hover:underline font-medium inline-flex items-center"
-                >
-                  直达主基金详情{' '}
-                  <ArrowLeft className="h-3 w-3 ml-0.5 rotate-180" strokeWidth={1.5} />
-                </Link>
-              ) : null}
+              <div className="flex items-center gap-2">
+                {etfDetailData?.instrument?.symbol && (
+                  <Link
+                    to={`/etfs/${encodeURIComponent(etfDetailData.instrument.symbol)}`}
+                    className="text-xs text-basalt-primary hover:underline font-medium inline-flex items-center bg-basalt-primary/10 px-2 py-0.5 rounded"
+                  >
+                    ETF深度研究详情{' '}
+                    <ArrowLeft className="h-3 w-3 ml-0.5 rotate-180" strokeWidth={1.5} />
+                  </Link>
+                )}
+                {etfDetailData?.instrument?.linkedFundCode ? (
+                  <Link
+                    to={`/funds/${etfDetailData.instrument.linkedFundCode}`}
+                    onClick={() => writeListOrigin(currentListOrigin)}
+                    className="text-xs text-basalt-primary hover:underline font-medium inline-flex items-center"
+                  >
+                    直达主基金详情{' '}
+                    <ArrowLeft className="h-3 w-3 ml-0.5 rotate-180" strokeWidth={1.5} />
+                  </Link>
+                ) : null}
+              </div>
             </DialogTitle>
             <DialogDescription>
               场内最新交易快照、独立日K线与季度披露持仓（不代表完整实时配置）。
@@ -1669,29 +1680,65 @@ export default function MarketPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {etfDetailData.holdings.map((h) => (
-                          <TableRow key={h.stockCode}>
-                            <TableCell className="font-mono text-xs">{h.stockCode}</TableCell>
-                            <TableCell className="font-medium text-xs">{h.stockName}</TableCell>
-                            <TableCell className="text-xs text-basalt-muted-foreground">
-                              {h.assetType === 'bond'
-                                ? '债券'
-                                : h.assetType === 'stock'
-                                  ? '股票'
-                                  : h.assetType || '资产'}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-semibold tabular-nums text-xs">
-                              {h.holdPct !== null && h.holdPct !== undefined
-                                ? `${h.holdPct.toFixed(2)}%`
-                                : '—'}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs text-basalt-muted-foreground">
-                              {h.holdShares !== null && h.holdShares !== undefined
-                                ? h.holdShares.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
-                                : '—'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {etfDetailData.holdings.map((h) => {
+                          const isAshare =
+                            h.stockCode.endsWith('.SH') ||
+                            h.stockCode.endsWith('.SZ') ||
+                            h.stockCode.endsWith('.BJ') ||
+                            /^\d{6}$/.test(h.stockCode);
+                          const sym = h.stockCode.includes('.')
+                            ? h.stockCode
+                            : h.stockCode.startsWith('6') || h.stockCode.startsWith('688')
+                              ? `${h.stockCode}.SH`
+                              : `${h.stockCode}.SZ`;
+                          return (
+                            <TableRow key={h.stockCode}>
+                              <TableCell className="font-mono text-xs">
+                                {isAshare ? (
+                                  <Link
+                                    to={`/stocks/${encodeURIComponent(sym)}`}
+                                    className="text-basalt-primary hover:underline"
+                                  >
+                                    {h.stockCode}
+                                  </Link>
+                                ) : (
+                                  h.stockCode
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium text-xs">
+                                {isAshare ? (
+                                  <Link
+                                    to={`/stocks/${encodeURIComponent(sym)}`}
+                                    className="text-basalt-primary hover:underline"
+                                  >
+                                    {h.stockName}
+                                  </Link>
+                                ) : (
+                                  h.stockName
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs text-basalt-muted-foreground">
+                                {h.assetType === 'bond'
+                                  ? '债券'
+                                  : h.assetType === 'stock'
+                                    ? '股票'
+                                    : h.assetType || '资产'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold tabular-nums text-xs">
+                                {h.holdPct !== null && h.holdPct !== undefined
+                                  ? `${h.holdPct.toFixed(2)}%`
+                                  : '—'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs text-basalt-muted-foreground">
+                                {h.holdShares !== null && h.holdShares !== undefined
+                                  ? h.holdShares.toLocaleString('zh-CN', {
+                                      maximumFractionDigits: 2,
+                                    })
+                                  : '—'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -1758,8 +1805,22 @@ export default function MarketPage() {
                       <TableCell className="font-mono text-xs text-basalt-muted-foreground">
                         {m.rankOrder}
                       </TableCell>
-                      <TableCell className="font-mono text-xs font-medium">{m.stockCode}</TableCell>
-                      <TableCell className="font-medium text-xs">{m.stockName}</TableCell>
+                      <TableCell className="font-mono text-xs font-medium">
+                        <Link
+                          to={`/stocks/${encodeURIComponent(m.stockCode)}`}
+                          className="text-basalt-primary hover:underline"
+                        >
+                          {m.stockCode}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-medium text-xs">
+                        <Link
+                          to={`/stocks/${encodeURIComponent(m.stockCode)}`}
+                          className="text-basalt-primary hover:underline"
+                        >
+                          {m.stockName}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-xs">
                         {m.lastPrice !== null && m.lastPrice !== undefined
                           ? m.lastPrice.toFixed(2)

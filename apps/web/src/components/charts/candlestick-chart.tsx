@@ -122,8 +122,9 @@ export function CandlestickChart({
         maxP = 1;
       }
 
-      const padding = (maxP - minP) * 0.05 || maxP * 0.05 || 1;
-      const adjustedMin = Math.max(0, minP - padding);
+      const padding = (maxP - minP) * 0.05 || Math.abs(maxP) * 0.05 || 1;
+      // 当存在负价格（如大幅分红除权后的前复权负低点）时保留负下界，不夹断到 0
+      const adjustedMin = minP < 0 ? minP - padding : Math.max(0, minP - padding);
       const adjustedMax = maxP + padding;
       const priceRange = adjustedMax - adjustedMin || 1;
 

@@ -16,15 +16,20 @@ import {
   TooltipTrigger,
 } from '@nocoo/basalt';
 import {
+  Award,
+  BarChart3,
   CalendarRange,
   ChevronUp,
   Cloud,
+  Coins,
   HeartPulse,
   LayoutDashboard,
   LineChart,
   LogOut,
   type LucideIcon,
   PanelLeft,
+  PieChart,
+  Scale,
   Search,
   Settings,
   Shield,
@@ -52,11 +57,16 @@ import { useSidebar } from './sidebar-context';
 const APP_VERSION = '0.5.0';
 
 const ICON_MAP: Record<string, LucideIcon> = {
+  Award,
+  BarChart3,
   CalendarRange,
   Cloud,
+  Coins,
   HeartPulse,
   LayoutDashboard,
   LineChart,
+  PieChart,
+  Scale,
   Search,
   Settings,
   Shield,

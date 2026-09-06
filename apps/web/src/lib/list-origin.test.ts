@@ -54,5 +54,13 @@ describe('list origin', () => {
     expect(originFromList('/data', '')).toBeNull();
     expect(isFundDetailPath('/funds/000001')).toBe(true);
     expect(isFundDetailPath('/funds')).toBe(false);
+    expect(originFromList('/select-etf/liquidity', '?years=3')).toEqual({
+      path: '/select-etf/liquidity',
+      search: '?years=3',
+    });
+    expect(originFromList('/select-stock/valuation', '?exchange=SH')).toEqual({
+      path: '/select-stock/valuation',
+      search: '?exchange=SH',
+    });
   });
 });

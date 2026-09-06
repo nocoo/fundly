@@ -97,6 +97,12 @@ fundly/
 | `/` | 仪表盘 | `/api/stats`、`/api/fund-types` |
 | `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排；过滤器进 localStorage |
 | `/funds/:code` | 基金详情 | `/api/funds/:code` + 净值；已核验 ETF 复用市场 K 线，保留来源列表上下文 |
+| `/etfs` | ETF 浏览 | `/api/selection/etfs` 全目录 1,670 只、快照行情、规模与行内曲线 |
+| `/select-etf/:lens` | 选 ETF 五视角 | 资产配置 (`allocation`)、交易质量 (`liquidity`)、成本规模 (`cost`)、收益风险 (`risk`)、条件精选 (`picks`) |
+| `/etfs/:symbol` | ETF 详情 | 真实交易所不复权大 K 线、净值风险、费率规模、定期披露重仓明细与基金跳转 |
+| `/stocks` | 股票浏览 | `/api/selection/stocks` 全 A 股 5,567 只目录与快照行情，带行业与行内走势 |
+| `/select-stock/:lens` | 选股六视角 | 估值比较 (`valuation`)、盈利质量 (`quality`)、成长持续 (`growth`)、现金质量 (`cashflow`)、趋势风险 (`trend`)、条件精选 (`picks`) |
+| `/stocks/:symbol` | 股票详情 | 前复权真实大 K 线、价格风险、估值、五年完整年报趋势与财报报表 |
 | `/market` | 宏观大屏 | 指数、广度、行业 / ETF 与跨资产摘要；见文档 14 |
 | `/select/:lens` | 选基六页 | `/api/funds` 按收益/风险/持有/定投/成本/精选排序 |
 | `/ranking` | 旧排名 | 按 dim 重定向到 `/select/return` 或 `/select/risk` |

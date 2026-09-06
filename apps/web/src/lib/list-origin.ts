@@ -13,6 +13,21 @@ export const LIST_PATHS = [
   '/select/cost',
   '/select/picks',
   '/market',
+  // 选 ETF 系列
+  '/etfs',
+  '/select-etf/allocation',
+  '/select-etf/liquidity',
+  '/select-etf/cost',
+  '/select-etf/risk',
+  '/select-etf/picks',
+  // 选股系列
+  '/stocks',
+  '/select-stock/valuation',
+  '/select-stock/quality',
+  '/select-stock/growth',
+  '/select-stock/cashflow',
+  '/select-stock/trend',
+  '/select-stock/picks',
 ] as const;
 
 export type ListPath = (typeof LIST_PATHS)[number];
@@ -32,6 +47,21 @@ export const LIST_LABEL: Record<ListPath, string> = {
   '/select/cost': '成本',
   '/select/picks': '精选',
   '/market': '宏观大屏',
+  // ETF
+  '/etfs': 'ETF浏览',
+  '/select-etf/allocation': '资产配置',
+  '/select-etf/liquidity': '交易质量',
+  '/select-etf/cost': '成本规模',
+  '/select-etf/risk': '收益风险',
+  '/select-etf/picks': '条件精选',
+  // 股票
+  '/stocks': '股票浏览',
+  '/select-stock/valuation': '估值比较',
+  '/select-stock/quality': '盈利质量',
+  '/select-stock/growth': '成长持续性',
+  '/select-stock/cashflow': '现金质量',
+  '/select-stock/trend': '趋势风险',
+  '/select-stock/picks': '条件精选',
 };
 
 export function isListPath(path: string): path is ListPath {
@@ -42,12 +72,20 @@ export function isFundDetailPath(pathname: string): boolean {
   return /^\/funds\/[^/]+$/.test(pathname);
 }
 
+export function isEtfDetailPath(pathname: string): boolean {
+  return /^\/etfs\/[^/]+$/.test(pathname);
+}
+
+export function isStockDetailPath(pathname: string): boolean {
+  return /^\/stocks\/[^/]+$/.test(pathname);
+}
+
 export function listHref(origin: ListOrigin): string {
   return origin.search ? `${origin.path}${origin.search}` : origin.path;
 }
 
 export function listBackLabel(origin: ListOrigin): string {
-  return `返回${LIST_LABEL[origin.path]}`;
+  return `返回${LIST_LABEL[origin.path] ?? '列表'}`;
 }
 
 export function parseListOrigin(raw: unknown): ListOrigin | null {
@@ -90,8 +128,28 @@ export function writeListOrigin(origin: ListOrigin): void {
   writeStoredJson(LIST_ORIGIN_KEY, origin);
 }
 
-export function resolveListOrigin(state: unknown): ListOrigin {
-  return parseListOrigin(state) ?? readListOrigin() ?? { path: '/funds', search: '' };
+export function resolveListOrigin(state: unknown, fallbackPath: ListPath = '/funds'): ListOrigin {
+  const parsed = parseListOrigin(state);
+  if (parsed) return parsed;
+  const stored = readListOrigin();
+  if (stored) {
+    // 确保如果 fallback 是 /etfs，且 stored 也是 ETF 列表才复用，否则避免串组
+    if (fallbackPath.startsWith('/etf') || fallbackPath.startsWith('/select-etf')) {
+      if (stored.path.startsWith('/etf') || stored.path.startsWith('/select-etf')) return stored;
+    } else if (fallbackPath.startsWith('/stock') || fallbackPath.startsWith('/select-stock')) {
+      if (stored.path.startsWith('/stock') || stored.path.startsWith('/select-stock'))
+        return stored;
+    } else {
+      if (
+        !stored.path.startsWith('/etf') &&
+        !stored.path.startsWith('/stock') &&
+        !stored.path.startsWith('/select-etf') &&
+        !stored.path.startsWith('/select-stock')
+      )
+        return stored;
+    }
+  }
+  return { path: fallbackPath, search: '' };
 }
 
 export function fundDetailLink(
@@ -107,4 +165,34 @@ export function fundDetailTo(
 ): { to: string; state: { list: string } } {
   writeListOrigin(origin);
   return fundDetailLink(code, origin);
+}
+
+export function etfDetailLink(
+  symbol: string,
+  origin: ListOrigin,
+): { to: string; state: { list: string } } {
+  return { to: `/etfs/${encodeURIComponent(symbol)}`, state: { list: listHref(origin) } };
+}
+
+export function etfDetailTo(
+  symbol: string,
+  origin: ListOrigin,
+): { to: string; state: { list: string } } {
+  writeListOrigin(origin);
+  return etfDetailLink(symbol, origin);
+}
+
+export function stockDetailLink(
+  symbol: string,
+  origin: ListOrigin,
+): { to: string; state: { list: string } } {
+  return { to: `/stocks/${encodeURIComponent(symbol)}`, state: { list: listHref(origin) } };
+}
+
+export function stockDetailTo(
+  symbol: string,
+  origin: ListOrigin,
+): { to: string; state: { list: string } } {
+  writeListOrigin(origin);
+  return stockDetailLink(symbol, origin);
 }
