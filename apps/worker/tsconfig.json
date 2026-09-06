@@ -20,5 +20,5 @@
     "../../src/metrics/**/*.ts",
     "../../src/analytics/share-class.ts"
   ],
-  "exclude": ["node_modules", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "src/**/*.test.ts", "../../src/metrics/selection-calc.ts"]
 }

@@ -30,6 +30,16 @@ import {
   getMarketObservations,
   getMarketOverview,
 } from '../src/lib/market-service.ts';
+import {
+  type EtfListQuery,
+  getSelectionEtfBars,
+  getSelectionEtfDetail,
+  getSelectionStockBars,
+  getSelectionStockDetail,
+  listSelectionEtfs,
+  listSelectionStocks,
+  type StockListQuery,
+} from '../src/lib/selection-service.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
 
 export function defaultSqlitePath(): string {
@@ -283,6 +293,114 @@ export function createApi(
       getEtfDetail(exec, c.req.param('id')),
     );
     if (!data.instrument) return c.json({ error: 'ETF not found' }, 404);
+    return c.json(data);
+  });
+
+  // 选 ETF 独立只读 API
+  app.get('/api/selection/etfs', async (c) => {
+    const q: EtfListQuery = {
+      q: c.req.query('q'),
+      category: c.req.query('category'),
+      theme: c.req.query('theme'),
+      years: (c.req.query('years') as '1' | '3' | '5') ?? '1',
+      lens: c.req.query('lens') as EtfListQuery['lens'],
+      maxFee: c.req.query('maxFee') ? Number(c.req.query('maxFee')) : undefined,
+      minScale: c.req.query('minScale') ? Number(c.req.query('minScale')) : undefined,
+      maxDrawdown: c.req.query('maxDrawdown') ? Number(c.req.query('maxDrawdown')) : undefined,
+      minTurnover: c.req.query('minTurnover') ? Number(c.req.query('minTurnover')) : undefined,
+      hasBars: c.req.query('hasBars') === 'true',
+      sort: c.req.query('sort'),
+      order: (c.req.query('order') as 'asc' | 'desc') ?? 'asc',
+      page: c.req.query('page') ? Number(c.req.query('page')) : 1,
+      pageSize: c.req.query('pageSize') ? Number(c.req.query('pageSize')) : 50,
+    };
+    return c.json(await withMarketSnapshot(sqlitePath, (exec) => listSelectionEtfs(exec, q)));
+  });
+
+  app.get('/api/selection/etfs/:symbol', async (c) => {
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getSelectionEtfDetail(exec, c.req.param('symbol')),
+    );
+    if (!data.ready) return c.json({ ready: false, error: 'Selection tables not ready' }, 503);
+    if (!data.found) return c.json({ error: 'ETF not found' }, 404);
+    return c.json(data);
+  });
+
+  app.get('/api/selection/etfs/:symbol/bars', async (c) => {
+    const rawYears = c.req.query('years');
+    const rawInterval = c.req.query('interval');
+    if (rawYears !== undefined && !['1', '3', '5'].includes(rawYears))
+      return c.json({ error: 'years must be 1, 3 or 5' }, 400);
+    if (rawInterval !== undefined && !['day', 'week', 'month'].includes(rawInterval))
+      return c.json({ error: 'interval must be day, week or month' }, 400);
+    const years = (rawYears ? Number(rawYears) : 1) as 1 | 3 | 5;
+    const interval = (rawInterval ?? 'day') as 'day' | 'week' | 'month';
+
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getSelectionEtfBars(exec, c.req.param('symbol'), { years, interval }),
+    );
+    if (!data.ready) return c.json({ ready: false, error: 'Selection tables not ready' }, 503);
+    if (!data.found) return c.json({ error: 'ETF not found' }, 404);
+    return c.json(data);
+  });
+
+  // 选股独立只读 API
+  app.get('/api/selection/stocks', async (c) => {
+    const q: StockListQuery = {
+      q: c.req.query('q'),
+      exchange: c.req.query('exchange'),
+      industry: c.req.query('industry'),
+      isFinancial:
+        c.req.query('isFinancial') === 'true'
+          ? true
+          : c.req.query('isFinancial') === 'false'
+            ? false
+            : undefined,
+      excludeFinancial: c.req.query('excludeFinancial') === 'true',
+      years: (c.req.query('years') as '1' | '3' | '5') ?? '1',
+      fiscalYear: c.req.query('fiscalYear') ? Number(c.req.query('fiscalYear')) : undefined,
+      lens: c.req.query('lens') as StockListQuery['lens'],
+      maxPe: c.req.query('maxPe') ? Number(c.req.query('maxPe')) : undefined,
+      minRoe: c.req.query('minRoe') ? Number(c.req.query('minRoe')) : undefined,
+      minRevenueYoy: c.req.query('minRevenueYoy')
+        ? Number(c.req.query('minRevenueYoy'))
+        : undefined,
+      maxDrawdown: c.req.query('maxDrawdown') ? Number(c.req.query('maxDrawdown')) : undefined,
+      minTurnover: c.req.query('minTurnover') ? Number(c.req.query('minTurnover')) : undefined,
+      hasHistory: c.req.query('hasHistory') === 'true',
+      hasFinancials: c.req.query('hasFinancials') === 'true',
+      sort: c.req.query('sort'),
+      order: (c.req.query('order') as 'asc' | 'desc') ?? 'asc',
+      page: c.req.query('page') ? Number(c.req.query('page')) : 1,
+      pageSize: c.req.query('pageSize') ? Number(c.req.query('pageSize')) : 50,
+    };
+    return c.json(await withMarketSnapshot(sqlitePath, (exec) => listSelectionStocks(exec, q)));
+  });
+
+  app.get('/api/selection/stocks/:symbol', async (c) => {
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getSelectionStockDetail(exec, c.req.param('symbol')),
+    );
+    if (!data.ready) return c.json({ ready: false, error: 'Selection tables not ready' }, 503);
+    if (!data.found) return c.json({ error: 'Stock not found' }, 404);
+    return c.json(data);
+  });
+
+  app.get('/api/selection/stocks/:symbol/bars', async (c) => {
+    const rawYears = c.req.query('years');
+    const rawInterval = c.req.query('interval');
+    if (rawYears !== undefined && !['1', '3', '5'].includes(rawYears))
+      return c.json({ error: 'years must be 1, 3 or 5' }, 400);
+    if (rawInterval !== undefined && !['day', 'week', 'month'].includes(rawInterval))
+      return c.json({ error: 'interval must be day, week or month' }, 400);
+    const years = (rawYears ? Number(rawYears) : 1) as 1 | 3 | 5;
+    const interval = (rawInterval ?? 'day') as 'day' | 'week' | 'month';
+
+    const data = await withMarketSnapshot(sqlitePath, (exec) =>
+      getSelectionStockBars(exec, c.req.param('symbol'), { years, interval }),
+    );
+    if (!data.ready) return c.json({ ready: false, error: 'Selection tables not ready' }, 503);
+    if (!data.found) return c.json({ error: 'Stock not found' }, 404);
     return c.json(data);
   });
 
