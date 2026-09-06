@@ -54,13 +54,13 @@ describe('selection API integration endpoints', () => {
     const { app } = createTestApp(false);
     const resEtfs = await app.request('/api/selection/etfs');
     expect(resEtfs.status).toBe(200);
-    const jsonEtfs = await resEtfs.json();
+    const jsonEtfs = (await resEtfs.json()) as { ready: boolean; rows: unknown[] };
     expect(jsonEtfs.ready).toBe(false);
     expect(jsonEtfs.rows).toEqual([]);
 
     const resStocks = await app.request('/api/selection/stocks');
     expect(resStocks.status).toBe(200);
-    const jsonStocks = await resStocks.json();
+    const jsonStocks = (await resStocks.json()) as { ready: boolean; rows: unknown[] };
     expect(jsonStocks.ready).toBe(false);
     expect(jsonStocks.rows).toEqual([]);
 
@@ -201,7 +201,11 @@ describe('selection API integration endpoints', () => {
     // 默认列表查询
     const res = await app.request('/api/selection/etfs');
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = (await res.json()) as {
+      ready: boolean;
+      total: number;
+      rows: Array<{ symbol: string }>;
+    };
     expect(data.ready).toBe(true);
     expect(data.total).toBe(2);
     expect(data.rows).toHaveLength(2);
@@ -210,15 +214,15 @@ describe('selection API integration endpoints', () => {
     const resOverseas = await app.request(
       '/api/selection/etfs?category=%E5%A2%83%E5%A4%96%E6%9D%83%E7%9B%8A',
     );
-    const dataOverseas = await resOverseas.json();
+    const dataOverseas = (await resOverseas.json()) as { rows: Array<{ symbol: string }> };
     expect(dataOverseas.rows).toHaveLength(1);
-    expect(dataOverseas.rows[0].symbol).toBe('513100.SH');
+    expect(dataOverseas.rows[0]?.symbol).toBe('513100.SH');
 
     // 精选门槛条件过滤：maxFee=0.5 (排除了 0.8% 的 513100)
     const resPicks = await app.request('/api/selection/etfs?maxFee=0.5');
-    const dataPicks = await resPicks.json();
+    const dataPicks = (await resPicks.json()) as { rows: Array<{ symbol: string }> };
     expect(dataPicks.rows).toHaveLength(1);
-    expect(dataPicks.rows[0].symbol).toBe('510300.SH');
+    expect(dataPicks.rows[0]?.symbol).toBe('510300.SH');
   });
 
   test('validates stock list query, lenses, negative PE exclusion and sorting', async () => {
@@ -450,10 +454,10 @@ describe('selection API integration endpoints', () => {
 
     // 1. 估值镜头：默认正 PE 升序，负 PE 必须排在后面
     const resVal = await app.request('/api/selection/stocks?lens=valuation');
-    const dataVal = await resVal.json();
-    expect(dataVal.rows[0].symbol).toBe('000001.SZ'); // PE 5.3
-    expect(dataVal.rows[1].symbol).toBe('600519.SH'); // PE 20.4
-    expect(dataVal.rows[2].symbol).toBe('688981.SH'); // 负 PE 排在最后
+    const dataVal = (await resVal.json()) as { rows: Array<{ symbol: string }> };
+    expect(dataVal.rows[0]?.symbol).toBe('000001.SZ'); // PE 5.3
+    expect(dataVal.rows[1]?.symbol).toBe('600519.SH'); // PE 20.4
+    expect(dataVal.rows[2]?.symbol).toBe('688981.SH'); // 负 PE 排在最后
 
     // 2. 现金流镜头：默认排除金融股 (000001.SZ 不应出现)
     const resCash = await app.request('/api/selection/stocks?lens=cashflow');
@@ -526,16 +530,26 @@ describe('selection API integration endpoints', () => {
     // 详情接口
     const resDetail = await app.request('/api/selection/etfs/510300.SH');
     expect(resDetail.status).toBe(200);
-    const dataDetail = await resDetail.json();
+    const dataDetail = (await resDetail.json()) as {
+      found: boolean;
+      detail: {
+        catalog: { name: string };
+        holdings: Array<{ stockCode: string }>;
+      };
+    };
     expect(dataDetail.found).toBe(true);
     expect(dataDetail.detail.catalog.name).toBe('沪深300ETF华泰柏瑞');
     expect(dataDetail.detail.holdings).toHaveLength(1);
-    expect(dataDetail.detail.holdings[0].stockCode).toBe('600519.SH');
+    expect(dataDetail.detail.holdings[0]?.stockCode).toBe('600519.SH');
 
     // K线接口
     const resBars = await app.request('/api/selection/etfs/510300.SH/bars?years=1&interval=day');
     expect(resBars.status).toBe(200);
-    const dataBars = await resBars.json();
+    const dataBars = (await resBars.json()) as {
+      bars: unknown[];
+      adjust: string;
+      coverage: { isFullWindow: boolean };
+    };
     expect(dataBars.bars).toHaveLength(2);
     expect(dataBars.adjust).toBe('none');
 

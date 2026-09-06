@@ -6,6 +6,7 @@
  * 3. 字段白名单、参数安全转换、排序 null 稳定置后
  * 4. 股票负 PE/PB 不计入低估值筛选；金融股支持默认排除或专属切片
  * 5. 真实 OHLC 历史聚合 (日/周/月、1/3/5年)
+ * 6. 详情接口返回严格 camelCase 结构，对齐前端类型
  */
 
 import {
@@ -22,6 +23,20 @@ async function hasTable(executor: QueryExec, name: string): Promise<boolean> {
     [name],
   );
   return Boolean(row);
+}
+
+function parseFiniteInt(val: unknown, fallback: number, min = 1, max = 1000): number {
+  if (val === undefined || val === null || val === '') return fallback;
+  const num = Number(val);
+  if (!Number.isFinite(num)) return fallback;
+  const int = Math.floor(num);
+  return Math.min(max, Math.max(min, int));
+}
+
+function parseFiniteNumber(val: unknown): number | undefined {
+  if (val === undefined || val === null || val === '') return undefined;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : undefined;
 }
 
 // ==========================================
@@ -46,6 +61,57 @@ export interface EtfListQuery {
   pageSize?: number;
 }
 
+export interface EtfRowDto {
+  symbol: string;
+  ticker: string;
+  name: string;
+  exchange: string;
+  assetClass: string;
+  directionTag: string | null;
+  linkedFundCode: string | null;
+  marketTradeDate: string | null;
+  marketPrice: number | null;
+  changePct: number | null;
+  turnover: number | null;
+  volume: number | null;
+  avgTurnover20d: number | null;
+  navDate: string | null;
+  unitNav: number | null;
+  adjNav: number | null;
+  premiumDiscountPct: number | null;
+  mgmtFeePct: number | null;
+  custodyFeePct: number | null;
+  totalExpensePct: number | null;
+  scaleYi: number | null;
+  scalePeriod: string | null;
+  scaleDisclosureDate: string | null;
+  scaleSource: string | null;
+  historyAsof: string | null;
+  navRiskBasis: string | null;
+  navRiskAsof: string | null;
+  return1y: number | null;
+  return3y: number | null;
+  return5y: number | null;
+  cagr1y: number | null;
+  cagr3y: number | null;
+  cagr5y: number | null;
+  maxDrawdown1y: number | null;
+  maxDrawdown3y: number | null;
+  maxDrawdown5y: number | null;
+  volatility1y: number | null;
+  volatility3y: number | null;
+  volatility5y: number | null;
+  points1y: number | null;
+  points3y: number | null;
+  points5y: number | null;
+  sparkline: number[];
+  sparklineType: 'price' | 'nav' | 'none';
+  hasMarketBars: boolean;
+  hasNavHistory: boolean;
+  hasDeepResearch: boolean;
+  updatedAt: number;
+}
+
 export interface EtfListResponse {
   ready: boolean;
   total: number;
@@ -60,11 +126,80 @@ export interface EtfListResponse {
     withFeesCount: number;
   };
   categories: Array<{ category: string; count: number }>;
-  rows: Array<Record<string, unknown>>;
+  rows: EtfRowDto[];
   asof: {
     tradeDate: string | null;
     navDate: string | null;
     updatedAt: number | null;
+  };
+}
+
+export function mapEtfRowToDto(r: Record<string, unknown>): EtfRowDto {
+  let sparkline: number[] = [];
+  try {
+    if (typeof r.sparklineJson === 'string') sparkline = JSON.parse(r.sparklineJson);
+    else if (typeof r.sparkline_json === 'string') sparkline = JSON.parse(r.sparkline_json);
+  } catch {
+    // ignore
+  }
+
+  return {
+    symbol: String(r.symbol ?? ''),
+    ticker: String(r.ticker ?? ''),
+    name: String(r.name ?? ''),
+    exchange: String(r.exchange ?? ''),
+    assetClass: String(r.assetClass ?? r.asset_class ?? ''),
+    directionTag: (r.directionTag ?? r.direction_tag ?? null) as string | null,
+    linkedFundCode: (r.linkedFundCode ?? r.linked_fund_code ?? null) as string | null,
+    marketTradeDate: (r.marketTradeDate ?? r.market_trade_date ?? null) as string | null,
+    marketPrice: parseFiniteNumber(r.marketPrice ?? r.market_price) ?? null,
+    changePct: parseFiniteNumber(r.changePct ?? r.change_pct) ?? null,
+    turnover: parseFiniteNumber(r.turnover) ?? null,
+    volume: parseFiniteNumber(r.volume) ?? null,
+    avgTurnover20d: parseFiniteNumber(r.avgTurnover20d ?? r.avg_turnover_20d) ?? null,
+    navDate: (r.navDate ?? r.nav_date ?? null) as string | null,
+    unitNav: parseFiniteNumber(r.unitNav ?? r.unit_nav) ?? null,
+    adjNav: parseFiniteNumber(r.adjNav ?? r.adj_nav) ?? null,
+    premiumDiscountPct: parseFiniteNumber(r.premiumDiscountPct ?? r.premium_discount_pct) ?? null,
+    mgmtFeePct: parseFiniteNumber(r.mgmtFeePct ?? r.mgmt_fee_pct) ?? null,
+    custodyFeePct: parseFiniteNumber(r.custodyFeePct ?? r.custody_fee_pct) ?? null,
+    totalExpensePct: parseFiniteNumber(r.totalExpensePct ?? r.total_expense_pct) ?? null,
+    scaleYi: parseFiniteNumber(r.scaleYi ?? r.scale_yi) ?? null,
+    scalePeriod: (r.scalePeriod ?? r.scale_period ?? null) as string | null,
+    scaleDisclosureDate: (r.scaleDisclosureDate ?? r.scale_disclosure_date ?? null) as
+      | string
+      | null,
+    scaleSource: (r.scaleSource ?? r.scale_source ?? null) as string | null,
+    historyAsof: (r.historyAsof ?? r.history_asof ?? null) as string | null,
+    navRiskBasis: (r.navRiskBasis ?? r.nav_risk_basis ?? null) as string | null,
+    navRiskAsof: (r.navRiskAsof ?? r.nav_risk_asof ?? null) as string | null,
+    return1y: parseFiniteNumber(r.return1y ?? r.return_1y) ?? null,
+    return3y: parseFiniteNumber(r.return3y ?? r.return_3y) ?? null,
+    return5y: parseFiniteNumber(r.return5y ?? r.return_5y) ?? null,
+    cagr1y: parseFiniteNumber(r.cagr1y ?? r.cagr_1y) ?? null,
+    cagr3y: parseFiniteNumber(r.cagr3y ?? r.cagr_3y) ?? null,
+    cagr5y: parseFiniteNumber(r.cagr5y ?? r.cagr_5y) ?? null,
+    maxDrawdown1y: parseFiniteNumber(r.maxDrawdown1y ?? r.max_drawdown_1y) ?? null,
+    maxDrawdown3y: parseFiniteNumber(r.maxDrawdown3y ?? r.max_drawdown_3y) ?? null,
+    maxDrawdown5y: parseFiniteNumber(r.maxDrawdown5y ?? r.max_drawdown_5y) ?? null,
+    volatility1y: parseFiniteNumber(r.volatility1y ?? r.volatility_1y) ?? null,
+    volatility3y: parseFiniteNumber(r.volatility3y ?? r.volatility_3y) ?? null,
+    volatility5y: parseFiniteNumber(r.volatility5y ?? r.volatility_5y) ?? null,
+    points1y: parseFiniteInt(r.points1y ?? r.points_1y, 0, 0, 10000) || null,
+    points3y: parseFiniteInt(r.points3y ?? r.points_3y, 0, 0, 10000) || null,
+    points5y: parseFiniteInt(r.points5y ?? r.points_5y, 0, 0, 10000) || null,
+    sparkline,
+    sparklineType: (r.sparklineType ?? r.sparkline_type ?? 'none') as 'price' | 'nav' | 'none',
+    hasMarketBars: Boolean(
+      r.hasMarketBars === 1 || r.has_market_bars === 1 || r.hasMarketBars === true,
+    ),
+    hasNavHistory: Boolean(
+      r.hasNavHistory === 1 || r.has_nav_history === 1 || r.hasNavHistory === true,
+    ),
+    hasDeepResearch: Boolean(
+      r.hasDeepResearch === 1 || r.has_deep_research === 1 || r.hasDeepResearch === true,
+    ),
+    updatedAt: Number(r.updatedAt ?? r.updated_at ?? 0),
   };
 }
 
@@ -122,8 +257,8 @@ export async function listSelectionEtfs(
     ORDER BY c DESC
   `);
 
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
+  const page = parseFiniteInt(query.page, 1, 1, 10000);
+  const pageSize = parseFiniteInt(query.pageSize, 50, 1, 200);
   const offset = (page - 1) * pageSize;
 
   const whereParts: string[] = ['1=1'];
@@ -140,7 +275,7 @@ export async function listSelectionEtfs(
     params.push(query.category);
   }
 
-  if (query.theme) {
+  if (query.theme && query.theme !== 'all') {
     whereParts.push('direction_tag = ?');
     params.push(query.theme);
   }
@@ -182,26 +317,50 @@ export async function listSelectionEtfs(
   const totalPages = Math.ceil(total / pageSize);
 
   // 排序白名单
-  const sortMap: Record<string, string> = {
-    symbol: 'symbol',
-    ticker: 'ticker',
-    price: 'market_price',
-    changePct: 'change_pct',
-    scale: 'scale_yi',
-    avgTurnover20d: 'avg_turnover_20d',
-    turnover: 'turnover',
-    fee: 'total_expense_pct',
-    mgmtFee: 'mgmt_fee_pct',
-    custodyFee: 'custody_fee_pct',
-    return: `return_${years}y`,
-    cagr: `cagr_${years}y`,
-    maxDrawdown: `max_drawdown_${years}y`,
-    volatility: `volatility_${years}y`,
-    premiumDiscount: 'premium_discount_pct',
-  };
+  const sortMap = new Map<string, string>([
+    ['symbol', 'symbol'],
+    ['ticker', 'ticker'],
+    ['price', 'market_price'],
+    ['changePct', 'change_pct'],
+    ['scale', 'scale_yi'],
+    ['avgTurnover20d', 'avg_turnover_20d'],
+    ['turnover', 'turnover'],
+    ['fee', 'total_expense_pct'],
+    ['mgmtFee', 'mgmt_fee_pct'],
+    ['custodyFee', 'custody_fee_pct'],
+    ['return', `return_${years}y`],
+    ['cagr', `cagr_${years}y`],
+    ['maxDrawdown', `max_drawdown_${years}y`],
+    ['volatility', `volatility_${years}y`],
+    ['premiumDiscount', 'premium_discount_pct'],
+  ]);
 
-  const sortKey = query.sort ? (sortMap[query.sort] ?? 'ticker') : 'ticker';
-  const order = query.order === 'desc' ? 'DESC' : 'ASC';
+  let sortKey = 'ticker';
+  let order: 'ASC' | 'DESC' = 'ASC';
+
+  const mappedEtfSort = query.sort ? sortMap.get(query.sort) : undefined;
+  if (mappedEtfSort) {
+    sortKey = mappedEtfSort;
+    order = query.order === 'desc' ? 'DESC' : 'ASC';
+  } else if (!query.sort && query.lens) {
+    // 镜头默认排序
+    if (query.lens === 'allocation') {
+      sortKey = 'scale_yi';
+      order = 'DESC';
+    } else if (query.lens === 'liquidity') {
+      sortKey = 'avg_turnover_20d';
+      order = 'DESC';
+    } else if (query.lens === 'cost') {
+      sortKey = 'total_expense_pct';
+      order = 'ASC';
+    } else if (query.lens === 'risk') {
+      sortKey = `max_drawdown_${years}y`;
+      order = 'ASC';
+    } else if (query.lens === 'picks') {
+      sortKey = 'scale_yi';
+      order = 'DESC';
+    }
+  }
 
   // 确保 null 永远稳定排在末尾，次要排序为 symbol
   const orderSql =
@@ -249,21 +408,7 @@ export async function listSelectionEtfs(
       withFeesCount: covRow?.with_fees ?? 0,
     },
     categories: categoryCounts.map((c) => ({ category: c.asset_class, count: c.c })),
-    rows: rows.map((r) => {
-      let sparkline: number[] = [];
-      try {
-        if (typeof r.sparklineJson === 'string') sparkline = JSON.parse(r.sparklineJson);
-      } catch {
-        // ignore
-      }
-      return {
-        ...r,
-        sparkline,
-        hasMarketBars: r.hasMarketBars === 1,
-        hasNavHistory: r.hasNavHistory === 1,
-        hasDeepResearch: r.hasDeepResearch === 1,
-      };
-    }),
+    rows: rows.map(mapEtfRowToDto),
     asof: {
       tradeDate: covRow?.max_trade_date ?? null,
       navDate: covRow?.max_nav_date ?? null,
@@ -295,11 +440,12 @@ export async function getSelectionEtfDetail(executor: QueryExec, symbol: string)
   const sym = catalog.symbol;
 
   // 物化宽表行
-  const mat =
+  const rawMat =
     (await executor.first<Record<string, unknown>>(
       'SELECT * FROM selection_etf_materialized WHERE symbol = ?',
       [sym],
     )) ?? {};
+  const metrics = mapEtfRowToDto({ ...catalog, ...rawMat });
 
   // Profile
   const profile =
@@ -309,16 +455,58 @@ export async function getSelectionEtfDetail(executor: QueryExec, symbol: string)
     )) ?? {};
 
   // 披露规模列表
-  const financials = await executor.all<Record<string, unknown>>(
-    'SELECT start_date AS startDate, end_date AS endDate, publish_date AS publishDate, asset_nav AS assetNav FROM selection_etf_financials WHERE symbol = ? ORDER BY end_date DESC LIMIT 12',
+  const rawFinancials = await executor.all<{
+    start_date: string;
+    end_date: string;
+    publish_date: string;
+    asset_nav: number | null;
+  }>(
+    'SELECT start_date, end_date, publish_date, asset_nav FROM selection_etf_financials WHERE symbol = ? ORDER BY end_date DESC, publish_date DESC LIMIT 12',
     [sym],
   );
 
-  // 最新披露重仓
-  const holdings = await executor.all<Record<string, unknown>>(
-    'SELECT report_date AS reportDate, stock_code AS stockCode, stock_name AS stockName, asset_type AS assetType, hold_ratio AS holdRatio, position_capital AS positionCapital, position_count AS positionCount FROM selection_etf_holding WHERE symbol = ? ORDER BY report_date DESC, hold_ratio DESC LIMIT 20',
+  // 最新报告期的披露持仓 (先查最大 report_date，再查该期的前 20 大持仓)
+  const maxHoldingReport = await executor.first<{ report_date: string }>(
+    'SELECT MAX(report_date) AS report_date FROM selection_etf_holding WHERE symbol = ?',
     [sym],
   );
+
+  let holdings: Array<{
+    reportDate: string;
+    stockCode: string;
+    stockName: string;
+    assetType: string;
+    holdRatio: number | null;
+    positionCapital: number | null;
+    positionCount: number | null;
+    publishedAt: string | null;
+  }> = [];
+
+  if (maxHoldingReport?.report_date) {
+    const rawHoldings = await executor.all<{
+      report_date: string;
+      stock_code: string;
+      stock_name: string;
+      asset_type: string;
+      hold_ratio: number | null;
+      position_capital: number | null;
+      position_count: number | null;
+      published_at: string | null;
+    }>(
+      'SELECT report_date, stock_code, stock_name, asset_type, hold_ratio, position_capital, position_count, published_at FROM selection_etf_holding WHERE symbol = ? AND report_date = ? ORDER BY hold_ratio DESC LIMIT 20',
+      [sym, maxHoldingReport.report_date],
+    );
+    holdings = rawHoldings.map((h) => ({
+      reportDate: h.report_date,
+      stockCode: h.stock_code,
+      stockName: h.stock_name,
+      assetType: h.asset_type,
+      holdRatio: parseFiniteNumber(h.hold_ratio) ?? null,
+      positionCapital: parseFiniteNumber(h.position_capital) ?? null,
+      positionCount: parseFiniteNumber(h.position_count) ?? null,
+      publishedAt: h.published_at,
+    }));
+  }
 
   return {
     ready: true,
@@ -334,16 +522,21 @@ export async function getSelectionEtfDetail(executor: QueryExec, symbol: string)
         linkedFundCode: catalog.linked_fund_code,
         linkMethod: catalog.link_method,
       },
-      metrics: mat,
+      metrics,
       profile: {
-        estabDate: profile.estab_date ?? null,
-        mgmtName: profile.mgmt_name ?? null,
-        managerName: profile.manager_name ?? null,
-        fundScale: profile.fund_scale ?? null,
-        mgmtFeePct: profile.mgmt_fee_pct ?? null,
-        custodyFeePct: profile.custody_fee_pct ?? null,
+        estabDate: (profile.estab_date as string | null) ?? null,
+        mgmtName: (profile.mgmt_name as string | null) ?? null,
+        managerName: (profile.manager_name as string | null) ?? null,
+        fundScale: parseFiniteNumber(profile.fund_scale) ?? null,
+        mgmtFeePct: parseFiniteNumber(profile.mgmt_fee_pct) ?? null,
+        custodyFeePct: parseFiniteNumber(profile.custody_fee_pct) ?? null,
       },
-      financials,
+      financials: rawFinancials.map((f) => ({
+        startDate: f.start_date,
+        endDate: f.end_date,
+        publishDate: f.publish_date,
+        assetNav: parseFiniteNumber(f.asset_nav) ?? null,
+      })),
       holdings,
     },
   };
@@ -354,15 +547,48 @@ export async function getSelectionEtfBars(
   symbol: string,
   options: { years?: 1 | 3 | 5; interval?: MarketBarInterval },
 ) {
+  const years = options.years ?? 1;
+  const interval = options.interval ?? 'day';
+
   if (!(await hasTable(executor, 'selection_daily_bar'))) {
-    return { ready: false, found: false, bars: [] };
+    return {
+      ready: false,
+      found: false,
+      adjust: 'none',
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
+      bars: [],
+    };
   }
 
   const catalog = await executor.first<{ symbol: string }>(
     'SELECT symbol FROM selection_etf_catalog WHERE symbol = ? OR ticker = ?',
     [symbol, symbol],
   );
-  if (!catalog) return { ready: true, found: false, bars: [] };
+  if (!catalog) {
+    return {
+      ready: true,
+      found: false,
+      adjust: 'none',
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
+      bars: [],
+    };
+  }
 
   const sym = catalog.symbol;
   const rawBars = await executor.all<{
@@ -384,7 +610,15 @@ export async function getSelectionEtfBars(
       ready: true,
       found: true,
       adjust: 'none',
-      coverage: { hasBars: false, totalBars: 0, startDate: null, endDate: null },
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
       bars: [],
     };
   }
@@ -402,9 +636,13 @@ export async function getSelectionEtfBars(
   }));
 
   const lastDate = historyBars.at(-1)?.date ?? '';
-  const years = options.years ?? 1;
-  const interval = options.interval ?? 'day';
+  const firstDate = historyBars[0]?.date ?? '';
   const cutoff = yearsBefore(lastDate, years);
+
+  // 严格按自然日判断是否满足完整窗口跨度 (允许 10 天边界容差)
+  const windowFullTime = new Date(`${cutoff}T00:00:00Z`).getTime();
+  const firstActualTime = new Date(`${firstDate}T00:00:00Z`).getTime();
+  const isFullWindow = firstActualTime <= windowFullTime + 10 * 86400000;
 
   const filtered = historyBars.filter((b) => b.date >= cutoff);
   const aggregated = interval === 'day' ? filtered : aggregateMarketBars(filtered, interval);
@@ -420,6 +658,7 @@ export async function getSelectionEtfBars(
       totalBars: aggregated.length,
       startDate: aggregated[0]?.date ?? null,
       endDate: aggregated.at(-1)?.date ?? null,
+      isFullWindow,
     },
     bars: aggregated,
   };
@@ -431,7 +670,7 @@ export async function getSelectionEtfBars(
 
 export interface StockListQuery {
   q?: string;
-  exchange?: string; // 'SH' | 'SZ' | 'BJ' | 'all' (默认沪深)
+  exchange?: string; // 'SH' | 'SZ' | 'BJ' | 'all' | 'SH,SZ'
   industry?: string;
   isFinancial?: boolean; // 过滤金融股
   excludeFinancial?: boolean;
@@ -446,10 +685,74 @@ export interface StockListQuery {
   minTurnover?: number;
   hasHistory?: boolean;
   hasFinancials?: boolean;
+  excludeSt?: boolean; // 排除 ST / *ST
   sort?: string;
   order?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
+}
+
+export interface StockRowDto {
+  symbol: string;
+  ticker: string;
+  name: string;
+  exchange: string;
+  industryThscode: string | null;
+  industryName: string | null;
+  isFinancial: boolean;
+  tradeDate: string | null;
+  price: number | null;
+  changePct: number | null;
+  turnover: number | null;
+  volume: number | null;
+  avgTurnover20d: number | null;
+  peTtm: number | null;
+  peMrq: number | null;
+  pbMrq: number | null;
+  psTtm: number | null;
+  pcfTtm: number | null;
+  valuationTimestamp: number | null;
+  historyAsof: string | null;
+  return1y: number | null;
+  return3y: number | null;
+  return5y: number | null;
+  cagr1y: number | null;
+  cagr3y: number | null;
+  cagr5y: number | null;
+  maxDrawdown1y: number | null;
+  maxDrawdown3y: number | null;
+  maxDrawdown5y: number | null;
+  volatility1y: number | null;
+  volatility3y: number | null;
+  volatility5y: number | null;
+  return20d: number | null;
+  return60d: number | null;
+  ma60Bias: number | null;
+  sparkline: number[];
+  fiscalYear: number | null;
+  periodEnd: string | null;
+  reportDate: string | null;
+  currency: string | null;
+  roeWeighted: number | null;
+  roeDeductedWeighted: number | null;
+  grossMargin: number | null;
+  netMargin: number | null;
+  debtRatio: number | null;
+  operatingIncome: number | null;
+  revenueYoy: number | null;
+  netProfit: number | null;
+  parentNetProfit: number | null;
+  profitYoy: number | null;
+  revenueCagr3y: number | null;
+  profitCagr3y: number | null;
+  operatingCashFlow: number | null;
+  cashProfitRatio: number | null;
+  capex: number | null;
+  cashMinusCapex: number | null;
+  hasDeepResearch: boolean;
+  hasPriceHistory: boolean;
+  hasFinancials: boolean;
+  updatedAt: number;
 }
 
 export interface StockListResponse {
@@ -466,12 +769,92 @@ export interface StockListResponse {
   };
   industries: Array<{ industry: string; count: number }>;
   fiscalYears: number[];
-  rows: Array<Record<string, unknown>>;
+  rows: StockRowDto[];
   asof: {
     tradeDate: string | null;
     valuationTimestamp: number | null;
     historyAsof: string | null;
     updatedAt: number | null;
+  };
+}
+
+export function mapStockRowToDto(r: Record<string, unknown>): StockRowDto {
+  let sparkline: number[] = [];
+  try {
+    if (typeof r.sparklineJson === 'string') sparkline = JSON.parse(r.sparklineJson);
+    else if (typeof r.sparkline_json === 'string') sparkline = JSON.parse(r.sparkline_json);
+  } catch {
+    // ignore
+  }
+
+  return {
+    symbol: String(r.symbol ?? ''),
+    ticker: String(r.ticker ?? ''),
+    name: String(r.name ?? ''),
+    exchange: String(r.exchange ?? ''),
+    industryThscode: (r.industryThscode ?? r.industry_thscode ?? null) as string | null,
+    industryName: (r.industryName ?? r.industry_name ?? null) as string | null,
+    isFinancial: Boolean(r.isFinancial === 1 || r.is_financial === 1 || r.isFinancial === true),
+    tradeDate: (r.tradeDate ?? r.trade_date ?? null) as string | null,
+    price: parseFiniteNumber(r.price) ?? null,
+    changePct: parseFiniteNumber(r.changePct ?? r.change_pct) ?? null,
+    turnover: parseFiniteNumber(r.turnover) ?? null,
+    volume: parseFiniteNumber(r.volume) ?? null,
+    avgTurnover20d: parseFiniteNumber(r.avgTurnover20d ?? r.avg_turnover_20d) ?? null,
+    peTtm: parseFiniteNumber(r.peTtm ?? r.pe_ttm) ?? null,
+    peMrq: parseFiniteNumber(r.peMrq ?? r.pe_mrq) ?? null,
+    pbMrq: parseFiniteNumber(r.pbMrq ?? r.pb_mrq) ?? null,
+    psTtm: parseFiniteNumber(r.psTtm ?? r.ps_ttm) ?? null,
+    pcfTtm: parseFiniteNumber(r.pcfTtm ?? r.pcf_ttm) ?? null,
+    valuationTimestamp: parseFiniteNumber(r.valuationTimestamp ?? r.valuation_timestamp) ?? null,
+    historyAsof: (r.historyAsof ?? r.history_asof ?? null) as string | null,
+    return1y: parseFiniteNumber(r.return1y ?? r.return_1y) ?? null,
+    return3y: parseFiniteNumber(r.return3y ?? r.return_3y) ?? null,
+    return5y: parseFiniteNumber(r.return5y ?? r.return_5y) ?? null,
+    cagr1y: parseFiniteNumber(r.cagr1y ?? r.cagr_1y) ?? null,
+    cagr3y: parseFiniteNumber(r.cagr3y ?? r.cagr_3y) ?? null,
+    cagr5y: parseFiniteNumber(r.cagr5y ?? r.cagr_5y) ?? null,
+    maxDrawdown1y: parseFiniteNumber(r.maxDrawdown1y ?? r.max_drawdown_1y) ?? null,
+    maxDrawdown3y: parseFiniteNumber(r.maxDrawdown3y ?? r.max_drawdown_3y) ?? null,
+    maxDrawdown5y: parseFiniteNumber(r.maxDrawdown5y ?? r.max_drawdown_5y) ?? null,
+    volatility1y: parseFiniteNumber(r.volatility1y ?? r.volatility_1y) ?? null,
+    volatility3y: parseFiniteNumber(r.volatility3y ?? r.volatility_3y) ?? null,
+    volatility5y: parseFiniteNumber(r.volatility5y ?? r.volatility_5y) ?? null,
+    return20d: parseFiniteNumber(r.return20d ?? r.return_20d) ?? null,
+    return60d: parseFiniteNumber(r.return60d ?? r.return_60d) ?? null,
+    ma60Bias: parseFiniteNumber(r.ma60Bias ?? r.ma60_bias) ?? null,
+    sparkline,
+    fiscalYear: parseFiniteInt(r.fiscalYear ?? r.fiscal_year, 0, 1990, 2100) || null,
+    periodEnd: (r.periodEnd ?? r.period_end ?? null) as string | null,
+    reportDate: (r.reportDate ?? r.report_date ?? null) as string | null,
+    currency: (r.currency as string | null) ?? null,
+    roeWeighted: parseFiniteNumber(r.roeWeighted ?? r.roe_weighted) ?? null,
+    roeDeductedWeighted:
+      parseFiniteNumber(r.roeDeductedWeighted ?? r.roe_deducted_weighted) ?? null,
+    grossMargin: parseFiniteNumber(r.grossMargin ?? r.gross_margin) ?? null,
+    netMargin: parseFiniteNumber(r.netMargin ?? r.net_margin) ?? null,
+    debtRatio: parseFiniteNumber(r.debtRatio ?? r.debt_ratio) ?? null,
+    operatingIncome: parseFiniteNumber(r.operatingIncome ?? r.operating_income) ?? null,
+    revenueYoy: parseFiniteNumber(r.revenueYoy ?? r.revenue_yoy) ?? null,
+    netProfit: parseFiniteNumber(r.netProfit ?? r.net_profit) ?? null,
+    parentNetProfit: parseFiniteNumber(r.parentNetProfit ?? r.parent_net_profit) ?? null,
+    profitYoy: parseFiniteNumber(r.profitYoy ?? r.profit_yoy) ?? null,
+    revenueCagr3y: parseFiniteNumber(r.revenueCagr3y ?? r.revenue_cagr_3y) ?? null,
+    profitCagr3y: parseFiniteNumber(r.profitCagr3y ?? r.profit_cagr_3y) ?? null,
+    operatingCashFlow: parseFiniteNumber(r.operatingCashFlow ?? r.operating_cash_flow) ?? null,
+    cashProfitRatio: parseFiniteNumber(r.cashProfitRatio ?? r.cash_profit_ratio) ?? null,
+    capex: parseFiniteNumber(r.capex) ?? null,
+    cashMinusCapex: parseFiniteNumber(r.cashMinusCapex ?? r.cash_minus_capex) ?? null,
+    hasDeepResearch: Boolean(
+      r.hasDeepResearch === 1 || r.has_deep_research === 1 || r.hasDeepResearch === true,
+    ),
+    hasPriceHistory: Boolean(
+      r.hasPriceHistory === 1 || r.has_price_history === 1 || r.hasPriceHistory === true,
+    ),
+    hasFinancials: Boolean(
+      r.hasFinancials === 1 || r.has_financials === 1 || r.hasFinancials === true,
+    ),
+    updatedAt: Number(r.updatedAt ?? r.updated_at ?? 0),
   };
 }
 
@@ -541,19 +924,21 @@ export async function listSelectionStocks(
     ORDER BY fiscal_year DESC
   `);
 
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
+  const page = parseFiniteInt(query.page, 1, 1, 10000);
+  const pageSize = parseFiniteInt(query.pageSize, 50, 1, 200);
   const offset = (page - 1) * pageSize;
 
   const whereParts: string[] = ['1=1'];
   const params: SqlBinding[] = [];
 
-  // 默认选股沪深，如显式选择 BJ 或 all
-  if (query.exchange && query.exchange !== 'all') {
+  // 市场板块过滤支持 SH,SZ / all / 独立交易所
+  if (query.exchange === 'all') {
+    // 全市场，不限制
+  } else if (query.exchange === 'SH,SZ' || (!query.exchange && query.lens !== 'browse')) {
+    whereParts.push("exchange IN ('SH', 'SZ')");
+  } else if (query.exchange) {
     whereParts.push('exchange = ?');
     params.push(query.exchange);
-  } else if (!query.exchange && query.lens !== 'browse') {
-    whereParts.push("exchange IN ('SH', 'SZ')");
   }
 
   if (query.q) {
@@ -562,7 +947,7 @@ export async function listSelectionStocks(
     params.push(term, term, term);
   }
 
-  if (query.industry) {
+  if (query.industry && query.industry !== 'all') {
     if (query.industry === '未分类') {
       whereParts.push('industry_name IS NULL');
     } else {
@@ -577,12 +962,17 @@ export async function listSelectionStocks(
   } else if (query.isFinancial !== undefined) {
     whereParts.push('is_financial = ?');
     params.push(query.isFinancial ? 1 : 0);
-  } else if (query.lens === 'cashflow' || query.lens === 'quality') {
-    // 经营现金质量与盈利质量默认排除不可比金融股
+  } else if (query.lens === 'cashflow' || query.lens === 'quality' || query.lens === 'growth') {
+    // 经营现金质量、盈利质量与成长持续默认排除不可比金融股
     whereParts.push('is_financial = 0');
   }
 
-  if (query.fiscalYear) {
+  // 排除 ST / *ST 股票
+  if (query.excludeSt) {
+    whereParts.push("name NOT LIKE '%ST%'");
+  }
+
+  if (query.fiscalYear && Number.isFinite(query.fiscalYear)) {
     whereParts.push('fiscal_year = ?');
     params.push(query.fiscalYear);
   }
@@ -595,8 +985,7 @@ export async function listSelectionStocks(
     whereParts.push('has_financials = 1');
   }
 
-  // 精选数值条件
-  // 负 PE 绝不进入低估值
+  // 精选数值条件：负 PE 绝不进入低估值
   if (query.maxPe !== undefined && Number.isFinite(query.maxPe)) {
     whereParts.push('pe_ttm IS NOT NULL AND pe_ttm > 0 AND pe_ttm <= ?');
     params.push(query.maxPe);
@@ -634,46 +1023,49 @@ export async function listSelectionStocks(
   const totalPages = Math.ceil(total / pageSize);
 
   // 排序白名单
-  const sortMap: Record<string, string> = {
-    symbol: 'symbol',
-    ticker: 'ticker',
-    price: 'price',
-    changePct: 'change_pct',
-    turnover: 'turnover',
-    avgTurnover20d: 'avg_turnover_20d',
-    pe: 'pe_ttm',
-    pb: 'pb_mrq',
-    ps: 'ps_ttm',
-    pcf: 'pcf_ttm',
-    roe: 'roe_weighted',
-    roeDeducted: 'roe_deducted_weighted',
-    grossMargin: 'gross_margin',
-    netMargin: 'net_margin',
-    debtRatio: 'debt_ratio',
-    revenueYoy: 'revenue_yoy',
-    profitYoy: 'profit_yoy',
-    revenueCagr3y: 'revenue_cagr_3y',
-    profitCagr3y: 'profit_cagr_3y',
-    operatingIncome: 'operating_income',
-    netProfit: 'net_profit',
-    cashFlow: 'operating_cash_flow',
-    cashProfitRatio: 'cash_profit_ratio',
-    capex: 'capex',
-    cashMinusCapex: 'cash_minus_capex',
-    return: `return_${years}y`,
-    cagr: `cagr_${years}y`,
-    maxDrawdown: `max_drawdown_${years}y`,
-    volatility: `volatility_${years}y`,
-    return20d: 'return_20d',
-    return60d: 'return_60d',
-    ma60Bias: 'ma60_bias',
-  };
+  const sortMap = new Map<string, string>([
+    ['symbol', 'symbol'],
+    ['ticker', 'ticker'],
+    ['price', 'price'],
+    ['changePct', 'change_pct'],
+    ['turnover', 'turnover'],
+    ['avgTurnover20d', 'avg_turnover_20d'],
+    ['pe', 'pe_ttm'],
+    ['pb', 'pb_mrq'],
+    ['ps', 'ps_ttm'],
+    ['pcf', 'pcf_ttm'],
+    ['roe', 'roe_weighted'],
+    ['roeDeducted', 'roe_deducted_weighted'],
+    ['grossMargin', 'gross_margin'],
+    ['netMargin', 'net_margin'],
+    ['debtRatio', 'debt_ratio'],
+    ['revenueYoy', 'revenue_yoy'],
+    ['profitYoy', 'profit_yoy'],
+    ['revenueCagr3y', 'revenue_cagr_3y'],
+    ['profitCagr3y', 'profit_cagr_3y'],
+    ['operatingIncome', 'operating_income'],
+    ['netProfit', 'net_profit'],
+    ['cashFlow', 'operating_cash_flow'],
+    ['cashProfitRatio', 'cash_profit_ratio'],
+    ['capex', 'capex'],
+    ['cashMinusCapex', 'cash_minus_capex'],
+    ['return', `return_${years}y`],
+    ['cagr', `cagr_${years}y`],
+    ['maxDrawdown', `max_drawdown_${years}y`],
+    ['volatility', `volatility_${years}y`],
+    ['return20d', 'return_20d'],
+    ['return60d', 'return_60d'],
+    ['ma60Bias', 'ma60_bias'],
+  ]);
 
-  let sortKey = query.sort ? (sortMap[query.sort] ?? 'ticker') : 'ticker';
-  let order = query.order === 'desc' ? 'DESC' : 'ASC';
+  let sortKey = 'ticker';
+  let order: 'ASC' | 'DESC' = 'ASC';
 
-  // 镜头默认排序
-  if (!query.sort) {
+  const mappedStockSort = query.sort ? sortMap.get(query.sort) : undefined;
+  if (mappedStockSort) {
+    sortKey = mappedStockSort;
+    order = query.order === 'desc' ? 'DESC' : 'ASC';
+  } else if (!query.sort && query.lens) {
     if (query.lens === 'valuation') {
       sortKey = 'pe_ttm';
       order = 'ASC';
@@ -692,10 +1084,10 @@ export async function listSelectionStocks(
     }
   }
 
-  // PE 升序排时：负 PE 或 null 必须排在最后
+  // PE / PB / PS / PCF 升序排时：正数最便宜排最前，负数次之，null 排在最后
   let orderSql = '';
-  if (sortKey === 'pe_ttm' && order === 'ASC') {
-    orderSql = `CASE WHEN pe_ttm IS NULL OR pe_ttm <= 0 THEN 1 ELSE 0 END, pe_ttm ASC, symbol ASC`;
+  if (['pe_ttm', 'pb_mrq', 'ps_ttm', 'pcf_ttm'].includes(sortKey) && order === 'ASC') {
+    orderSql = `CASE WHEN ${sortKey} IS NULL THEN 2 WHEN ${sortKey} <= 0 THEN 1 ELSE 0 END, ${sortKey} ASC, symbol ASC`;
   } else if (sortKey === 'ticker' || sortKey === 'symbol') {
     orderSql = `${sortKey} ${order}`;
   } else {
@@ -746,22 +1138,7 @@ export async function listSelectionStocks(
     },
     industries: industryCounts.map((i) => ({ industry: i.industry_name, count: i.c })),
     fiscalYears: fyRows.map((f) => f.fiscal_year),
-    rows: rows.map((r) => {
-      let sparkline: number[] = [];
-      try {
-        if (typeof r.sparklineJson === 'string') sparkline = JSON.parse(r.sparklineJson);
-      } catch {
-        // ignore
-      }
-      return {
-        ...r,
-        sparkline,
-        isFinancial: r.isFinancial === 1,
-        hasDeepResearch: r.hasDeepResearch === 1,
-        hasPriceHistory: r.hasPriceHistory === 1,
-        hasFinancials: r.hasFinancials === 1,
-      };
-    }),
+    rows: rows.map(mapStockRowToDto),
     asof: {
       tradeDate: covRow?.max_trade_date ?? null,
       valuationTimestamp: covRow?.max_val_time ?? null,
@@ -793,20 +1170,35 @@ export async function getSelectionStockDetail(executor: QueryExec, symbol: strin
   const sym = catalog.symbol;
 
   // 物化宽表行
-  const mat =
+  const rawMat =
     (await executor.first<Record<string, unknown>>(
       'SELECT * FROM selection_stock_materialized WHERE symbol = ?',
       [sym],
     )) ?? {};
+  const metrics = mapStockRowToDto({ ...catalog, ...rawMat });
 
   // 估值
-  const val =
-    (await executor.first<Record<string, unknown>>(
-      'SELECT * FROM selection_stock_valuation WHERE symbol = ?',
-      [sym],
-    )) ?? {};
+  const val = (await executor.first<{
+    symbol: string;
+    trade_date: string | null;
+    timestamp: number | null;
+    pe_ttm: number | null;
+    pe_mrq: number | null;
+    pb_mrq: number | null;
+    ps_ttm: number | null;
+    pcf_ttm: number | null;
+  }>('SELECT * FROM selection_stock_valuation WHERE symbol = ?', [sym])) ?? {
+    symbol: sym,
+    trade_date: null,
+    timestamp: null,
+    pe_ttm: null,
+    pe_mrq: null,
+    pb_mrq: null,
+    ps_ttm: null,
+    pcf_ttm: null,
+  };
 
-  // 财报原始三张表 (近 5 年)
+  // 财报原始三张表 (按年期、期末日、币种对齐，最多取 5 完整年)
   const stmts = await executor.all<{
     statement_type: string;
     fiscal_year: number;
@@ -820,39 +1212,49 @@ export async function getSelectionStockDetail(executor: QueryExec, symbol: strin
     [sym],
   );
 
-  const statementsByYear: Record<
+  const byYearMap = new Map<
     number,
     {
       fiscalYear: number;
       periodEnd: string;
       reportDate: string;
       currency: string;
-      income?: Record<string, unknown>;
-      balance?: Record<string, unknown>;
-      cashFlow?: Record<string, unknown>;
+      income: Record<string, unknown> | null;
+      balance: Record<string, unknown> | null;
+      cashFlow: Record<string, unknown> | null;
     }
-  > = {};
+  >();
 
   for (const s of stmts) {
-    if (!statementsByYear[s.fiscal_year]) {
-      statementsByYear[s.fiscal_year] = {
+    let yearItem = byYearMap.get(s.fiscal_year);
+    if (!yearItem) {
+      yearItem = {
         fiscalYear: s.fiscal_year,
         periodEnd: s.period_end,
         reportDate: s.report_date,
         currency: s.currency,
+        income: null,
+        balance: null,
+        cashFlow: null,
       };
+      byYearMap.set(s.fiscal_year, yearItem);
     }
-    const target = statementsByYear[s.fiscal_year];
-    if (!target) continue;
-    try {
-      const d = JSON.parse(s.data_json);
-      if (s.statement_type === 'income') target.income = d;
-      if (s.statement_type === 'balance') target.balance = d;
-      if (s.statement_type === 'cash_flow') target.cashFlow = d;
-    } catch {
-      // ignore
+    // 必须期末日与币种完全对齐，才合并到该年度
+    if (yearItem.periodEnd === s.period_end && yearItem.currency === s.currency) {
+      try {
+        const d = JSON.parse(s.data_json);
+        if (s.statement_type === 'income') yearItem.income = d;
+        if (s.statement_type === 'balance') yearItem.balance = d;
+        if (s.statement_type === 'cash_flow') yearItem.cashFlow = d;
+      } catch {
+        // ignore
+      }
     }
   }
+
+  const statements = [...byYearMap.values()]
+    .sort((a, b) => b.fiscalYear - a.fiscalYear)
+    .slice(0, 5);
 
   // 能力指标
   const indicators = await executor.all<{
@@ -885,9 +1287,17 @@ export async function getSelectionStockDetail(executor: QueryExec, symbol: strin
         industryName: catalog.industry_name,
         isFinancial: catalog.is_financial === 1,
       },
-      metrics: mat,
-      valuation: val,
-      statements: Object.values(statementsByYear).sort((a, b) => b.fiscalYear - a.fiscalYear),
+      metrics,
+      valuation: {
+        tradeDate: val.trade_date,
+        timestamp: val.timestamp,
+        peTtm: parseFiniteNumber(val.pe_ttm) ?? null,
+        peMrq: parseFiniteNumber(val.pe_mrq) ?? null,
+        pbMrq: parseFiniteNumber(val.pb_mrq) ?? null,
+        psTtm: parseFiniteNumber(val.ps_ttm) ?? null,
+        pcfTtm: parseFiniteNumber(val.pcf_ttm) ?? null,
+      },
+      statements,
       indicators: indicatorsList,
     },
   };
@@ -898,15 +1308,48 @@ export async function getSelectionStockBars(
   symbol: string,
   options: { years?: 1 | 3 | 5; interval?: MarketBarInterval },
 ) {
+  const years = options.years ?? 1;
+  const interval = options.interval ?? 'day';
+
   if (!(await hasTable(executor, 'selection_daily_bar'))) {
-    return { ready: false, found: false, bars: [] };
+    return {
+      ready: false,
+      found: false,
+      adjust: 'forward',
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
+      bars: [],
+    };
   }
 
   const catalog = await executor.first<{ symbol: string }>(
     'SELECT symbol FROM selection_stock_catalog WHERE symbol = ? OR ticker = ?',
     [symbol, symbol],
   );
-  if (!catalog) return { ready: true, found: false, bars: [] };
+  if (!catalog) {
+    return {
+      ready: true,
+      found: false,
+      adjust: 'forward',
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
+      bars: [],
+    };
+  }
 
   const sym = catalog.symbol;
   const rawBars = await executor.all<{
@@ -928,7 +1371,15 @@ export async function getSelectionStockBars(
       ready: true,
       found: true,
       adjust: 'forward',
-      coverage: { hasBars: false, totalBars: 0, startDate: null, endDate: null },
+      interval,
+      years,
+      coverage: {
+        hasBars: false,
+        totalBars: 0,
+        startDate: null,
+        endDate: null,
+        isFullWindow: false,
+      },
       bars: [],
     };
   }
@@ -946,9 +1397,13 @@ export async function getSelectionStockBars(
   }));
 
   const lastDate = historyBars.at(-1)?.date ?? '';
-  const years = options.years ?? 1;
-  const interval = options.interval ?? 'day';
+  const firstDate = historyBars[0]?.date ?? '';
   const cutoff = yearsBefore(lastDate, years);
+
+  // 严格按自然日判断是否满足完整窗口跨度 (允许 10 天边界容差)
+  const windowFullTime = new Date(`${cutoff}T00:00:00Z`).getTime();
+  const firstActualTime = new Date(`${firstDate}T00:00:00Z`).getTime();
+  const isFullWindow = firstActualTime <= windowFullTime + 10 * 86400000;
 
   const filtered = historyBars.filter((b) => b.date >= cutoff);
   const aggregated = interval === 'day' ? filtered : aggregateMarketBars(filtered, interval);
@@ -964,6 +1419,7 @@ export async function getSelectionStockBars(
       totalBars: aggregated.length,
       startDate: aggregated[0]?.date ?? null,
       endDate: aggregated.at(-1)?.date ?? null,
+      isFullWindow,
     },
     bars: aggregated,
   };
