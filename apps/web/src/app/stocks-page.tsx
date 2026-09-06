@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import useSWR from 'swr';
@@ -16,11 +16,14 @@ import { DataInfo } from '@/components/charts/market-chart-controls';
 import { MiniTrend } from '@/components/charts/mini-trend';
 import { AppShell } from '@/components/layout';
 import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { useImeSearch } from '@/hooks/use-ime-search';
+import { useQuoteColor } from '@/hooks/use-quote-color';
 import { formatCount, formatMetric, formatPercent } from '@/lib/format-number';
 import { originFromList, stockDetailTo } from '@/lib/list-origin';
+import { quoteChangeClass } from '@/lib/quote-color';
 import {
   parseStockSearch,
   readStoredStockFilters,
@@ -117,8 +120,8 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
   const navigate = useNavigate();
   const params = useParams<{ lens?: string }>();
   const [searchParams] = useSearchParams();
+  const { color: quoteColor } = useQuoteColor();
 
-  // 根据路由匹配 lens: /stocks -> 'browse', /select-stock/:lens -> :lens
   const lens: StockLens = forcedLens ?? (params.lens as StockLens) ?? 'browse';
 
   const initialSearch = useMemo(() => {
@@ -130,7 +133,6 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
   const state = useMemo(() => parseStockSearch(initialSearch, lens), [initialSearch, lens]);
 
   const [localQ, setLocalQ] = useState(state.q);
-
   useEffect(() => {
     setLocalQ(state.q);
   }, [state.q]);
@@ -169,7 +171,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
     return `/api/selection/stocks?${p.toString()}`;
   }, [state, lens]);
 
-  const { data, error, isLoading } = useSWR<StockApiResponse>(apiPath, fetchAPI);
+  const { data, error, isLoading, mutate } = useSWR<StockApiResponse>(apiPath, fetchAPI);
 
   useEffect(() => {
     storeStockFilters(lens, state);
@@ -179,6 +181,14 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
     const next = { ...state, ...patch };
     const queryStr = stockUrlSearch(next, lens);
     navigate(`${location.pathname}${queryStr}`, { replace: true });
+  }
+
+  function handleSort(key: string) {
+    if (state.sort === key) {
+      updateFilter({ order: state.order === 'asc' ? 'desc' : 'asc', page: 1 });
+    } else {
+      updateFilter({ sort: key, order: 'desc', page: 1 });
+    }
   }
 
   const currentOrigin = useMemo(
@@ -202,6 +212,54 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
     ];
   }, [data?.industries]);
 
+  const sortOptions = useMemo(() => {
+    return [
+      { value: 'ticker', label: '默认（代码升序）' },
+      { value: 'price', label: '最新价' },
+      { value: 'changePct', label: '涨跌幅' },
+      { value: 'turnover', label: '成交额' },
+      { value: 'pe', label: '市盈率 PE(TTM)' },
+      { value: 'pb', label: '市净率 PB' },
+      { value: 'roe', label: '加权 ROE' },
+      { value: 'revenueYoy', label: '营收同比' },
+      { value: 'profitYoy', label: '净利同比' },
+      { value: 'cashProfitRatio', label: '现金利润比' },
+      { value: 'maxDrawdown', label: '最大回撤' },
+      { value: 'return', label: '周期收益' },
+      { value: 'cagr', label: '年化收益 CAGR' },
+      { value: 'ma60Bias', label: '60日均线偏离' },
+    ];
+  }, []);
+
+  const renderSortHeader = (
+    label: string,
+    sortField: string,
+    align: 'left' | 'right' = 'right',
+  ) => {
+    const isActive = state.sort === sortField;
+    return (
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1 font-semibold hover:text-basalt-foreground transition-colors cursor-pointer select-none ${
+          align === 'right' ? 'ml-auto' : ''
+        } ${isActive ? 'text-basalt-primary' : 'text-basalt-muted-foreground'}`}
+        onClick={() => handleSort(sortField)}
+        aria-label={`按${label}排序`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          state.order === 'asc' ? (
+            <ArrowUp className="size-3 text-basalt-primary" />
+          ) : (
+            <ArrowDown className="size-3 text-basalt-primary" />
+          )
+        ) : (
+          <ArrowUpDown className="size-3 opacity-40 hover:opacity-100" />
+        )}
+      </button>
+    );
+  };
+
   return (
     <AppShell>
       <ResearchHeader
@@ -212,8 +270,13 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             <DataInfo name="指标口径说明">
               <p>
                 财务数据默认最新完整年报口径，排他性对齐同币种期末；金融行业排除于通用现金流和负债率筛选；前复权历史价格走势真实替换；负
-                PE 永远不入选低估值。
+                PE/PB 排在最后。
               </p>
+              {data?.asof.valuationTimestamp && (
+                <p>
+                  估值批次时点：{new Date(data.asof.valuationTimestamp).toLocaleDateString('zh-CN')}
+                </p>
+              )}
             </DataInfo>
             {data?.asof.tradeDate && (
               <span className="text-xs text-basalt-muted-foreground">
@@ -230,7 +293,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           <LayerCard className="research-stat">
             <span className="text-xs text-basalt-muted-foreground">全 A 股目录</span>
             <div className="research-stat-value">{formatCount(data.coverage.catalogCount)}</div>
-            <span className="text-[11px] text-basalt-muted-foreground">沪深北全市场</span>
+            <span className="text-[11px] text-basalt-muted-foreground">沪深北全市场标的</span>
           </LayerCard>
           <LayerCard className="research-stat">
             <span className="text-xs text-basalt-muted-foreground">全市场估值覆盖</span>
@@ -240,19 +303,18 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             <span className="text-[11px] text-basalt-muted-foreground">最新批次估值快照</span>
           </LayerCard>
           <LayerCard className="research-stat">
-            <span className="text-xs text-basalt-muted-foreground">深度研究池价格历史</span>
+            <span className="text-xs text-basalt-muted-foreground">深度池价格历史</span>
             <div className="research-stat-value">{formatCount(data.coverage.withHistoryCount)}</div>
             <span className="text-[11px] text-basalt-muted-foreground">
-              占比{' '}
-              {((data.coverage.withHistoryCount / data.coverage.catalogCount) * 100).toFixed(1)}%
+              前复权真实 OHLC (有界池)
             </span>
           </LayerCard>
           <LayerCard className="research-stat">
-            <span className="text-xs text-basalt-muted-foreground">五年完整年报覆盖</span>
+            <span className="text-xs text-basalt-muted-foreground">深度年报与财务指标</span>
             <div className="research-stat-value">
               {formatCount(data.coverage.withFinancialsCount)}
             </div>
-            <span className="text-[11px] text-basalt-muted-foreground">财报与能力指标</span>
+            <span className="text-[11px] text-basalt-muted-foreground">对齐财务报告数据</span>
           </LayerCard>
         </div>
       )}
@@ -261,7 +323,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
       <LayerCard className="p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* 搜索 */}
-          <div className="relative w-52">
+          <div className="relative w-48">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-basalt-muted-foreground" />
             <Input
               placeholder="代码 / 股票简称搜索..."
@@ -295,6 +357,28 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             onChange={(val) => updateFilter({ industry: val, page: 1 })}
           />
 
+          {/* 金融行业切片 */}
+          <FilterDropdown
+            label="企业属性"
+            value={
+              state.isFinancial ? 'financial' : state.excludeFinancial ? 'nonFinancial' : 'all'
+            }
+            options={[
+              { value: 'all', label: '全部企业 (含金融)' },
+              { value: 'nonFinancial', label: '排除金融业 (通用企业)' },
+              { value: 'financial', label: '仅看金融业 (银行/证券/保险)' },
+            ]}
+            onChange={(val) => {
+              if (val === 'financial') {
+                updateFilter({ isFinancial: true, excludeFinancial: false, page: 1 });
+              } else if (val === 'nonFinancial') {
+                updateFilter({ isFinancial: undefined, excludeFinancial: true, page: 1 });
+              } else {
+                updateFilter({ isFinancial: undefined, excludeFinancial: false, page: 1 });
+              }
+            }}
+          />
+
           {/* 财报年份 */}
           {data?.fiscalYears && data.fiscalYears.length > 0 && (
             <FilterDropdown
@@ -324,71 +408,141 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
             />
           )}
 
-          {/* 金融股开关 */}
-          {(lens === 'valuation' || lens === 'browse') && (
-            <Button
-              variant={state.excludeFinancial ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ excludeFinancial: !state.excludeFinancial, page: 1 })}
-            >
-              {state.excludeFinancial ? '已排除金融业' : '排除金融业'}
-            </Button>
-          )}
+          {/* 覆盖开关 */}
+          <FilterCheck
+            label="仅看深度池"
+            checked={state.hasHistory}
+            onChange={(checked) => updateFilter({ hasHistory: checked, page: 1 })}
+          />
+
+          {/* 排序下拉 */}
+          <FilterDropdown
+            label="排序字段"
+            value={state.sort || 'ticker'}
+            options={sortOptions}
+            onChange={(val) => updateFilter({ sort: val === 'ticker' ? '' : val, page: 1 })}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-2 text-xs"
+            onClick={() => updateFilter({ order: state.order === 'asc' ? 'desc' : 'asc', page: 1 })}
+          >
+            {state.order === 'asc' ? '升序 ↑' : '降序 ↓'}
+          </Button>
         </div>
 
-        {/* 精选镜头专属门槛 */}
+        {/* 精选镜头专属门槛：数值可调 + 开闭 */}
         {lens === 'picks' && (
-          <div className="flex flex-wrap items-center gap-2 border-t pt-2 w-full mt-1 border-basalt-border/50 text-xs text-basalt-muted-foreground">
-            <span>精选硬条件交集：</span>
-            <Button
-              variant={state.excludeSt ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ excludeSt: !state.excludeSt, page: 1 })}
-            >
-              {state.excludeSt ? '已剔除 ST' : '包含 ST 股'}
-            </Button>
-            <Button
-              variant={state.maxPeEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ maxPeEnabled: !state.maxPeEnabled, page: 1 })}
-            >
-              PE(TTM) 正且 ≤ {state.maxPe} {state.maxPeEnabled ? '(已开)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.minRoeEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ minRoeEnabled: !state.minRoeEnabled, page: 1 })}
-            >
-              ROE ≥ {state.minRoe}% {state.minRoeEnabled ? '(已开)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.minRevenueYoyEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                updateFilter({ minRevenueYoyEnabled: !state.minRevenueYoyEnabled, page: 1 })
-              }
-            >
-              营收增长 ≥ {state.minRevenueYoy}% {state.minRevenueYoyEnabled ? '(已开)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.maxDrawdownEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                updateFilter({ maxDrawdownEnabled: !state.maxDrawdownEnabled, page: 1 })
-              }
-            >
-              最大回撤 ≤ {state.maxDrawdown}% {state.maxDrawdownEnabled ? '(已开)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.minTurnoverEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                updateFilter({ minTurnoverEnabled: !state.minTurnoverEnabled, page: 1 })
-              }
-            >
-              成交额 ≥ {(state.minTurnover / 10000).toFixed(0)}万{' '}
-              {state.minTurnoverEnabled ? '(已开)' : '(已关)'}
-            </Button>
+          <div className="flex flex-wrap items-center gap-3 border-t pt-2 w-full mt-1 border-basalt-border/50 text-xs">
+            <span className="text-basalt-muted-foreground font-medium">精选硬条件交集：</span>
+            <FilterCheck
+              label="排除 ST 股"
+              checked={state.excludeSt}
+              onChange={(checked) => updateFilter({ excludeSt: checked, page: 1 })}
+            />
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="PE 上限"
+                checked={state.maxPeEnabled}
+                onChange={(checked) => updateFilter({ maxPeEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="5"
+                min="1"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.maxPeEnabled}
+                value={state.maxPe}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ maxPe: Number(e.target.value) || 40, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">倍 (正数)</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="ROE 下限"
+                checked={state.minRoeEnabled}
+                onChange={(checked) => updateFilter({ minRoeEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="1"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.minRoeEnabled}
+                value={state.minRoe}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ minRoe: Number(e.target.value) || 8.0, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">%</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="营收增长"
+                checked={state.minRevenueYoyEnabled}
+                onChange={(checked) => updateFilter({ minRevenueYoyEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="5"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.minRevenueYoyEnabled}
+                value={state.minRevenueYoy}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ minRevenueYoy: Number(e.target.value) || 0.0, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">%</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="回撤上限"
+                checked={state.maxDrawdownEnabled}
+                onChange={(checked) => updateFilter({ maxDrawdownEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="5"
+                min="5"
+                max="100"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.maxDrawdownEnabled}
+                value={state.maxDrawdown}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ maxDrawdown: Number(e.target.value) || 50.0, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">%</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="成交额"
+                checked={state.minTurnoverEnabled}
+                onChange={(checked) => updateFilter({ minTurnoverEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="1000"
+                min="0"
+                className="w-20 h-7 text-xs font-mono"
+                disabled={!state.minTurnoverEnabled}
+                value={Math.round(state.minTurnover / 10000)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({
+                    minTurnover: (Number(e.target.value) || 5000) * 10000,
+                    page: 1,
+                  })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">万元</span>
+            </div>
           </div>
         )}
       </LayerCard>
@@ -399,84 +553,166 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
           <LayerCard.Loading label="正在查询股票列表数据..." className="py-24" />
         ) : error || !data?.ready ? (
           <ResearchEmpty
-            title={data?.ready === false ? '数据表尚未同步就绪' : '数据加载遇到异常'}
-            description="请在终端运行 bun run fetch:selection 采集并物化数据表。"
+            title={data?.ready === false ? '选股研究数据表未就绪' : '数据加载异常'}
+            description={
+              data?.ready === false
+                ? '系统尚未生成股票研究物化快照，请稍后刷新重试。'
+                : '网络请求失败，请检查服务状态。'
+            }
+            action={
+              <Button variant="outline" size="sm" onClick={() => void mutate()}>
+                <RefreshCw className="size-3.5 mr-1" /> 重试
+              </Button>
+            }
           />
         ) : data.rows.length === 0 ? (
           <ResearchEmpty
             title="未找到符合条件的股票"
-            description="尝试调整行业、放宽搜索词或精选指标门槛。"
+            description="尝试放宽行业、搜索词或切换企业属性（含金融）。"
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => updateFilter({ industry: 'all', q: '', page: 1 })}
+              >
+                重置基础筛选
+              </Button>
+            }
           />
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16">序号</TableHead>
-                  <TableHead className="w-36">代码 / 简称</TableHead>
+                  <TableHead className="w-14">序号</TableHead>
+                  <TableHead className="w-36">
+                    {renderSortHeader('代码/简称', 'ticker', 'left')}
+                  </TableHead>
                   <TableHead className="w-24">行业</TableHead>
-                  <TableHead className="w-24 text-right">最新价</TableHead>
-                  <TableHead className="w-24 text-right">涨跌幅</TableHead>
-                  <TableHead className="w-28 text-right">成交额</TableHead>
+                  <TableHead className="w-24 text-right">
+                    {renderSortHeader('最新价', 'price')}
+                  </TableHead>
+                  <TableHead className="w-24 text-right">
+                    {renderSortHeader('涨跌幅', 'changePct')}
+                  </TableHead>
+                  <TableHead className="w-28 text-right">
+                    {renderSortHeader('成交额', 'turnover')}
+                  </TableHead>
 
                   {lens === 'valuation' && (
                     <>
-                      <TableHead className="w-28 text-right">PE (TTM)</TableHead>
-                      <TableHead className="w-24 text-right">PE (MRQ)</TableHead>
-                      <TableHead className="w-24 text-right">PB (MRQ)</TableHead>
-                      <TableHead className="w-24 text-right">PS (TTM)</TableHead>
-                      <TableHead className="w-24 text-right">PCF (TTM)</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('PE (TTM)', 'pe')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('PE (MRQ)', 'peMrq')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('PB (MRQ)', 'pb')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('PS (TTM)', 'ps')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('PCF (TTM)', 'pcf')}
+                      </TableHead>
                     </>
                   )}
 
                   {lens === 'quality' && (
                     <>
-                      <TableHead className="w-28 text-right">加权 ROE</TableHead>
-                      <TableHead className="w-28 text-right">扣非 ROE</TableHead>
-                      <TableHead className="w-24 text-right">销售净利率</TableHead>
-                      <TableHead className="w-24 text-right">毛利率</TableHead>
-                      <TableHead className="w-24 text-right">资产负债率</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('加权 ROE', 'roe')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('扣非 ROE', 'roeDeducted')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('销售净利率', 'netMargin')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('毛利率', 'grossMargin')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('资产负债率', 'debtRatio')}
+                      </TableHead>
                       <TableHead className="w-20 text-center">财年</TableHead>
                     </>
                   )}
 
                   {lens === 'growth' && (
                     <>
-                      <TableHead className="w-28 text-right">营收同比</TableHead>
-                      <TableHead className="w-28 text-right">归母净利同比</TableHead>
-                      <TableHead className="w-28 text-right">营收 3年CAGR</TableHead>
-                      <TableHead className="w-28 text-right">净利 3年CAGR</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('营收同比', 'revenueYoy')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('归母净利同比', 'profitYoy')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('营收 3年CAGR', 'revenueCagr3y')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('净利 3年CAGR', 'profitCagr3y')}
+                      </TableHead>
                       <TableHead className="w-20 text-center">财年</TableHead>
                     </>
                   )}
 
                   {lens === 'cashflow' && (
                     <>
-                      <TableHead className="w-28 text-right">经营现金流</TableHead>
-                      <TableHead className="w-28 text-right">现金利润比</TableHead>
-                      <TableHead className="w-28 text-right">资本开支</TableHead>
-                      <TableHead className="w-32 text-right">现金流减开支</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('经营现金流', 'cashFlow')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('现金利润比', 'cashProfitRatio')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('资本开支', 'capex')}
+                      </TableHead>
+                      <TableHead className="w-32 text-right">
+                        {renderSortHeader('现金流减开支', 'cashMinusCapex')}
+                      </TableHead>
                       <TableHead className="w-20 text-center">财年</TableHead>
                     </>
                   )}
 
                   {lens === 'trend' && (
                     <>
-                      <TableHead className="w-28 text-right">周期收益</TableHead>
-                      <TableHead className="w-28 text-right">年化收益 CAGR</TableHead>
-                      <TableHead className="w-24 text-right">最大回撤</TableHead>
-                      <TableHead className="w-24 text-right">年化波动</TableHead>
-                      <TableHead className="w-24 text-right">20日涨幅</TableHead>
-                      <TableHead className="w-24 text-right">均线偏离度</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('周期收益', 'return')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('年化收益 CAGR', 'cagr')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('最大回撤', 'maxDrawdown')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('年化波动', 'volatility')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('20日涨幅', 'return20d')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('均线偏离度', 'ma60Bias')}
+                      </TableHead>
                     </>
                   )}
 
                   {lens === 'picks' && (
                     <>
-                      <TableHead className="w-24 text-right">PE (TTM)</TableHead>
-                      <TableHead className="w-24 text-right">加权 ROE</TableHead>
-                      <TableHead className="w-24 text-right">营收同比</TableHead>
-                      <TableHead className="w-24 text-right">最大回撤</TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('PE (TTM)', 'pe')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('加权 ROE', 'roe')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('营收同比', 'revenueYoy')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('最大回撤', 'maxDrawdown')}
+                      </TableHead>
                       <TableHead className="w-20 text-center">财年</TableHead>
                     </>
                   )}
@@ -537,16 +773,10 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {row.changePct !== null ? (
-                          <span
-                            className={
-                              row.changePct > 0
-                                ? 'text-basalt-red'
-                                : row.changePct < 0
-                                  ? 'text-basalt-green'
-                                  : ''
-                            }
-                          >
-                            {row.changePct > 0 ? `+${row.changePct}%` : `${row.changePct}%`}
+                          <span className={quoteChangeClass(row.changePct, quoteColor)}>
+                            {row.changePct > 0
+                              ? `+${row.changePct.toFixed(2)}%`
+                              : `${row.changePct.toFixed(2)}%`}
                           </span>
                         ) : (
                           '—'
@@ -559,7 +789,15 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                       {lens === 'valuation' && (
                         <>
                           <TableCell className="text-right font-mono text-xs font-semibold">
-                            {row.peTtm !== null ? row.peTtm.toFixed(2) : '—'}
+                            {row.peTtm !== null ? (
+                              <span
+                                className={row.peTtm <= 0 ? 'text-basalt-muted-foreground' : ''}
+                              >
+                                {row.peTtm.toFixed(2)}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {row.peMrq !== null ? row.peMrq.toFixed(2) : '—'}
@@ -603,16 +841,10 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                         <>
                           <TableCell className="text-right font-mono text-xs">
                             {row.revenueYoy !== null ? (
-                              <span
-                                className={
-                                  row.revenueYoy > 0
-                                    ? 'text-basalt-red'
-                                    : row.revenueYoy < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {row.revenueYoy > 0 ? `+${row.revenueYoy}%` : `${row.revenueYoy}%`}
+                              <span className={quoteChangeClass(row.revenueYoy, quoteColor)}>
+                                {row.revenueYoy > 0
+                                  ? `+${row.revenueYoy.toFixed(2)}%`
+                                  : `${row.revenueYoy.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
@@ -620,16 +852,10 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {row.profitYoy !== null ? (
-                              <span
-                                className={
-                                  row.profitYoy > 0
-                                    ? 'text-basalt-red'
-                                    : row.profitYoy < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {row.profitYoy > 0 ? `+${row.profitYoy}%` : `${row.profitYoy}%`}
+                              <span className={quoteChangeClass(row.profitYoy, quoteColor)}>
+                                {row.profitYoy > 0
+                                  ? `+${row.profitYoy.toFixed(2)}%`
+                                  : `${row.profitYoy.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
@@ -675,16 +901,8 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                         <>
                           <TableCell className="text-right font-mono text-xs">
                             {retVal !== null ? (
-                              <span
-                                className={
-                                  retVal > 0
-                                    ? 'text-basalt-red'
-                                    : retVal < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {retVal > 0 ? `+${retVal}%` : `${retVal}%`}
+                              <span className={quoteChangeClass(retVal, quoteColor)}>
+                                {retVal > 0 ? `+${retVal.toFixed(2)}%` : `${retVal.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
@@ -692,35 +910,28 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {cagrVal !== null ? (
-                              <span
-                                className={
-                                  cagrVal > 0
-                                    ? 'text-basalt-red'
-                                    : cagrVal < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {cagrVal > 0 ? `+${cagrVal}%` : `${cagrVal}%`}
+                              <span className={quoteChangeClass(cagrVal, quoteColor)}>
+                                {cagrVal > 0 ? `+${cagrVal.toFixed(2)}%` : `${cagrVal.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {ddVal !== null ? `${ddVal}%` : '—'}
+                            {/* 最大回撤为正数，不加红绿 */}
+                            {ddVal !== null ? `${ddVal.toFixed(2)}%` : '—'}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {formatPercent(volVal)}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {row.return20d !== null
-                              ? `${row.return20d > 0 ? `+${row.return20d}` : row.return20d}%`
+                              ? `${row.return20d > 0 ? `+${row.return20d.toFixed(2)}` : row.return20d.toFixed(2)}%`
                               : '—'}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {row.ma60Bias !== null
-                              ? `${row.ma60Bias > 0 ? `+${row.ma60Bias}` : row.ma60Bias}%`
+                              ? `${row.ma60Bias > 0 ? `+${row.ma60Bias.toFixed(2)}` : row.ma60Bias.toFixed(2)}%`
                               : '—'}
                           </TableCell>
                         </>
@@ -738,7 +949,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                             {formatPercent(row.revenueYoy)}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {ddVal !== null ? `${ddVal}%` : '—'}
+                            {ddVal !== null ? `${ddVal.toFixed(2)}%` : '—'}
                           </TableCell>
                           <TableCell className="text-center text-xs text-basalt-muted-foreground">
                             {row.fiscalYear ?? '—'}
@@ -748,7 +959,12 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
 
                       <TableCell className="text-center w-32 p-1">
                         {row.sparkline && row.sparkline.length > 1 ? (
-                          <MiniTrend values={row.sparkline} />
+                          <div className="flex flex-col items-center">
+                            <MiniTrend values={row.sparkline} />
+                            <span className="text-[10px] text-basalt-muted-foreground font-mono leading-none scale-90">
+                              前复权
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-xs text-basalt-muted-foreground/50">—</span>
                         )}
@@ -757,7 +973,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                       <TableCell className="text-center text-xs">
                         {row.hasDeepResearch ? (
                           <span className="px-1.5 py-0.5 rounded bg-basalt-primary/10 text-basalt-primary text-[10px]">
-                            深度财报
+                            深度池
                           </span>
                         ) : row.hasPriceHistory ? (
                           <span className="px-1.5 py-0.5 rounded bg-basalt-muted text-basalt-muted-foreground text-[10px]">

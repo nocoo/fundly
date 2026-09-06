@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import useSWR from 'swr';
@@ -16,9 +16,11 @@ import { DataInfo } from '@/components/charts/market-chart-controls';
 import { MiniTrend } from '@/components/charts/mini-trend';
 import { AppShell } from '@/components/layout';
 import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { useImeSearch } from '@/hooks/use-ime-search';
+import { useQuoteColor } from '@/hooks/use-quote-color';
 import {
   ETF_LENS_DESCRIPTIONS,
   ETF_LENS_LABEL,
@@ -30,6 +32,7 @@ import {
 } from '@/lib/etf-vm';
 import { formatCount, formatMetric, formatPercent } from '@/lib/format-number';
 import { etfDetailTo, originFromList } from '@/lib/list-origin';
+import { quoteChangeClass } from '@/lib/quote-color';
 
 interface EtfRow {
   symbol: string;
@@ -102,8 +105,8 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
   const navigate = useNavigate();
   const params = useParams<{ lens?: string }>();
   const [searchParams] = useSearchParams();
+  const { color: quoteColor } = useQuoteColor();
 
-  // 根据路由匹配 lens: /etfs -> 'browse', /select-etf/:lens -> :lens
   const lens: EtfLens = forcedLens ?? (params.lens as EtfLens) ?? 'browse';
 
   const initialSearch = useMemo(() => {
@@ -115,7 +118,6 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
   const state = useMemo(() => parseEtfSearch(initialSearch, lens), [initialSearch, lens]);
 
   const [localQ, setLocalQ] = useState(state.q);
-
   useEffect(() => {
     setLocalQ(state.q);
   }, [state.q]);
@@ -146,7 +148,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
     return `/api/selection/etfs?${p.toString()}`;
   }, [state, lens]);
 
-  const { data, error, isLoading } = useSWR<EtfApiResponse>(apiPath, fetchAPI);
+  const { data, error, isLoading, mutate } = useSWR<EtfApiResponse>(apiPath, fetchAPI);
 
   useEffect(() => {
     storeEtfFilters(lens, state);
@@ -156,6 +158,14 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
     const next = { ...state, ...patch };
     const queryStr = etfUrlSearch(next, lens);
     navigate(`${location.pathname}${queryStr}`, { replace: true });
+  }
+
+  function handleSort(key: string) {
+    if (state.sort === key) {
+      updateFilter({ order: state.order === 'asc' ? 'desc' : 'asc', page: 1 });
+    } else {
+      updateFilter({ sort: key, order: 'desc', page: 1 });
+    }
   }
 
   const currentOrigin = useMemo(
@@ -170,6 +180,54 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
   const title = ETF_LENS_LABEL[lens] ?? '选 ETF';
   const subtitle = ETF_LENS_DESCRIPTIONS[lens] ?? '';
 
+  const sortOptions = useMemo(() => {
+    const list = [
+      { value: 'ticker', label: '默认（代码升序）' },
+      { value: 'scale', label: '规模' },
+      { value: 'price', label: '最新价' },
+      { value: 'changePct', label: '涨跌幅' },
+      { value: 'fee', label: '持续费率' },
+      { value: 'return', label: '周期收益' },
+      { value: 'cagr', label: '年化收益 CAGR' },
+      { value: 'maxDrawdown', label: '最大回撤' },
+      { value: 'volatility', label: '年化波动' },
+      { value: 'avgTurnover20d', label: '20日均成交额' },
+    ];
+    if (lens === 'liquidity') {
+      list.push({ value: 'premiumDiscount', label: '折溢价率' });
+    }
+    return list;
+  }, [lens]);
+
+  const renderSortHeader = (
+    label: string,
+    sortField: string,
+    align: 'left' | 'right' = 'right',
+  ) => {
+    const isActive = state.sort === sortField;
+    return (
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1 font-semibold hover:text-basalt-foreground transition-colors cursor-pointer select-none ${
+          align === 'right' ? 'ml-auto' : ''
+        } ${isActive ? 'text-basalt-primary' : 'text-basalt-muted-foreground'}`}
+        onClick={() => handleSort(sortField)}
+        aria-label={`按${label}排序`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          state.order === 'asc' ? (
+            <ArrowUp className="size-3 text-basalt-primary" />
+          ) : (
+            <ArrowDown className="size-3 text-basalt-primary" />
+          )
+        ) : (
+          <ArrowUpDown className="size-3 opacity-40 hover:opacity-100" />
+        )}
+      </button>
+    );
+  };
+
   return (
     <AppShell>
       <ResearchHeader
@@ -179,8 +237,9 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           <div className="flex items-center gap-3">
             <DataInfo name="口径说明">
               <p>
-                持续费用包含管理与托管费；披露规模以定期报告为准；年化收益与最大回撤为几何年化计算；折溢价仅在同日有真实收盘与净值时计算。
+                持续费用包含管理与托管费；披露规模以定期报告为准；最大回撤为正数深度（不加正号）；折溢价仅在同日有真实收盘与净值时计算。
               </p>
+              {data?.asof.navDate && <p>本地净值时效：{data.asof.navDate}</p>}
             </DataInfo>
             {data?.asof.tradeDate && (
               <span className="text-xs text-basalt-muted-foreground">
@@ -207,9 +266,9 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
             </span>
           </LayerCard>
           <LayerCard className="research-stat">
-            <span className="text-xs text-basalt-muted-foreground">真实日 K 覆盖</span>
+            <span className="text-xs text-basalt-muted-foreground">场内日 K 覆盖</span>
             <div className="research-stat-value">{formatCount(data.coverage.withBarsCount)}</div>
-            <span className="text-[11px] text-basalt-muted-foreground">五年真实无复权</span>
+            <span className="text-[11px] text-basalt-muted-foreground">真实不复权历史</span>
           </LayerCard>
           <LayerCard className="research-stat">
             <span className="text-xs text-basalt-muted-foreground">披露规模覆盖</span>
@@ -223,7 +282,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
       <LayerCard className="p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* 搜索 */}
-          <div className="relative w-52">
+          <div className="relative w-48">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-basalt-muted-foreground" />
             <Input
               placeholder="代码 / 名称搜索..."
@@ -280,45 +339,119 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
               onChange={(val) => updateFilter({ years: val as '1' | '3' | '5', page: 1 })}
             />
           )}
+
+          {/* 覆盖开关 */}
+          <FilterCheck
+            label="仅有场内行情"
+            checked={state.hasBars}
+            onChange={(checked) => updateFilter({ hasBars: checked, page: 1 })}
+          />
+
+          {/* 排序下拉 */}
+          <FilterDropdown
+            label="排序字段"
+            value={state.sort || 'ticker'}
+            options={sortOptions}
+            onChange={(val) => updateFilter({ sort: val === 'ticker' ? '' : val, page: 1 })}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 px-2 text-xs"
+            onClick={() => updateFilter({ order: state.order === 'asc' ? 'desc' : 'asc', page: 1 })}
+          >
+            {state.order === 'asc' ? '升序 ↑' : '降序 ↓'}
+          </Button>
         </div>
 
-        {/* 精选镜头专属门槛 */}
+        {/* 精选镜头专属门槛：数值可调 + 可开闭 */}
         {lens === 'picks' && (
-          <div className="flex flex-wrap items-center gap-2 border-t pt-2 w-full mt-1 border-basalt-border/50 text-xs text-basalt-muted-foreground">
-            <span>精选硬条件交集：</span>
-            <Button
-              variant={state.maxFeeEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ maxFeeEnabled: !state.maxFeeEnabled, page: 1 })}
-            >
-              费率 ≤ {state.maxFee}% {state.maxFeeEnabled ? '(已启用)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.minScaleEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => updateFilter({ minScaleEnabled: !state.minScaleEnabled, page: 1 })}
-            >
-              规模 ≥ {state.minScale}亿 {state.minScaleEnabled ? '(已启用)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.maxDrawdownEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                updateFilter({ maxDrawdownEnabled: !state.maxDrawdownEnabled, page: 1 })
-              }
-            >
-              回撤 ≤ {state.maxDrawdown}% {state.maxDrawdownEnabled ? '(已启用)' : '(已关)'}
-            </Button>
-            <Button
-              variant={state.minTurnoverEnabled ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                updateFilter({ minTurnoverEnabled: !state.minTurnoverEnabled, page: 1 })
-              }
-            >
-              20日均成交 ≥ {(state.minTurnover / 10000).toFixed(0)}万{' '}
-              {state.minTurnoverEnabled ? '(已启用)' : '(已关)'}
-            </Button>
+          <div className="flex flex-wrap items-center gap-3 border-t pt-2 w-full mt-1 border-basalt-border/50 text-xs">
+            <span className="text-basalt-muted-foreground font-medium">精选门槛交集：</span>
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="费率上限"
+                checked={state.maxFeeEnabled}
+                onChange={(checked) => updateFilter({ maxFeeEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="0.05"
+                min="0.05"
+                max="5"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.maxFeeEnabled}
+                value={state.maxFee}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ maxFee: Number(e.target.value) || 0.6, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">%</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="规模下限"
+                checked={state.minScaleEnabled}
+                onChange={(checked) => updateFilter({ minScaleEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.minScaleEnabled}
+                value={state.minScale}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ minScale: Number(e.target.value) || 2.0, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">亿元</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="回撤上限"
+                checked={state.maxDrawdownEnabled}
+                onChange={(checked) => updateFilter({ maxDrawdownEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="5"
+                min="5"
+                max="100"
+                className="w-16 h-7 text-xs font-mono"
+                disabled={!state.maxDrawdownEnabled}
+                value={state.maxDrawdown}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({ maxDrawdown: Number(e.target.value) || 35.0, page: 1 })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">%</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-basalt-control px-2 py-1 rounded-md border border-basalt-border">
+              <FilterCheck
+                label="20日均成交"
+                checked={state.minTurnoverEnabled}
+                onChange={(checked) => updateFilter({ minTurnoverEnabled: checked, page: 1 })}
+              />
+              <Input
+                type="number"
+                step="500"
+                min="0"
+                className="w-20 h-7 text-xs font-mono"
+                disabled={!state.minTurnoverEnabled}
+                value={Math.round(state.minTurnover / 10000)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateFilter({
+                    minTurnover: (Number(e.target.value) || 1000) * 10000,
+                    page: 1,
+                  })
+                }
+              />
+              <span className="text-basalt-muted-foreground text-[11px]">万元</span>
+            </div>
           </div>
         )}
       </LayerCard>
@@ -329,46 +462,92 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           <LayerCard.Loading label="正在查询 ETF 列表数据..." className="py-24" />
         ) : error || !data?.ready ? (
           <ResearchEmpty
-            title={data?.ready === false ? '数据表尚未同步就绪' : '数据加载遇到异常'}
-            description="请在终端运行 bun run fetch:selection 采集并物化数据表。"
+            title={data?.ready === false ? 'ETF 研究数据表未就绪' : '数据加载异常'}
+            description={
+              data?.ready === false
+                ? '系统尚未生成选基与选 ETF 物化视图，请稍后刷新重试。'
+                : '网络请求失败，请检查连接后重试。'
+            }
+            action={
+              <Button variant="outline" size="sm" onClick={() => void mutate()}>
+                <RefreshCw className="size-3.5 mr-1" /> 重试
+              </Button>
+            }
           />
         ) : data.rows.length === 0 ? (
           <ResearchEmpty
             title="未找到符合条件的 ETF"
-            description="尝试放宽筛选条件、搜索词或切换资产类别。"
+            description="尝试调整搜索词、放宽资产类别或关闭部分精选门槛。"
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => updateFilter({ category: 'all', theme: 'all', q: '', page: 1 })}
+              >
+                重置基础筛选
+              </Button>
+            }
           />
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16">序号</TableHead>
-                  <TableHead className="w-36">代码 / 简称</TableHead>
+                  <TableHead className="w-14">序号</TableHead>
+                  <TableHead className="w-36">
+                    {renderSortHeader('代码/简称', 'ticker', 'left')}
+                  </TableHead>
                   <TableHead className="w-24">资产类</TableHead>
                   <TableHead className="w-24">方向分类</TableHead>
-                  <TableHead className="w-24 text-right">最新价</TableHead>
-                  <TableHead className="w-24 text-right">涨跌幅</TableHead>
-                  <TableHead className="w-28 text-right">披露规模</TableHead>
+                  <TableHead className="w-24 text-right">
+                    {renderSortHeader('最新价', 'price')}
+                  </TableHead>
+                  <TableHead className="w-24 text-right">
+                    {renderSortHeader('涨跌幅', 'changePct')}
+                  </TableHead>
+                  <TableHead className="w-28 text-right">
+                    {renderSortHeader('披露规模', 'scale')}
+                  </TableHead>
                   {lens === 'liquidity' && (
                     <>
-                      <TableHead className="w-28 text-right">当日成交</TableHead>
-                      <TableHead className="w-32 text-right">20日均成交</TableHead>
-                      <TableHead className="w-28 text-right">折溢价率</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('当日成交', 'turnover')}
+                      </TableHead>
+                      <TableHead className="w-32 text-right">
+                        {renderSortHeader('20日均成交', 'avgTurnover20d')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('同日折溢价', 'premiumDiscount')}
+                      </TableHead>
                     </>
                   )}
                   {lens === 'cost' && (
                     <>
-                      <TableHead className="w-24 text-right">管理费</TableHead>
-                      <TableHead className="w-24 text-right">托管费</TableHead>
-                      <TableHead className="w-28 text-right">持续费率合计</TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('管理费', 'mgmtFee')}
+                      </TableHead>
+                      <TableHead className="w-24 text-right">
+                        {renderSortHeader('托管费', 'custodyFee')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('两费合计', 'fee')}
+                      </TableHead>
                     </>
                   )}
                   {(lens === 'risk' || lens === 'allocation' || lens === 'picks') && (
                     <>
-                      <TableHead className="w-28 text-right">周期收益</TableHead>
-                      <TableHead className="w-28 text-right">年化收益 CAGR</TableHead>
-                      <TableHead className="w-28 text-right">最大回撤</TableHead>
-                      <TableHead className="w-28 text-right">年化波动</TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('周期收益', 'return')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('年化收益 CAGR', 'cagr')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('最大回撤', 'maxDrawdown')}
+                      </TableHead>
+                      <TableHead className="w-28 text-right">
+                        {renderSortHeader('年化波动', 'volatility')}
+                      </TableHead>
                     </>
                   )}
                   <TableHead className="w-32 text-center">趋势走势</TableHead>
@@ -430,23 +609,17 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {row.changePct !== null ? (
-                          <span
-                            className={
-                              row.changePct > 0
-                                ? 'text-basalt-red'
-                                : row.changePct < 0
-                                  ? 'text-basalt-green'
-                                  : ''
-                            }
-                          >
-                            {row.changePct > 0 ? `+${row.changePct}%` : `${row.changePct}%`}
+                          <span className={quoteChangeClass(row.changePct, quoteColor)}>
+                            {row.changePct > 0
+                              ? `+${row.changePct.toFixed(2)}%`
+                              : `${row.changePct.toFixed(2)}%`}
                           </span>
                         ) : (
                           '—'
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
-                        {row.scaleYi !== null ? `${row.scaleYi} 亿` : '—'}
+                        {row.scaleYi !== null ? `${row.scaleYi.toFixed(2)} 亿` : '—'}
                       </TableCell>
 
                       {lens === 'liquidity' && (
@@ -459,10 +632,12 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {row.premiumDiscountPct !== null ? (
-                              <span>
+                              <span
+                                className={quoteChangeClass(row.premiumDiscountPct, quoteColor)}
+                              >
                                 {row.premiumDiscountPct > 0
-                                  ? `+${row.premiumDiscountPct}%`
-                                  : `${row.premiumDiscountPct}%`}
+                                  ? `+${row.premiumDiscountPct.toFixed(2)}%`
+                                  : `${row.premiumDiscountPct.toFixed(2)}%`}
                               </span>
                             ) : (
                               <span className="text-basalt-muted-foreground/60">—</span>
@@ -489,16 +664,8 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                         <>
                           <TableCell className="text-right font-mono text-xs">
                             {retVal !== null ? (
-                              <span
-                                className={
-                                  retVal > 0
-                                    ? 'text-basalt-red'
-                                    : retVal < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {retVal > 0 ? `+${retVal}%` : `${retVal}%`}
+                              <span className={quoteChangeClass(retVal, quoteColor)}>
+                                {retVal > 0 ? `+${retVal.toFixed(2)}%` : `${retVal.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
@@ -506,24 +673,16 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {cagrVal !== null ? (
-                              <span
-                                className={
-                                  cagrVal > 0
-                                    ? 'text-basalt-red'
-                                    : cagrVal < 0
-                                      ? 'text-basalt-green'
-                                      : ''
-                                }
-                              >
-                                {cagrVal > 0 ? `+${cagrVal}%` : `${cagrVal}%`}
+                              <span className={quoteChangeClass(cagrVal, quoteColor)}>
+                                {cagrVal > 0 ? `+${cagrVal.toFixed(2)}%` : `${cagrVal.toFixed(2)}%`}
                               </span>
                             ) : (
                               '—'
                             )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {/* 最大回撤无正号与涨跌色 */}
-                            {ddVal !== null ? `${ddVal}%` : '—'}
+                            {/* 最大回撤为正数深度，不加正号或红绿变化色 */}
+                            {ddVal !== null ? `${ddVal.toFixed(2)}%` : '—'}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
                             {formatPercent(volVal)}
@@ -531,9 +690,23 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                         </>
                       )}
 
-                      <TableCell className="text-center w-32 p-1">
+                      <TableCell
+                        className="text-center w-32 p-1"
+                        title={
+                          row.sparklineType === 'price'
+                            ? '价格曲线'
+                            : row.sparklineType === 'nav'
+                              ? '净值总回报曲线'
+                              : '暂无序列'
+                        }
+                      >
                         {row.sparkline && row.sparkline.length > 1 ? (
-                          <MiniTrend values={row.sparkline} />
+                          <div className="flex flex-col items-center">
+                            <MiniTrend values={row.sparkline} />
+                            <span className="text-[10px] text-basalt-muted-foreground font-mono leading-none scale-90">
+                              {row.sparklineType === 'price' ? '价格' : '净值'}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-xs text-basalt-muted-foreground/50">—</span>
                         )}
@@ -547,6 +720,10 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                         ) : row.hasMarketBars ? (
                           <span className="px-1.5 py-0.5 rounded bg-basalt-muted text-basalt-muted-foreground text-[10px]">
                             行情
+                          </span>
+                        ) : row.hasNavHistory ? (
+                          <span className="px-1.5 py-0.5 rounded bg-basalt-accent text-basalt-foreground text-[10px]">
+                            净值
                           </span>
                         ) : (
                           <span className="text-basalt-muted-foreground/50 text-[10px]">
