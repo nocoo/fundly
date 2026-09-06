@@ -1,3 +1,12 @@
+## 0.5.0 — 2026-09-06
+
+- fix: synchronize package release versions
+- docs: document macro research features
+- feat: unify fund research page design
+- feat: add macro market dashboard
+- feat: expose market research api
+- feat: collect macro market data
+
 ## 0.4.0 — 2026-09-05
 
 - fix(scripts): match APP_VERSION string constant in sidebar when cutting release
