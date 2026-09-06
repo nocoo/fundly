@@ -23,13 +23,15 @@
 | Phase 3 · 回测 | 定投、网格、均线择时等策略回测 | 📋 计划中 |
 | Phase 4 · 服务 | HTTP API + 定时增量 + Discord 推送 | 📋 计划中 |
 
-宏观大屏已在本地实现：真实日 K、沪深广度、行业 → ETF → 基金下钻，以及 23 个跨资产指标。来源与边界见 [13 · 数据调研](docs/13-MACRO-DASHBOARD.md)，采集、持续更新、API 与实测见 [14 · 宏观大屏实现](docs/14-MACRO-IMPLEMENTATION.md)。尚未部署到生产。
+宏观大屏已随 `v0.5.0` 部署：真实日 K、沪深广度、行业 → ETF → 基金下钻，以及 23 个跨资产指标。来源与边界见 [13 · 数据调研](docs/13-MACRO-DASHBOARD.md)，采集、持续更新、API 与实测见 [14 · 宏观大屏实现](docs/14-MACRO-IMPLEMENTATION.md)。生产数据覆盖取决于 Volume 内实际采集，代码发布不会自动同步本地 SQLite。
+
+选 ETF 与选股的新页面规划见 [15 · 选 ETF](docs/15-ETF-SCREENING.md) 和 [16 · 选股](docs/16-STOCK-SCREENING.md)，以已验证 API 和本地基金资料为基础，按专业研究问题拆分筛选视角。
 
 ## 📁 项目结构
 
 ```
 fundly/
-├── docs/                  # 项目文档（编号 01-14，详见 CLAUDE.md）
+├── docs/                  # 项目文档（编号 01-16，详见 CLAUDE.md）
 │   ├── 01-ARCHITECTURE.md # 采集架构
 │   ├── 02-SCHEMA.md       # 数据表
 │   ├── 03-SCRIPTS.md      # CLI 手册
@@ -43,7 +45,9 @@ fundly/
 │   ├── 11-PHASE2-REPORT.md # Phase 2 卫星表实测
 │   ├── 12-FUND-SCREENING.md # 选基体系
 │   ├── 13-MACRO-DASHBOARD.md # 宏观大屏与跨资产调研
-│   └── 14-MACRO-IMPLEMENTATION.md # 宏观实现与运行
+│   ├── 14-MACRO-IMPLEMENTATION.md # 宏观实现与运行
+│   ├── 15-ETF-SCREENING.md # 选 ETF 规划与口径
+│   └── 16-STOCK-SCREENING.md # 选股规划与口径
 ├── apps/
 │   ├── web/               # Vite + React SPA（MVVM）
 │   └── worker/            # 本机 / Railway Hono API
