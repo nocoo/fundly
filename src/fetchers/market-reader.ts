@@ -17,6 +17,9 @@ export interface FuyaoData {
   timestamp?: number;
   total?: number;
   thscode?: string;
+  adjust?: string;
+  interval?: string;
+  report?: string;
   pagination?: { total: number; pages: number; page: number; size: number };
   collectedAt: number;
 }
@@ -154,6 +157,9 @@ export class MarketReader {
       ...(total === null ? {} : { total }),
       ...(timestamp === null ? {} : { timestamp }),
       ...(typeof data.thscode === 'string' ? { thscode: data.thscode } : {}),
+      ...(typeof data.adjust === 'string' ? { adjust: data.adjust } : {}),
+      ...(typeof data.interval === 'string' ? { interval: data.interval } : {}),
+      ...(typeof data.report === 'string' ? { report: data.report } : {}),
       ...(record(data.pagination)
         ? { pagination: data.pagination as FuyaoData['pagination'] }
         : {}),

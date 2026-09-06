@@ -242,3 +242,31 @@ SELECT b.fund_name, p.return_1y
 ## 宏观采集
 
 `bun run fetch:macro` 采集指数、沪深广度、行业、ETF 与公开跨资产日值；`--watch --interval-minutes 60` 持续运行，`--sources` 可选择来源。服务端读取 `HITHINK_FINANCE_API_KEY`，浏览器不持有密钥。完整参数、锁与故障语义见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。
+
+## 选 ETF 与选股采集：`fetch:selection`
+
+`bun run fetch:selection` 初始化与增量采集全市场 ETF/股票目录、全 A 股快照与批量估值、本地核验关联，以及有界研究池的真实五年日 K、财报与持仓。
+
+```bash
+# 全量执行 (全目录 + 全快照/估值 + 默认 60 ETF / 80 股票深采 + 物化)
+bun run fetch:selection
+
+# 快速同步 (跳过耗时深采，仅同步全目录、全市场快照与批量估值)
+bun run fetch:selection --skip-deep
+
+# 仅同步 ETF 相关数据并物化
+bun run fetch:selection --scope etf --etf-limit 60
+
+# 仅同步股票相关数据并物化
+bun run fetch:selection --scope stock --stock-limit 80
+
+# 针对指定代码补采深采池
+bun run fetch:selection --symbols 600519.SH,000001.SZ,510300.SH,513100.SH
+```
+
+CLI 特性：
+- 扶摇 REST 请求严格串行 (间隔 >= 400ms)、有限重试，密钥只读环境；
+- ETF 日 K 与 NAV 按不大于 1,460 天分窗拉取，全部窗口成功后单事务替换，任一失败保留旧完整窗口；
+- 股票前复权历史严格单次 5 年原子替换，失败保留旧历史；
+- 采集完成后自动物化 `selection_etf_materialized` 和 `selection_stock_materialized`，只读 API 无需动态扫描大表。
+

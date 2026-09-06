@@ -229,3 +229,25 @@ CREATE TABLE schema_version (
 ## 宏观市场扩展
 
 市场模块由 `initMarketSchema` 增加 12 张独立 `market_*` 表并执行幂等补列，基金核心 schema 仍为 3。正式 DDL 见 `src/db/market-schema.ts`，迁移见 `src/db/market-repo.ts`；字段职责与一致性见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。
+
+## 选 ETF 与选股独立扩展 (Phase 3 阶段 A)
+
+选 ETF 与选股采用独立的 `selection_*` 表体系，由 `initSelectionSchema` 幂等初始化，不污染或修改现有基金核心表和宏观小观察池。DDL 见 `src/db/selection-schema.ts`，数据访问层见 `src/db/selection-repo.ts`：
+
+| 表名 | 主键 / 唯一键 | 说明 |
+|---|---|---|
+| `selection_etf_catalog` | `symbol` | ETF 独立目录 (1,670 只)，记录交易所、资产分类、名称规则方向标签与本地已核验基金代码 |
+| `selection_stock_catalog` | `symbol` | A 股独立全目录 (5,567 只)，记录交易所、行业与金融业 (银行/证券/保险) 标记 |
+| `selection_daily_bar` | `(asset_type, symbol, adjust, trade_date)` | 独立日 K 表：ETF 保存真实 `adjust='none'`，股票保存前复权 `adjust='forward'` |
+| `selection_etf_nav` | `(symbol, nav_date)` | ETF 五年真实单位净值 `unit_nav` 与复权净值 `adj_nav` |
+| `selection_etf_profile` | `symbol` | ETF 基础资料与费率结构 (`mgmt_fee_pct`, `custody_fee_pct`) |
+| `selection_etf_financials` | `(symbol, end_date, publish_date)` | ETF 定期披露财务指标 (披露规模资产净值 `asset_nav`) |
+| `selection_etf_holding` | `(symbol, report_date, stock_code)` | ETF 定期披露重仓持股明细 |
+| `selection_stock_snapshot` | `symbol` | A 股全市场最新行情快照 (价格、涨跌幅、成交量、成交额) |
+| `selection_stock_valuation` | `symbol` | A 股全市场批量估值快照 (`pe_ttm`, `pe_mrq`, `pb_mrq`, `ps_ttm`, `pcf_ttm`, `timestamp`) |
+| `selection_stock_financial_statement` | `(symbol, statement_type, fiscal_year)` | 股票财报原始三张表 (按年期、期末日与币种保存) |
+| `selection_stock_financial_indicators` | `(symbol, report)` | 股票能力评估指标 (`abilities_json`) |
+| `selection_collection_status` | `scope` | 任务级采集发布状态、分母与错误摘要 |
+| `selection_etf_materialized` | `symbol` | 选 ETF 物化宽表 (毫秒级响应，含规模对齐、折溢价与几何收益/回撤) |
+| `selection_stock_materialized` | `symbol` | 选股物化宽表 (毫秒级响应，含估值、前复权趋势与年报对齐财务指标) |
+

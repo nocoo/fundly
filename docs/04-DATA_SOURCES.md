@@ -112,3 +112,24 @@ Fundly 默认配置：**全局 5 QPS**，可通过 `FUNDLY_QPS` 环境变量调�
 ## 宏观与跨资产来源
 
 新增扶摇 Financial-API、上期所日行情、Cboe VIX、ECB 参考汇率、中国货币网 Shibor / LPR、FRED 日值。实测请求与日期见 [13 · 数据调研](./13-MACRO-DASHBOARD.md)，正式采集口径见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。不将日值宣称为已验证实时行情。
+
+## 选 ETF 与选股来源 (扶摇 Financial-API)
+
+选 ETF 与选股模块使用同花顺金融数据服务（扶摇 Financial-API），通过服务端 `HITHINK_FINANCE_API_KEY` 鉴权：
+
+| 接口路径 | 用途 | 实测与口径约束 |
+|---|---|---|
+| `/api/meta/tickers/list?asset_type=fund-etf` | ETF 独立全目录 | 1,670 只，核验本地 1,614 只 |
+| `/api/meta/tickers/list?asset_type=a-share` | A 股独立全目录 | 5,567 只全市场标的 |
+| `/api/a-share/prices/snapshot` | A 股全市场行情快照 | 分页批量，包含最新价、涨跌幅、成交额 |
+| `/api/a-share/valuations/snapshot` | A 股全市场批量估值快照 | 每批最多 100 只，包含 PE TTM/MRQ, PB MRQ, PS TTM, PCF TTM |
+| `/api/a-share/financials/indicators` | 股票能力评估指标 | 特殊 envelope: `data.abilities[].indicators[]`，按最新完整财年 `YYYY-4` 取数 |
+| `/api/a-share/financials/*-statements` | 股票年报三张表 | 利润表、资产负债表、现金流量表，按财年、期末日与币种严格对齐 |
+| `/api/a-share/prices/historical` | 股票五年日 K 线 | `adjust=forward` 前复权真实价格走势，失败整窗保留 |
+| `/api/fund/market/historical` | ETF 五年日 K 线 | `adjust=none` 真实市场价格走势，分窗合并 |
+| `/api/fund/performance/nav` | ETF 五年净值 | `range=fyear&nav_type=unit,adj`，单位与复权净值分离 |
+| `/api/fund/profile/detail` | ETF 基础资料与费率 | 费率枚举支持 `management` 与 `custody`，无日期规模不混入当日规模 |
+| `/api/fund/financials/indicators` | ETF 披露财务指标 | 定期披露规模 `asset_nav`，优先于无日期 profile 规模 |
+| `/api/fund/portfolio/holdings` | ETF 定期披露重仓 | 披露持仓明细，优先保留带交易所后缀代码 |
+| `/api/a-share-index/constituents/ths-stock-list` | 行业成分与金融业标记 | 银行 (881155)、证券 (881157)、保险 (881156) 成员识别 |
+
