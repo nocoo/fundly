@@ -220,3 +220,7 @@ FUNDLY_SQLITE=data/fundly.db bun run restore
 - 不在成功路径保留 `*.backy-snap.db*` / 下载中的 `.backy-dl.gz`
 - 不调用 `openDb()` 去打开备份源
 - 不把 705 MiB gzip 读进 ArrayBuffer
+
+## 市场扩展兼容
+
+备份 SQLite 文件会包含新增 `market_*` 表，基金核心校验仍按 schema 3。恢复不含市场表的旧备份后，市场 API 给出未就绪 / 404；运行 `bun run fetch:macro` 补建并采集。旁路 `.macro.lock` 是进程锁，不属于基金数据库快照。详见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。

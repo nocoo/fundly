@@ -1,6 +1,6 @@
 # 06 · UI 架构
 
-> 中国公募基金浏览与排名工具的前端 / Worker 架构。
+> 中国公募基金研究与宏观大屏的前端 / Hono API 架构。
 > 数据面仍由仓库根目录的 Bun 爬虫写入 SQLite；本文件只覆盖浏览层。
 >
 > 相关文档：
@@ -13,7 +13,7 @@
 
 ## 产品定位
 
-Fundly UI 是一个**私人基金浏览和排名工具**：把全市场主动权益基金的列表、净值、阶段业绩、同类排名摊开，按 4433 / 夏普 / 回撤等规则筛选。不做交易、不做投顾、不做公开站点。
+Fundly UI 是一个**私人基金研究与宏观大屏**：把市场指数、跨资产环境、基金列表、净值、阶段业绩、同类排名摊开，按 4433 / 夏普 / 回撤等规则筛选。不做交易、不做投顾、不做公开站点。
 
 采集进程写本地 `data/fundly.db`。浏览层只读这份 sqlite。生产在 Railway Volume，见 [09-RAILWAY.md](./09-RAILWAY.md)。Cloudflare Worker 与 D1 已拆除。
 
@@ -66,16 +66,16 @@ fundly/
 │   ├── web/                     # Vite SPA
 │   │   └── src/
 │   │       ├── app/             # 路由页面（View）
-│   │       ├── components/      # AppShell / Sidebar / shadcn
+│   │       ├── components/      # AppShell / Sidebar / Basalt
 │   │       ├── hooks/           # SWR
 │   │       └── lib/             # ViewModel、导航、类型
-│   └── worker/                  # Hono + wrangler
-│       ├── src/                 # /api/live /api/me + Access
+│   └── worker/                  # Bun + Hono
+│       ├── src/                 # 只读 API / Google OAuth
 │       └── static/              # Vite 构建产物（gitignore）
 └── docs/06-ARCH-UI.md           # 本文件
 ```
 
-依赖方向：`apps/web` 构建写入 `apps/worker/static`；Worker 只服务静态资源和 `/api/*`。两边各自 `package.json`，不并进根 workspace，避免和爬虫的 `bun.lock` 打架。
+依赖方向：`apps/web` 构建写入 `apps/worker/static`；Hono API 服务静态资源和 `/api/*`。两边各自 `package.json`，不并进根 workspace，避免和爬虫的 `bun.lock` 打架。
 
 ---
 
@@ -96,14 +96,32 @@ fundly/
 |------|------|------|
 | `/` | 仪表盘 | `/api/stats`、`/api/fund-types` |
 | `/funds` | 基金浏览 | `/api/funds`，每页 200，可筛可排；过滤器进 localStorage |
-| `/funds/:code` | 基金详情 | `/api/funds/:code` + 净值；面包屑和「返回…」按钮回到来源列表 |
+| `/funds/:code` | 基金详情 | `/api/funds/:code` + 净值；已核验 ETF 复用市场 K 线，保留来源列表上下文 |
+| `/market` | 宏观大屏 | 指数、广度、行业 / ETF 与跨资产摘要；见文档 14 |
 | `/select/:lens` | 选基六页 | `/api/funds` 按收益/风险/持有/定投/成本/精选排序 |
 | `/ranking` | 旧排名 | 按 dim 重定向到 `/select/return` 或 `/select/risk` |
 | `/backup` | 备份 | 连接 Backy、推送、最近备份列表 |
-| `/settings` | 设置 | 数据统计、涨跌色、基准 |
-| `/login` | Google 登录 | 工卡页，仿 Gecko；颜色用 Fundly primary |
+| `/settings` | 设置 | 显示与图表 / 数据状态两个页签；涨跌色、参考线、分类基准及真实净值预览 |
+| `/login` | Google 登录 | 双栏介绍与 Basalt 登录卡片，窄屏单列 |
 
 导航数据在 `apps/web/src/lib/navigation.ts`，页面不得手写 href 表。
+
+### 全站视觉与布局
+
+非大屏页面复用 `components/layout/research-layout.tsx` 与 `app/research-pages.css`：统一页头、数字摘要、卡片标题、空态与分页。使用 Basalt `LayerCard`、`Button`、`Select`、`ToggleGroup`、`Tabs` 等控件及语义颜色，数字使用等宽字体。卡片交互在实际内容上完成，不使用覆盖文字的空按钮。
+
+- 基金浏览：紧凑工具栏、可滚动结果区、固定表头与分页；移动端将代码放在名称下方，仍可选择所有排序字段。
+- 选基：左侧筛选、右侧结果，移动端可展开筛选；六个视角继续使用原有计算与筛选口径。
+- 基金详情：大图与右侧基金档案 / 同类排名，下方以页签查看收益、结构与完整资料。来源和独立日期收进小「i」。最新净值单独查询，避免观察窗口影响最新值。
+- 设置：显示偏好在前，数据统计独立成页签；分类基准展示所选代码的真实日净值预览。备份页以连接卡片和快照列表并列展示，沿用既有备份 / 恢复操作。
+- 手机顶部保留当前页标题，来源返回入口仍在基金详情中，避免长面包屑换行挤压。
+
+### 基金详情 K 线合同
+
+`GET /api/funds/:code` 额外返回 `marketInstrument: { id, symbol, name } | null`。只有来源为 `fuyao` 的已核验 `linked_fund_code`、唯一活跃 ETF 身份、且已有真实日 OHLC 时才返回标的。缺少市场表、只有净值、关联歧义或没有 K 线时返回 `null`，不通过代码 / 名称猜测关系。
+
+已关联 ETF 默认打开场内 K 线，复用 `/api/market/bars/:id?years=…&interval=…`。默认 1 年日 K，3 年周 K、5 年月 K，均可手动切换周期；支持切回净值与基准。净值视图保留 1 / 3 / 5 / 10 年。普通基金保留净值曲线，货币基金保留万份收益与七日年化，均不把日净值构造成交易 OHLC。行情异常 / 所选范围无数据时提供重试和查看净值。
+
 
 ---
 

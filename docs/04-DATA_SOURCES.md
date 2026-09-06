@@ -108,3 +108,7 @@ Fundly 默认配置：**全局 5 QPS**，可通过 `FUNDLY_QPS` 环境变量调�
 - 所有接口均为公开可访问，无鉴权
 - 请求频率保守，避免影响服务器
 - 数据仅用于个人学习研究，**不做商业分发**
+
+## 宏观与跨资产来源
+
+新增扶摇 Financial-API、上期所日行情、Cboe VIX、ECB 参考汇率、中国货币网 Shibor / LPR、FRED 日值。实测请求与日期见 [13 · 数据调研](./13-MACRO-DASHBOARD.md)，正式采集口径见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。不将日值宣称为已验证实时行情。

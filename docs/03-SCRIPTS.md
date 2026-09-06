@@ -238,3 +238,7 @@ SELECT b.fund_name, p.return_1y
 2. **普通货币基金无单位净值曲线**：pingzhong 提供万份收益 / 七日年化，写入 `fund_money_yield`；`fetch:nav` 断点续跑只看 performance，补序列用 `FUNDLY_DAILY_POOL=money`
 3. **Reits 业绩多为空**：这类产品走 ETF 接口，不是 pingzhongdata（Phase 2 补 fetcher）
 4. **风控**：默认 5 QPS 极其保守，历史累计 55,054 次请求 0 失败，无需担心
+
+## 宏观采集
+
+`bun run fetch:macro` 采集指数、沪深广度、行业、ETF 与公开跨资产日值；`--watch --interval-minutes 60` 持续运行，`--sources` 可选择来源。服务端读取 `HITHINK_FINANCE_API_KEY`，浏览器不持有密钥。完整参数、锁与故障语义见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。

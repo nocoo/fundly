@@ -4,7 +4,7 @@
 
 ## 🎯 项目定位
 
-Fundly 是**中国公募基金数据采集与量化选基工具**，外加私人 Web 浏览壳。
+Fundly 是**公募基金研究与宏观市场大屏**，由 Bun 采集、SQLite 和私人 Web 浏览层组成。
 
 - **语言/运行时**：Bun + TypeScript 7.0.2（不是 Node，参考 `README.md`）
 - **数据库**：`bun:sqlite`（原生内置，**不要引入 better-sqlite3**）
@@ -56,9 +56,11 @@ fundly/
 | **10** | `10-AUTH.md` | Google 登录、白名单、回调 URL |
 | **11** | `11-PHASE2-REPORT.md` | Phase 2 卫星表实测覆盖 |
 | **12** | `12-FUND-SCREENING.md` | 选基分类、下属页、指标口径与落库 |
+| **13** | `13-MACRO-DASHBOARD.md` | 宏观大屏、跨资产来源实测、行业 / ETF 下钻与接入方案 |
+| **14** | `14-MACRO-IMPLEMENTATION.md` | 宏观大屏实现、真实 K 线、采集 / 持续更新与只读 API |
 
 **新增文档规则**：
-- 数字**顺延**（下一份文档用 `13-`）
+- 数字**顺延**（下一份文档用 `15-`）
 - 文件名**大写字母 + 短横线**（`10-BACKTEST-ENGINE.md`）
 - 主标题第一行必须写 `# NN · 中文标题`（示例：`# 03 · 脚本手册`）
 - 内容以**中文为主**，代码/命令保持英文
@@ -126,6 +128,7 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页、Google 登录
 - ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
 - ✅ Phase 2 卫星数据：风险指标/分红/费率/经理履历/持仓
+- ✅ 本地宏观大屏：Basalt 2.0.3、真实日 K、沪深广度、行业 / ETF / 基金下钻、23 个跨资产指标；`fetch:macro` 及 `--watch`，尚未部署
 - 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
 
 ## Retrospective
@@ -143,4 +146,5 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 - 限流/并发池：`src/utils/pool.ts`
 - 测试套件：`tests/`
 - UI 入口：`apps/web/src/`
-- Worker 入口：`apps/worker/src/index.ts`
+- 本机 / Railway API 入口：`apps/worker/scripts/app.ts`
+- 宏观采集入口：`scripts/fetch-macro.ts`（密钥只读服务端 `HITHINK_FINANCE_API_KEY`，不得放进前端）

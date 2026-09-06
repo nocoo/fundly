@@ -154,3 +154,7 @@ curl -sS https://fundly.hexly.ai/api/stats
 9. **清场**：删掉 `seed.db.gz`、空库、restore URL、临时脚本。
 
 SSH 灌库时不要把 restore URL 走 `railway ssh` 的 stdin（CLI 会吞掉，容器里的 bun 一直等输入）。把短链写进卷上的临时文件再 `bun /data/seed.ts`，跑完立刻删。
+
+## 宏观功能运行边界
+
+宏观模块已本地实现，当前尚未部署。未来运行 `fetch:macro` / `--watch` 的进程需访问同一 SQLite Volume，并配置服务端 `HITHINK_FINANCE_API_KEY`；浏览服务继续只读，页面刷新不触发上游补采。不要把密钥放进 Vite 构建环境。操作说明见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。

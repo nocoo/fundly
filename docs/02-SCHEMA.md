@@ -225,3 +225,7 @@ CREATE TABLE schema_version (
 | `fund_portfolio` | 250,658 | `(fund_code, report_date, stock_code)` WITHOUT ROWID | jjcc apidata |
 
 **schema_version 已升到 3**。DDL 见 [`src/db/schema.ts`](../src/db/schema.ts)。选基派生表与 `grand_total_json` 见 [12-FUND-SCREENING.md](./12-FUND-SCREENING.md)。
+
+## 宏观市场扩展
+
+市场模块由 `initMarketSchema` 增加 12 张独立 `market_*` 表并执行幂等补列，基金核心 schema 仍为 3。正式 DDL 见 `src/db/market-schema.ts`，迁移见 `src/db/market-repo.ts`；字段职责与一致性见 [14 · 宏观大屏实现](./14-MACRO-IMPLEMENTATION.md)。
