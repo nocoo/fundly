@@ -1,5 +1,8 @@
 # 文档
 
+- [项目说明（中文）](../README.md)
+- [Project README (English)](README.en.md)
+
 按编号阅读。主标题格式见根目录 `CLAUDE.md`。
 
 | 编号 | 文档 |

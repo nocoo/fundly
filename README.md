@@ -1,164 +1,139 @@
-# Fundly 🪴
+<p align="center">
+  <img src="apps/web/public/logo.svg" width="128" height="128" alt="Fundly" />
+</p>
 
-> 基金、ETF、股票研究与宏观市场大屏
+<h1 align="center">Fundly</h1>
 
-**Fundly** 在私人 Web 中展示中国公募基金、ETF、A 股和跨资产宏观环境，支持从市场与行业比较深入单个产品的价格、风险和财报研究。采集是 Bun CLI + SQLite；浏览是 Vite SPA + Hono 只读 API。
+<p align="center">采集基金与市场数据，在个人站点中比较产品、风险和宏观环境。</p>
 
-## 🎯 项目定位
+<p align="center">
+  <a href="https://fundly.hexly.ai">站点</a> ·
+  <a href="docs/README.en.md">English</a>
+</p>
 
-- 📊 **数据源**：东方财富 / 天天基金、扶摇 Financial-API（服务端 Key）、上期所、Cboe、ECB、中国货币网、FRED
-- 🎯 **范围**：公募基金、1,670 只 ETF 与 5,567 只 A 股目录，沪深指数 / 广度、行业观察、商品、汇率和利率；各指标覆盖独立统计
-- 🖥️ **浏览**：Basalt 2.0.3；六维选基、ETF / 股票专业筛选与宏观大屏。列表行内曲线，详情真实 K 线，支持 1 / 3 / 5 年及日 / 周 / 月
-- 🛠 **技术栈**：Bun + TypeScript 7.0.2 + bun:sqlite + Vite + Hono 本机 API + Biome
-- 🧪 **质量**：2026-09-06 全仓 514 项测试通过；行覆盖率 89.62%（目标 ≥ 95%），保留一项既有 lint warning，详见文档 16
+## 这是什么
 
-给 Agent：改代码必须改对应文档；一次 commit 只做一件事；用 Conventional Commits；不要 `git add -A`。爬虫在 `src/` / `scripts/` / `tests/`，UI 在 `apps/`，两边不要混着改。完整规约见 [`CLAUDE.md`](CLAUDE.md)。
+Fundly 是中国公募基金、ETF、A 股与宏观市场的个人研究工具。Bun 脚本负责采集和计算，SQLite 保存数据，React 页面通过 Hono API 浏览已落库的结果。
 
-## 🗺 路线图
+行情查询不会启动上游采集。产品目录、历史行情、财报和指标各有独立覆盖范围，页面保留缺失状态和来源信息；部署代码也不会自动上传本地数据库。当前没有交易下单功能，研究指标和筛选结果不能替代投资判断。
 
-| 阶段 | 内容 | 状态 |
-|---|---|---|
-| **Phase 1 · MVP** | 基本信息 + 净值 + 阶段业绩爬取，SQLite 存储 | ✅ 完成 |
-| Phase 2 · 筛选 | 4433 法则、夏普/卡玛榜、多因子打分 | 📋 计划中 |
-| ETF / 股票研究 | 专业比较、可调门槛、真实 K 线、财报与跨页面下钻 | ✅ v0.6.0 |
-| Phase 3 · 回测 | 定投、网格、均线择时等策略回测 | 📋 计划中 |
-| Phase 4 · 服务 | HTTP API + 定时增量 + Discord 推送 | 📋 计划中 |
+## 功能
 
-宏观大屏已随 `v0.5.0` 部署：真实日 K、沪深广度、行业 → ETF → 基金下钻，以及 23 个跨资产指标。来源与边界见 [13 · 数据调研](docs/13-MACRO-DASHBOARD.md)，采集、持续更新、API 与实测见 [14 · 宏观大屏实现](docs/14-MACRO-IMPLEMENTATION.md)。生产数据覆盖取决于 Volume 内实际采集，代码发布不会自动同步本地 SQLite。
+- 搜索基金代码、名称和份额，查看净值、阶段收益、同类排名、分红、费率、经理履历与持仓。
+- 从收益、风险、持有体验、定投、成本和条件精选比较基金，提供 4433 筛选、夏普 / 卡玛指标和多因子评分。
+- 按资产配置、流动性、成本规模和收益风险筛选 ETF，查看价格、净值与折溢价。
+- 按估值、盈利、增长、现金流和趋势比较 A 股，查看 K 线、财报与财务指标。
+- 在宏观大屏浏览市场指数、行业、市场广度、商品、汇率和利率，并进入相关 ETF 与基金页面。
+- 通过 Google 登录与邮箱名单管理访问；使用 Backy 页面或脚本管理 SQLite 备份与恢复。
 
-`v0.6.0` 新增选 ETF 与选股，规划、实现与本地实采见 [15 · 选 ETF](docs/15-ETF-SCREENING.md) 和 [16 · 选股](docs/16-STOCK-SCREENING.md)。ETF 提供配置、流动性、成本、风险与条件精选；股票提供估值、盈利、增长、现金、趋势与条件精选。本地 60 只 ETF、80 只股票有真实日 K，80 只股票有年报与财务指标；其他目录成员保留已获取的资料和缺失状态。生产覆盖取决于 Volume 内的采集或同步，网页访问不会启动上游采集，本轮未启用常驻调度。
+通用策略回测引擎和 Discord 推送仍未实现。现有定投页面展示基于历史净值计算的指标，不提供自动交易。
 
-## 📁 项目结构
+## 使用
 
-```
-fundly/
-├── docs/                  # 项目文档（编号 01-16，详见 CLAUDE.md）
-│   ├── 01-ARCHITECTURE.md # 采集架构
-│   ├── 02-SCHEMA.md       # 数据表
-│   ├── 03-SCRIPTS.md      # CLI 手册
-│   ├── 04-DATA_SOURCES.md # 数据源
-│   ├── 05-CREDITS.md      # 致谢
-│   ├── 06-ARCH-UI.md      # UI / 本机 API 架构
-│   ├── 07-DASHBOARD.md    # 仪表盘
-│   ├── 08-BACKY.md        # Backy 备份 / 换机恢复
-│   ├── 09-RAILWAY.md      # Railway + Volume
-│   ├── 10-AUTH.md         # Google 登录
-│   ├── 11-PHASE2-REPORT.md # Phase 2 卫星表实测
-│   ├── 12-FUND-SCREENING.md # 选基体系
-│   ├── 13-MACRO-DASHBOARD.md # 宏观大屏与跨资产调研
-│   ├── 14-MACRO-IMPLEMENTATION.md # 宏观实现与运行
-│   ├── 15-ETF-SCREENING.md # 选 ETF 规划与口径
-│   └── 16-STOCK-SCREENING.md # 选股规划与口径
-├── apps/
-│   ├── web/               # Vite + React SPA（MVVM）
-│   └── worker/            # 本机 / Railway Hono API
-├── data/                  # SQLite 数据库（gitignore）
-├── scripts/               # 爬取、初始化
-├── src/                   # 采集核心库
-└── tests/                 # 采集单测
-```
+[在线站点](https://fundly.hexly.ai) 需要 Google 登录；是否允许访问取决于部署者配置的邮箱名单。
 
-## 🚀 快速开始
+| 页面 | 路径 |
+| --- | --- |
+| 概览与宏观大屏 | `/`、`/market` |
+| 基金浏览与比较 | `/funds`、`/select/*` |
+| ETF 浏览与比较 | `/etfs`、`/select-etf/*` |
+| 股票浏览与比较 | `/stocks`、`/select-stock/*` |
+| 备份与设置 | `/backup`、`/settings` |
 
-### 环境要求
+基金数据主要来自东方财富 / 天天基金；ETF、股票和部分宏观数据使用扶摇 Financial-API，其他宏观来源包括上期所、Cboe、ECB、中国货币网和 FRED。来源口径、历史窗口和缺失处理见[数据源说明](docs/04-DATA_SOURCES.md)与[宏观实现文档](docs/14-MACRO-IMPLEMENTATION.md)。
 
-- **Bun** ≥ 1.3
-- macOS / Linux
+### 安装与数据库
 
-### 安装
+使用 Bun 1.3 或更新版本；运行环境为 macOS / Linux。根目录、Web 和 API 各有自己的依赖与 lockfile。
 
 ```bash
 git clone https://github.com/nocoo/fundly.git
 cd fundly
-bun install
-bun run install:web   # apps/web + apps/worker，各自一份 lockfile
-```
-
-### 初始化数据库
-
-```bash
+bun install --frozen-lockfile
+bun install --frozen-lockfile --cwd apps/web
+bun install --frozen-lockfile --cwd apps/worker
 bun run db:init
 ```
 
-### 抓取数据
+默认数据库为 `data/fundly.db`。初始化只建表，不附带历史数据；可以自行采集或从已有备份恢复。常用采集与计算命令：
+
+| 命令 | 用途 |
+| --- | --- |
+| `bun run fetch:list` | 更新基金目录 |
+| `bun run fetch:nav` | 采集 MVP 池中的历史净值与业绩，默认支持续跑 |
+| `bun run fetch:daily` | 增量更新净值与业绩 |
+| `bun run refresh:select` | 更新全池数据，再计算排名、风险与选基指标 |
+| `bun run fetch:macro` | 采集宏观市场与跨资产数据 |
+| `bun run fetch:selection` | 更新 ETF / 股票目录、行情和有界深度数据 |
+
+扶摇来源需要服务端环境变量 `HITHINK_FINANCE_API_KEY`，不要放入前端变量。宏观和 ETF / 股票脚本支持 `--watch`，需显式启动；仓库不会随 Web 服务自动运行采集任务。范围、数据库路径与限流参数见[脚本手册](docs/03-SCRIPTS.md)，定向采集示例见[选 ETF](docs/15-ETF-SCREENING.md)与[选股](docs/16-STOCK-SCREENING.md)。
+
+## 开发
+
+从 `.env.example` 创建根目录 `.env`，填写 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`SESSION_SECRET` 和 `ALLOWED_EMAILS`。邮箱名单为空时，所有完成 Google 登录的账号都可访问。
 
 ```bash
-# 1. 拉全市场基金列表（~3 秒）
-bun run fetch:list
-
-# 2. 拉 MVP 池的历史净值（约 52 分钟，5 QPS）
-bun run fetch:nav
-
-# 或一键跑全流程
-bun run fetch:all
-
-# 每日增量刷新（约 52 分钟，交易日晚 21:00 后跑）
-bun run fetch:daily
-
-# 宏观市场与跨资产（扶摇 Key 配置在服务端环境，见文档 14）
-bun run fetch:macro
-# 持续采集：bun run fetch:macro --watch --interval-minutes 60
-
-# ETF / 股票全目录、股票快照估值与默认 60 / 80 只深度池
-bun run fetch:selection
-# 有界补采：bun run fetch:selection --symbols 510300.SH,600519.SH
+cp .env.example .env
+bun run dev:all
 ```
 
-详见 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md)。
-
-### 浏览 UI
-
-日常入口是本地域名，不要用 `localhost:7044`：
+Vite 使用 7044，API 使用 7045。仓库的日常开发入口为 `https://fundly.dev.hexly.ai`，需按 [UI 架构](docs/06-ARCH-UI.md) 配置本地 HTTPS 代理，并在 Google OAuth 中登记 `https://fundly.dev.hexly.ai/api/auth/callback`。本机和部署环境都要求登录；缺少认证配置时，受保护 API 返回 503。详情见[认证说明](docs/10-AUTH.md)。
 
 ```bash
-bun run dev:all         # 同时起 API :7045 + Vite :7044
-# https://fundly.dev.hexly.ai   Caddy v2.11.4 → Vite :7044 → API :7045
+bun run typecheck
+bun run typecheck:scripts
+bun run typecheck:web
+bun run lint
+bun run build:web
 ```
 
-分开起：`bun run dev:api`（读 `data/fundly.db`）和 `bun run dev:web`。
+Web 构建结果写入 `apps/worker/static/`，`bun run start` 由 Bun 同时提供静态页面与 API。生产入口见 [Dockerfile](Dockerfile) 与 [railway.toml](railway.toml)，数据库路径通过 `FUNDLY_SQLITE` 指定并挂载到持久卷。目录虽名为 `apps/worker`，当前部署使用 Bun / Hono，已不依赖 Cloudflare Worker 或 D1。
 
-架构见 [`docs/06-ARCH-UI.md`](docs/06-ARCH-UI.md)，仪表盘约定见 [`docs/07-DASHBOARD.md`](docs/07-DASHBOARD.md)。备份见 [`docs/08-BACKY.md`](docs/08-BACKY.md)。
+行情 API 以只读连接查询 SQLite；备份设置、备份和恢复操作会另行写入或替换数据，操作方法见 [Backy 备份文档](docs/08-BACKY.md)。
 
-### 开发
+| 目录 | 内容 |
+| --- | --- |
+| `src/fetchers`、`scripts` | 数据采集与命令入口 |
+| `src/db`、`src/metrics` | SQLite 数据访问与指标计算 |
+| `apps/web` | React 页面、viewmodel 与图表 |
+| `apps/worker` | Hono API、认证和 Bun 服务入口 |
+| `tests` | 采集与计算测试 |
+| `data` | 本地数据库，不随代码提交 |
 
-```bash
-bun run typecheck       # 爬虫 TS 类型检查
-bun run typecheck:scripts  # import/seed/dev-api
-bun run typecheck:web   # UI + Worker 类型检查
-bun run lint            # Biome 检查（含 apps）
-bun run lint:fix        # 自动修复
-bun run test            # 爬虫单测
-bun run test:web        # UI / Worker 单测
-bun run test:coverage   # 带覆盖率
-```
+## 测试
 
-## 📊 数据规模（Phase 1 MVP · 已实测完成）
+| 测试层 | 命令 |
+| --- | --- |
+| 采集、解析与指标单元测试 | `bun run test` |
+| Web viewmodel、认证与 API 测试 | `bun run test:web` |
+| 宏观与产品 API 集成测试 | `bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts` |
 
-| 项目 | 数量 |
-|---|---|
-| 全市场基金覆盖 | **27,527 只**（100%）|
-| Performance 覆盖 | 27,527 条 |
-| 有净值序列 | 26,072 只（94.7%）|
-| 净值行总数 | **~3,069 万条** |
-| SQLite 磁盘 | **~3.7 GB** |
-| 首次爬取耗时 | ~95 分钟（分两批完成）|
-| 每日增量 | ~52 分钟（`fetch:daily`）|
+测试使用 Bun 内置测试运行器，API 集成测试通过临时 SQLite 与 Hono 请求调用运行。可用 `bun run test:coverage` 查看报告；当前没有独立浏览器端到端测试命令。
 
-详见 [`docs/01-ARCHITECTURE.md`](docs/01-ARCHITECTURE.md) 和 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md)。
+## 技术栈
 
-## 🙏 致敬
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Bun](https://img.shields.io/badge/Bun-14151A?logo=bun&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
+![React](https://img.shields.io/badge/React-149ECA?logo=react&logoColor=white)
 
-本项目在方法论与数据源上参考了以下优秀开源项目，特此致谢：
+| 部分 | 实现 |
+| --- | --- |
+| 采集与存储 | TypeScript、Bun fetch、bun:sqlite |
+| Web | React、Vite、React Router、Basalt、Tailwind CSS、Recharts、SWR |
+| API 与认证 | Hono、Google OAuth / PKCE、jose |
+| 开发与托管 | Bun test、Biome、Docker、Railway Volume |
 
-- [**GoFundBot**](https://github.com/Sebastian6848/GoFundBot) — 提供了 4433 法则实现、多因子筛选思路、反爬工程与数据源清单
-- [**AKShare**](https://github.com/akfamily/akshare) — 备用数据源与接口参考
+## 文档
 
-详见 [`docs/05-CREDITS.md`](docs/05-CREDITS.md)。
+- [文档索引](docs/README.md)
+- [架构](docs/01-ARCHITECTURE.md)与[数据表](docs/02-SCHEMA.md)
+- [选基指标口径](docs/12-FUND-SCREENING.md)
+- [部署与持久卷](docs/09-RAILWAY.md)
+- [变更记录](CHANGELOG.md)
 
-## ⚖️ 免责声明
+筛选方法和数据接口参考了 [GoFundBot](https://github.com/Sebastian6848/GoFundBot) 与 [AKShare](https://github.com/akfamily/akshare)，详见[致谢](docs/05-CREDITS.md)。
 
-本项目所有数据均来自公开接口，仅供个人学习及量化研究使用。数据可能存在延迟或错误，**不构成任何投资建议**。投资有风险，入市需谨慎。
+## 许可证
 
-## 📄 License
-
-MIT
+[MIT](LICENSE) © 2026 Zheng Li
