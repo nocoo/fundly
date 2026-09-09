@@ -114,6 +114,44 @@ sources: [Yahoo Finance, FRED]
     }
   });
 
+  test('lists and loads by filename date when frontmatter date differs', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'fundly-daily-fm-mismatch-'));
+    try {
+      const dir = join(root, 'content', 'macro-daily');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, '2026-09-09.md'),
+        `---
+title: Mismatched FM date
+date: 2026-09-08
+summary: filename wins for route key
+---
+body for 2026-09-09 file
+`,
+      );
+
+      const list = await listDailyReports(root);
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({
+        date: '2026-09-09',
+        title: 'Mismatched FM date',
+        path: 'content/macro-daily/2026-09-09.md',
+      });
+
+      const byFilename = await getDailyReport(root, '2026-09-09');
+      expect(byFilename).toMatchObject({
+        date: '2026-09-09',
+        title: 'Mismatched FM date',
+      });
+      expect(byFilename?.markdown).toContain('body for 2026-09-09 file');
+
+      // Frontmatter date must not become a route key — that file does not exist.
+      expect(await getDailyReport(root, '2026-09-08')).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('resolveDailyFile rejects traversal and invalid dates', () => {
     const root = mkdtempSync(join(tmpdir(), 'fundly-daily-safe-'));
     try {

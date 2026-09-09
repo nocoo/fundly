@@ -164,9 +164,9 @@ export async function listDailyReports(repoRoot: string): Promise<DailyListItem[
     if (raw === null) continue;
     try {
       const { meta } = parseFrontmatter(raw);
-      const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
+      // Route key is always the YYYY-MM-DD filename, even if frontmatter date differs.
       items.push({
-        date: resolvedDate,
+        date,
         title: meta.title?.trim() || '财经日报',
         summary: meta.summary?.trim() || '',
         path: `content/macro-daily/${date}.md`,
@@ -187,9 +187,9 @@ export async function getDailyReport(repoRoot: string, date: string): Promise<Da
   const raw = await readTextFile(filePath);
   if (raw === null) return null;
   const { meta, body } = parseFrontmatter(raw);
-  const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
+  // Route key is always the YYYY-MM-DD filename, even if frontmatter date differs.
   return {
-    date: resolvedDate,
+    date,
     title: meta.title?.trim() || '财经日报',
     summary: meta.summary?.trim() || '',
     markdown: body,

@@ -59,6 +59,19 @@ describe('parseSectionBody', () => {
     expect(parsed.table?.rows[0]?.[0]).toBe('S&P 500');
     expect(parsed.after).toContain('短评');
   });
+
+  test('preserves escaped pipes and trims rows to header width', () => {
+    const body = `| A | B | C |
+|---|---|---|
+| risk-on \\| risk-off | keep | extra | dropped |
+| only-one | two |`;
+    const parsed = parseSectionBody(body);
+    expect(parsed.table?.headers).toEqual(['A', 'B', 'C']);
+    expect(parsed.table?.rows).toEqual([
+      ['risk-on | risk-off', 'keep', 'extra'],
+      ['only-one', 'two', ''],
+    ]);
+  });
 });
 
 describe('parseChangeCell', () => {

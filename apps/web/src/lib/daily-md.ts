@@ -44,11 +44,30 @@ export function splitDailySections(markdown: string): DailySection[] {
   return sections;
 }
 
+/** Split a GFM table row on unescaped `|`; `\|` stays a literal pipe inside the cell. */
 function splitCells(line: string): string[] {
   let s = line.trim();
   if (s.startsWith('|')) s = s.slice(1);
-  if (s.endsWith('|')) s = s.slice(0, -1);
-  return s.split('|').map((c) => c.trim());
+  if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
+
+  const cells: string[] = [];
+  let current = '';
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    if (ch === '\\' && s[i + 1] === '|') {
+      current += '|';
+      i += 1;
+      continue;
+    }
+    if (ch === '|') {
+      cells.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  cells.push(current.trim());
+  return cells;
 }
 
 function isSeparatorRow(line: string): boolean {
