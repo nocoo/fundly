@@ -29,7 +29,7 @@ export default function DailyPage() {
         <ResearchHeader
           title="财经日报"
           icon={Newspaper}
-          description="跨资产研究摘要：全球宏观、贵金属、精选科技龙头与中国相关资产。正文来自仓库 Markdown，部署后即可阅读。"
+          description="跨资产研究摘要：全球宏观、贵金属、科技龙头与中国资产（指数 + ETF），并以好消息 / 坏消息双列表呈现当日张力。正文来自仓库 Markdown，部署后即可阅读。"
         />
 
         <LayerCard padding="none">

@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  bareSectionTitle,
+  changeTone,
   extractMacroStatTiles,
+  formatSectionTitle,
+  isNewsPairSection,
   isTableSection,
   parseChangeCell,
   parseSectionBody,
@@ -75,13 +79,88 @@ describe('parseSectionBody', () => {
 });
 
 describe('parseChangeCell', () => {
-  test('parses percent bp points and flat', () => {
+  test('parses percent bp points and flat (ASCII)', () => {
     expect(parseChangeCell('-0.4%')).toMatchObject({ kind: 'percent', value: -0.4 });
     expect(parseChangeCell('+0.6%')).toMatchObject({ kind: 'percent', value: 0.6 });
     expect(parseChangeCell('-3 bp')).toMatchObject({ kind: 'bp', value: -3 });
     expect(parseChangeCell('+0.8')).toMatchObject({ kind: 'points', value: 0.8 });
     expect(parseChangeCell('持平')).toMatchObject({ kind: 'text', tone: 'flat' });
     expect(parseChangeCell('—')).toMatchObject({ kind: 'text', tone: 'flat' });
+    expect(parseChangeCell('–')).toMatchObject({ kind: 'text', tone: 'flat' });
+    expect(parseChangeCell('-')).toMatchObject({ kind: 'text', tone: 'flat' });
+  });
+
+  test('normalizes Unicode minus and parses live MD cells', () => {
+    // U+2212 MINUS SIGN as in content/macro-daily/2026-09-09.md
+    const unicodeDown = parseChangeCell('−0.58%');
+    expect(unicodeDown).toMatchObject({ kind: 'percent', value: -0.58 });
+    expect(changeTone(unicodeDown)).toBe('down');
+
+    const points = parseChangeCell('+0.42 点');
+    expect(points).toMatchObject({ kind: 'points', value: 0.42 });
+    expect(changeTone(points)).toBe('up');
+
+    const pointsTight = parseChangeCell('−0.5点');
+    expect(pointsTight).toMatchObject({ kind: 'points', value: -0.5 });
+    expect(changeTone(pointsTight)).toBe('down');
+
+    const approx = parseChangeCell('≈0.00%');
+    expect(approx).toMatchObject({ kind: 'text', tone: 'flat' });
+    expect(parseChangeCell('≈0%')).toMatchObject({ kind: 'text', tone: 'flat' });
+    expect(parseChangeCell('≈0.0')).toMatchObject({ kind: 'text', tone: 'flat' });
+  });
+
+  test('strips tone emoji before parse', () => {
+    expect(parseChangeCell('🟢+0.6%')).toMatchObject({ kind: 'percent', value: 0.6 });
+    expect(parseChangeCell('🔴−0.4%')).toMatchObject({ kind: 'percent', value: -0.4 });
+  });
+});
+
+describe('formatSectionTitle / isTableSection', () => {
+  test('adds tasteful emoji without doubling', () => {
+    expect(formatSectionTitle('概述')).toBe('📌 概述');
+    expect(formatSectionTitle('全球宏观')).toBe('🌐 全球宏观');
+    expect(formatSectionTitle('贵金属')).toBe('🥇 贵金属');
+    expect(formatSectionTitle('科技龙头')).toBe('💻 科技龙头');
+    expect(formatSectionTitle('科技龙头观察')).toBe('💻 科技龙头观察');
+    expect(formatSectionTitle('中国资产')).toBe('🇨🇳 中国资产');
+    expect(formatSectionTitle('中国相关资产')).toBe('🇨🇳 中国相关资产');
+    expect(formatSectionTitle('好消息')).toBe('✅ 好消息');
+    expect(formatSectionTitle('坏消息')).toBe('⚠️ 坏消息');
+    expect(formatSectionTitle('要闻')).toBe('📰 要闻');
+    expect(formatSectionTitle('观察要点')).toBe('🔭 观察要点');
+    // Already-prefixed MD still strips leading emoji then re-applies once.
+    expect(formatSectionTitle('🌐 全球宏观')).toBe('🌐 全球宏观');
+    expect(formatSectionTitle('📌概述')).toBe('📌 概述');
+  });
+
+  test('isTableSection matches bare and emoji-prefixed titles (new + legacy)', () => {
+    expect(isTableSection('全球宏观')).toBe(true);
+    expect(isTableSection('🌐 全球宏观')).toBe(true);
+    expect(isTableSection('🥇贵金属')).toBe(true);
+    expect(isTableSection('科技龙头')).toBe(true);
+    expect(isTableSection('科技龙头观察')).toBe(true);
+    expect(isTableSection('中国资产')).toBe(true);
+    expect(isTableSection('中国相关资产')).toBe(true);
+    expect(isTableSection('🇨🇳 中国资产')).toBe(true);
+    expect(isTableSection('要闻')).toBe(false);
+    expect(isTableSection('📰 要闻')).toBe(false);
+    expect(isTableSection('好消息')).toBe(false);
+    expect(isTableSection('坏消息')).toBe(false);
+  });
+
+  test('bareSectionTitle strips emoji prefix for 中国资产', () => {
+    expect(bareSectionTitle('🇨🇳 中国资产')).toBe('中国资产');
+    expect(bareSectionTitle('中国资产')).toBe('中国资产');
+  });
+
+  test('isNewsPairSection matches 好消息 / 坏消息 bare and prefixed', () => {
+    expect(isNewsPairSection('好消息')).toBe(true);
+    expect(isNewsPairSection('坏消息')).toBe(true);
+    expect(isNewsPairSection('✅ 好消息')).toBe(true);
+    expect(isNewsPairSection('⚠️ 坏消息')).toBe(true);
+    expect(isNewsPairSection('要闻')).toBe(false);
+    expect(isNewsPairSection('概述')).toBe(false);
   });
 });
 
@@ -128,6 +207,25 @@ describe('isTableSection / extractMacroStatTiles', () => {
     const tiles = extractMacroStatTiles(splitDailySections(md));
     expect(tiles.find((t) => t.label === 'US 10Y')?.latest).toBe('4.05%');
     expect(tiles.find((t) => t.label === 'DXY')?.latest).toBe('101.0');
+  });
+
+  test('extracts tiles from live-style Unicode change cells', () => {
+    const md = `## 🌐 全球宏观
+
+| 标的 | 最新 | 涨跌 | 备注 |
+|------|------|------|------|
+| S&P 500 | 7,673.52 | −0.58% | Yahoo |
+| VIX | 15.72 | +0.42 点 | Cboe |
+| 美债 10Y | 4.806% | +2.2 bp | Yahoo |
+| 美元指数 | 98.84 | −0.32% | Yahoo |
+| USD/CNY | 6.7105 | ≈0.00% | ECB |
+`;
+    const tiles = extractMacroStatTiles(splitDailySections(md));
+    expect(tiles.map((t) => t.label)).toEqual(['S&P 500', 'VIX', 'US 10Y', 'DXY']);
+    expect(tiles[0]?.tone).toBe('down');
+    expect(tiles[0]?.change).toContain('-0.58');
+    expect(tiles[1]?.tone).toBe('up');
+    expect(tiles[1]?.change).toContain('0.42');
   });
 });
 
