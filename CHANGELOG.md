@@ -1,3 +1,10 @@
+## 0.6.1 — 2026-09-09
+
+- chore: bump basalt to 2.1.2
+- Merge pull request #2 from nocoo/co/20260905-fundly-cleanup
+- docs: standardize bilingual project README
+- chore: remove unused fundsFiltersEqual helper
+
 ## 0.6.0 — 2026-09-06
 
 - docs: align deployment notes for 0.6.0
