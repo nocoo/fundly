@@ -13,6 +13,7 @@ import {
 } from '../../../src/backup/settings.ts';
 import { type AuthConfig, loadAuthConfig } from '../src/lib/auth-config.ts';
 import { registerAuthRoutes, requireSession } from '../src/lib/auth-routes.ts';
+import { DAILY_DATE_RE, getDailyReport, listDailyReports } from '../src/lib/daily-service.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
 import {
@@ -244,6 +245,18 @@ export function createApi(
     const detail = await getFundDetail(sqlite, c.req.param('code'));
     if (!detail) return c.json({ error: 'Not found' }, 404);
     return c.json(detail);
+  });
+
+  // 财经日报 / 宏观日报（仓库 content/macro-daily/*.md）
+  app.get('/api/daily', async (c) => c.json(await listDailyReports(repoRoot)));
+  app.get('/api/daily/:date', async (c) => {
+    const date = c.req.param('date');
+    if (!DAILY_DATE_RE.test(date)) {
+      return c.json({ error: 'date must be YYYY-MM-DD' }, 400);
+    }
+    const report = await getDailyReport(repoRoot, date);
+    if (!report) return c.json({ error: 'Not found' }, 404);
+    return c.json(report);
   });
 
   // 宏观大屏与跨资产接口

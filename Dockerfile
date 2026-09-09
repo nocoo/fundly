@@ -14,6 +14,7 @@ RUN bun install --frozen-lockfile \
   && bun install --frozen-lockfile --cwd apps/worker
 
 COPY . .
+# content/macro-daily/*.md is served from disk at runtime (see docs/17-MACRO-DAILY.md)
 RUN bun run build:web
 
 ENV NODE_ENV=production

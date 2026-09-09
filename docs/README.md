@@ -23,3 +23,4 @@
 | 14 | [宏观大屏实现与运行](./14-MACRO-IMPLEMENTATION.md) |
 | 15 | [选 ETF：配置、交易质量与产品比较](./15-ETF-SCREENING.md) |
 | 16 | [选股：估值、经营质量与价格风险](./16-STOCK-SCREENING.md) |
+| 17 | [财经日报（跨资产研究摘要）](./17-MACRO-DAILY.md) |

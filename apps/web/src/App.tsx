@@ -11,6 +11,8 @@ const Backup = lazy(() => import('@/app/backup-page'));
 const FundDetail = lazy(() => import('@/app/fund-detail-page'));
 const Select = lazy(() => import('@/app/select-page'));
 const Market = lazy(() => import('@/app/market-page'));
+const Daily = lazy(() => import('@/app/daily-page'));
+const DailyDetail = lazy(() => import('@/app/daily-detail-page'));
 const Etfs = lazy(() => import('@/app/etfs-page'));
 const EtfDetail = lazy(() => import('@/app/etf-detail-page'));
 const Stocks = lazy(() => import('@/app/stocks-page'));
@@ -65,6 +67,22 @@ export function App() {
                 element={
                   <Guard>
                     <Market />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/daily"
+                element={
+                  <Guard>
+                    <Daily />
+                  </Guard>
+                }
+              />
+              <Route
+                path="/daily/:date"
+                element={
+                  <Guard>
+                    <DailyDetail />
                   </Guard>
                 }
               />

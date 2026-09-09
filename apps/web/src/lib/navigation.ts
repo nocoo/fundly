@@ -24,6 +24,7 @@ export const NAV_GROUPS: NavGroupDef[] = [
     items: [
       { href: '/', label: '仪表盘', icon: 'LayoutDashboard' },
       { href: '/market', label: '宏观大屏', icon: 'LineChart' },
+      { href: '/daily', label: '日报', icon: 'Newspaper' },
     ],
   },
   {
