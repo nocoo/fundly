@@ -60,7 +60,7 @@ fundly/
 | **14** | `14-MACRO-IMPLEMENTATION.md` | 宏观大屏实现、真实 K 线、采集 / 持续更新与只读 API |
 | **15** | `15-ETF-SCREENING.md` | ETF 配置、交易质量、成本规模与净值风险筛选 |
 | **16** | `16-STOCK-SCREENING.md` | 股票估值、经营质量、成长、现金流与趋势风险筛选 |
-| **17** | `17-MACRO-DAILY.md` | 财经日报（potato style）Markdown、只读 API 与 `/daily` 展示 |
+| **17** | `17-MACRO-DAILY.md` | 财经日报（跨资产研究摘要）Markdown 契约、只读 API 与 `/daily` 混合渲染 |
 
 **新增文档规则**：
 - 数字**顺延**（下一份文档用 `18-`）
