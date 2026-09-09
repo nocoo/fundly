@@ -69,9 +69,9 @@
   gap: 8px;
 }
 
-/* Limited mode: readable measure; full uses research-page width. */
+/* Limited mode: readable measure (~30% wider than 60rem); full uses research-page width. */
 .research-page.daily-page--limited {
-  max-width: 60rem;
+  max-width: 78rem;
   width: 100%;
   margin-inline: auto;
 }
@@ -177,16 +177,41 @@
 .daily-md ol,
 .daily-md blockquote,
 .daily-md pre {
-  margin: 0.7em 0;
+  margin: 0.55em 0;
 }
 
 .daily-md ul,
 .daily-md ol {
-  padding-left: 1.35em;
+  margin-left: 0;
+  padding-left: 1.15em;
+  list-style-position: outside;
+}
+
+.daily-md ul {
+  list-style-type: disc;
+}
+
+.daily-md ol {
+  list-style-type: decimal;
+}
+
+.daily-md li {
+  margin: 0;
+  padding-left: 0.15em;
+  line-height: 1.65;
 }
 
 .daily-md li + li {
-  margin-top: 0.35em;
+  margin-top: 0.28em;
+}
+
+.daily-md li > p {
+  margin: 0;
+}
+
+.daily-md li > ul,
+.daily-md li > ol {
+  margin: 0.25em 0 0.1em;
 }
 
 .daily-md a {
@@ -199,12 +224,15 @@
   font-weight: 600;
 }
 
+/* Remaining blockquotes (non-methodology) must not steal list measure. */
 .daily-md blockquote {
   margin-left: 0;
-  padding: 0.4em 0 0.4em 0.9em;
+  margin-right: 0;
+  padding: 0.35em 0 0.35em 0.75em;
   border-left: 3px solid hsl(var(--basalt-border));
   color: hsl(var(--basalt-muted-foreground));
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .daily-md code {

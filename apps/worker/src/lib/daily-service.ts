@@ -8,6 +8,8 @@ export interface DailyFrontmatter {
   weekday?: string;
   summary?: string;
   session?: string;
+  /** Optional data methodology / 口径 text (shown in header DataInfo, not body blockquotes). */
+  methodology?: string;
   sources?: string[];
 }
 
@@ -18,6 +20,7 @@ export interface DailyListItem {
   path: string;
   weekday?: string;
   session?: string;
+  methodology?: string;
   sources?: string[];
 }
 
@@ -28,12 +31,13 @@ export interface DailyDetail {
   markdown: string;
   weekday?: string;
   session?: string;
+  methodology?: string;
   sources?: string[];
 }
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
-const STRING_KEYS = ['title', 'date', 'weekday', 'summary', 'session'] as const;
+const STRING_KEYS = ['title', 'date', 'weekday', 'summary', 'session', 'methodology'] as const;
 
 /** Lightweight YAML-ish frontmatter for title/date/weekday/summary/session/sources. */
 export function parseFrontmatter(raw: string): { meta: DailyFrontmatter; body: string } {
@@ -124,10 +128,11 @@ function splitInlineList(inner: string): string[] {
 
 function optionalFields(
   meta: DailyFrontmatter,
-): Pick<DailyListItem, 'weekday' | 'session' | 'sources'> {
-  const out: Pick<DailyListItem, 'weekday' | 'session' | 'sources'> = {};
+): Pick<DailyListItem, 'weekday' | 'session' | 'methodology' | 'sources'> {
+  const out: Pick<DailyListItem, 'weekday' | 'session' | 'methodology' | 'sources'> = {};
   if (meta.weekday?.trim()) out.weekday = meta.weekday.trim();
   if (meta.session?.trim()) out.session = meta.session.trim();
+  if (meta.methodology?.trim()) out.methodology = meta.methodology.trim();
   if (meta.sources && meta.sources.length > 0) out.sources = meta.sources;
   return out;
 }
