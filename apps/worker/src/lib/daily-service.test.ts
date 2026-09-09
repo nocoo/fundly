@@ -16,13 +16,14 @@ describe('parseFrontmatter', () => {
     expect(body).toBe('# Hello\n\nworld');
   });
 
-  test('parses title date weekday summary session and list sources', () => {
+  test('parses title date weekday summary session methodology and list sources', () => {
     const raw = `---
 title: 测试日报
 date: 2026-09-09
 weekday: 周三
 summary: 一行摘要
 session: 美东上一交易日收盘；Asia/Shanghai 生成
+methodology: 美股以 Yahoo 收盘为主；A 股来自本地 SQLite。
 sources:
   - Alpha
   - Beta
@@ -39,6 +40,7 @@ table time
       weekday: '周三',
       summary: '一行摘要',
       session: '美东上一交易日收盘；Asia/Shanghai 生成',
+      methodology: '美股以 Yahoo 收盘为主；A 股来自本地 SQLite。',
       sources: ['Alpha', 'Beta'],
     });
     expect(body.startsWith('# Body')).toBe(true);
@@ -89,6 +91,7 @@ date: 2026-09-09
 weekday: 周三
 summary: new
 session: US cash close
+methodology: Yahoo close primary
 sources: [Yahoo Finance, FRED]
 ---
 | a | b |
@@ -107,15 +110,18 @@ sources: [Yahoo Finance, FRED]
         path: 'content/macro-daily/2026-09-09.md',
         weekday: '周三',
         session: 'US cash close',
+        methodology: 'Yahoo close primary',
         sources: ['Yahoo Finance', 'FRED'],
       });
       expect(list[1]?.weekday).toBeUndefined();
       expect(list[1]?.sources).toBeUndefined();
+      expect(list[1]?.methodology).toBeUndefined();
 
       const detail = await getDailyReport(root, '2026-09-09');
       expect(detail?.title).toBe('Newer');
       expect(detail?.weekday).toBe('周三');
       expect(detail?.session).toBe('US cash close');
+      expect(detail?.methodology).toBe('Yahoo close primary');
       expect(detail?.sources).toEqual(['Yahoo Finance', 'FRED']);
       expect(detail?.markdown).toContain('| a | b |');
       expect(await getDailyReport(root, '2099-01-01')).toBeNull();

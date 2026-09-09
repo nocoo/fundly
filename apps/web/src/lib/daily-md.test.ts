@@ -3,6 +3,7 @@ import {
   bareSectionTitle,
   changeTone,
   extractMacroStatTiles,
+  extractSectionNote,
   findSectionByBareTitle,
   formatSectionTitle,
   isNewsPairSection,
@@ -63,7 +64,35 @@ describe('parseSectionBody', () => {
     expect(parsed.table?.headers).toEqual(['标的', '最新', '涨跌', '备注']);
     expect(parsed.table?.rows.length).toBe(5);
     expect(parsed.table?.rows[0]?.[0]).toBe('S&P 500');
-    expect(parsed.after).toContain('短评');
+    // Legacy after-only prose is promoted above the table.
+    expect(parsed.before).toContain('短评');
+    expect(parsed.after).toBe('');
+  });
+
+  test('keeps before prose and after when both present', () => {
+    const body = `开盘点评。
+
+| 标的 | 涨跌 | 最新 |
+|------|------|------|
+| Gold | +0.5% | 2,500 |
+
+收盘补充。`;
+    const parsed = parseSectionBody(body);
+    expect(parsed.before).toContain('开盘点评');
+    expect(parsed.after).toContain('收盘补充');
+    expect(parsed.table?.rows[0]?.[0]).toBe('Gold');
+  });
+
+  test('promotes after-only prose to before when before is empty', () => {
+    const body = `| 标的 | 涨跌 | 最新 |
+|------|------|------|
+| S&P 500 | -0.4% | 5,500 |
+
+利率与能源仍是主导叙事。`;
+    const parsed = parseSectionBody(body);
+    expect(parsed.before).toContain('利率与能源');
+    expect(parsed.after).toBe('');
+    expect(parsed.table?.rows.length).toBe(1);
   });
 
   test('preserves escaped pipes and trims rows to header width', () => {
@@ -77,6 +106,146 @@ describe('parseSectionBody', () => {
       ['risk-on | risk-off', 'keep', 'extra'],
       ['only-one', 'two', ''],
     ]);
+  });
+});
+
+describe('extractSectionNote', () => {
+  test('peels leading 口径 blockquote and returns plain note + cleaned body', () => {
+    const body = `> 口径：Yahoo 日线最近完整收盘；A 股来自本地 SQLite。
+
+- **主线**：美股回撤。
+- 相对前日连跌。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toContain('口径');
+    expect(note).toContain('Yahoo');
+    expect(note).not.toMatch(/^>/m);
+    expect(cleaned).toContain('**主线**');
+    expect(cleaned).not.toContain('口径');
+    expect(cleaned).not.toContain('>');
+  });
+
+  test('peels trailing methodology blockquote', () => {
+    const body = `- 第一条论点
+
+> 示例占位，非实时行情。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toContain('示例占位');
+    expect(cleaned.trim()).toBe('- 第一条论点');
+  });
+
+  test('leaves thesis lists untouched when no meta note', () => {
+    const body = `- **主线**：跨资产读法。
+- 观察下一交易日。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBeNull();
+    expect(cleaned).toBe(body);
+  });
+
+  test('peels short plain 口径 paragraph', () => {
+    const body = `口径：本表以 Yahoo 收盘为主。
+
+| 标的 | 涨跌 |
+|------|------|
+| VIX | +1 |`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toContain('口径');
+    expect(cleaned).toContain('| VIX |');
+    expect(cleaned).not.toContain('口径');
+  });
+
+  test('peels plain 口径 note that embeds mid-sentence numbered points', () => {
+    // Mid-sentence `1. ` / `2. ` must not be treated as a leading list marker.
+    const body = `口径：1. 美股取收盘；2. A 股取快照。
+
+- **主线**：跨资产读法。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBe('口径：1. 美股取收盘；2. A 股取快照。');
+    expect(cleaned).toBe('- **主线**：跨资产读法。');
+  });
+
+  test('preserves ordinary leading blockquote without methodology keywords', () => {
+    const body = `> 「风险偏好回落，现金为王。」
+
+- **主线**：美股回撤。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBeNull();
+    expect(cleaned).toContain('> 「风险偏好回落');
+    expect(cleaned).toContain('**主线**');
+  });
+
+  test('preserves ordinary trailing blockquote without methodology keywords', () => {
+    const body = `- 第一条论点
+
+> 市场情绪偏谨慎，观望为主。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBeNull();
+    expect(cleaned).toContain('- 第一条论点');
+    expect(cleaned).toContain('> 市场情绪偏谨慎');
+  });
+
+  test('peels methodology blockquote that only contains session/会话 markers', () => {
+    const body = `> session：Asia open snapshot；会话口径非收盘结算。
+
+| 标的 | 涨跌 |
+|------|------|
+| VIX | +1 |`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toMatch(/session|会话/i);
+    expect(cleaned).toContain('| VIX |');
+    expect(cleaned).not.toContain('session');
+  });
+
+  test('does not peel ordinary prose that merely contains the word session', () => {
+    const body = `The session ended higher on risk-on flows.
+
+- **主线**：美股反弹。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBeNull();
+    expect(cleaned).toContain('The session ended higher');
+    expect(cleaned).toContain('**主线**');
+  });
+
+  test('does not peel trailing commentary with mid-sentence session', () => {
+    const body = `- 第一条论点
+
+The session ended higher after the print.`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toBeNull();
+    expect(cleaned).toContain('- 第一条论点');
+    expect(cleaned).toContain('The session ended higher');
+  });
+
+  test('peels plain session： / 会话： label prefixes', () => {
+    const body = `session：美东收盘快照。
+
+- 主线论点。`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toContain('session：美东');
+    expect(cleaned).toContain('- 主线论点');
+    expect(cleaned).not.toContain('session');
+
+    const body2 = `会话：亚洲开盘快照。
+
+- 观察下一日。`;
+    const r2 = extractSectionNote(body2);
+    expect(r2.note).toContain('会话：亚洲');
+    expect(r2.body).toContain('- 观察下一日');
+    expect(r2.body).not.toContain('会话');
+  });
+
+  test('preserves leading indent on kept blocks after note peel', () => {
+    // Indented continuation under a list item must keep its first-line spaces.
+    const body = `> 口径：Yahoo 日线。
+
+- parent item
+  - nested child
+  continued indent`;
+    const { note, body: cleaned } = extractSectionNote(body);
+    expect(note).toContain('口径');
+    expect(cleaned).toContain('- parent item');
+    // Nested list line keeps its leading spaces (2-space indent).
+    expect(cleaned).toMatch(/\n {2}- nested child/);
+    expect(cleaned).toMatch(/\n {2}continued indent/);
   });
 });
 

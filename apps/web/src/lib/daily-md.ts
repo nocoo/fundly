@@ -76,7 +76,109 @@ function isSeparatorRow(line: string): boolean {
   return cells.every((c) => /^:?-{3,}:?$/.test(c));
 }
 
-/** Extract the first GFM table from a section body; leave surrounding prose. */
+/**
+ * Peel methodology / 口径 / session meta notes out of a section body.
+ * Typically leading or trailing blockquotes (`> 口径：…`) or short meta paragraphs.
+ * Returns plain-text `note` (blockquote `>` prefixes stripped; leading 口径： kept)
+ * and cleaned `body` markdown without those note blocks.
+ */
+export function extractSectionNote(body: string): { note: string | null; body: string } {
+  // Strip BOM + outer blank lines only — keep first-line indent of content blocks.
+  const text = trimOuterBlankLines(body.replace(/^\uFEFF/, ''));
+  if (!text) return { note: null, body: '' };
+
+  const blocks = splitMarkdownBlocks(text);
+  if (blocks.length === 0) return { note: null, body: '' };
+
+  const noteIdxs: number[] = [];
+  const first = 0;
+  const last = blocks.length - 1;
+
+  if (isMethodologyNoteBlock(blocks[first] ?? '')) noteIdxs.push(first);
+  if (last !== first && isMethodologyNoteBlock(blocks[last] ?? '')) noteIdxs.push(last);
+
+  if (noteIdxs.length === 0) return { note: null, body: text };
+
+  const noteParts = noteIdxs.map((i) => blockToPlainNote(blocks[i] ?? ''));
+  const note = noteParts.filter(Boolean).join('\n\n') || null;
+  const kept = blocks.filter((_, i) => !noteIdxs.includes(i));
+  // Outer trim removes leading/trailing blank lines of the joined body only.
+  return { note, body: trimOuterBlankLines(kept.join('\n\n')) };
+}
+
+/** Strip leading/trailing blank lines; keep spaces that are content indent. */
+function trimOuterBlankLines(text: string): string {
+  return text.replace(/^(?:[ \t]*\r?\n)+/, '').replace(/(?:\r?\n[ \t]*)+$/, '');
+}
+
+/** Split markdown into blank-line-separated blocks (preserves leading indent). */
+function splitMarkdownBlocks(text: string): string[] {
+  // Do not trim each part — loose lists / indented code need first-line indent.
+  return text.split(/\n\s*\n/).filter((p) => !/^\s*$/.test(p));
+}
+
+function isBlockquoteBlock(block: string): boolean {
+  const lines = block.split(/\r?\n/).filter((l) => l.trim() !== '');
+  if (lines.length === 0) return false;
+  return lines.every((l) => /^\s*>/.test(l));
+}
+
+function stripBlockquotePrefixes(block: string): string {
+  return block
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*>\s?/, '').trimEnd())
+    .join('\n')
+    .trim();
+}
+
+/** True when block is meta/methodology rather than thesis prose. */
+function isMethodologyNoteBlock(block: string): boolean {
+  if (isBlockquoteBlock(block)) {
+    const plain = stripBlockquotePrefixes(block);
+    // Only peel methodology/session/口径 notes — ordinary short quotes stay in body.
+    if (!plain) return false;
+    return hasMethodologyKeyword(plain);
+  }
+
+  // Short plain meta paragraph (no list markers / tables).
+  const plain = block.trim();
+  if (!plain || plain.includes('\n')) return false;
+  // Both list markers must be start-anchored; ungrouped `\d+\.\s` matched mid-sentence.
+  if (/^\s*(?:[-*+]|\d+\.)\s/.test(plain)) return false;
+  if (plain.includes('|')) return false;
+  if (!hasMethodologyKeyword(plain)) return false;
+  return plain.length <= 280;
+}
+
+/**
+ * True when plain note text starts with an explicit metadata label/prefix.
+ * Mid-sentence words (e.g. "The session ended higher") must NOT match.
+ */
+function hasMethodologyKeyword(text: string): boolean {
+  const plain = text.trimStart();
+  // Label forms: 口径： / session: / 数据源： / methodology： …
+  if (
+    /^(口径|数据口径|session|会话|会话口径|来源说明|方法论|methodology|数据源|数据来源)\s*[:：]/i.test(
+      plain,
+    )
+  ) {
+    return true;
+  }
+  // Disclaimer prefixes only at start of text, not mid-sentence.
+  if (/^(示例占位|非实时行情)/.test(plain)) return true;
+  return false;
+}
+
+function blockToPlainNote(block: string): string {
+  const plain = isBlockquoteBlock(block) ? stripBlockquotePrefixes(block) : block.trim();
+  return plain.trim();
+}
+
+/**
+ * Extract the first GFM table from a section body; leave surrounding prose.
+ * When `before` is empty and `after` has prose, promote `after` → `before`
+ * so dimension commentary always renders above the table.
+ */
 export function parseSectionBody(body: string): ParsedSectionBody {
   const lines = body.split(/\r?\n/);
   let i = 0;
@@ -98,8 +200,13 @@ export function parseSectionBody(body: string): ParsedSectionBody {
         rows.push(row);
         i += 1;
       }
-      const before = lines.slice(0, tableStart).join('\n').trim();
-      const after = lines.slice(i).join('\n').trim();
+      let before = lines.slice(0, tableStart).join('\n').trim();
+      let after = lines.slice(i).join('\n').trim();
+      // Prefer commentary above the table when legacy MD put prose only after.
+      if (!before && after) {
+        before = after;
+        after = '';
+      }
       return { before, table: { headers, rows }, after };
     }
     i += 1;

@@ -55,7 +55,7 @@ import { sidebarUserState } from '@/lib/user';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { useSidebar } from './sidebar-context';
 
-const APP_VERSION = '0.6.2';
+const APP_VERSION = '0.6.3';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Award,

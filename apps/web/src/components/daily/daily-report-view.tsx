@@ -7,6 +7,7 @@ import { useQuoteColor } from '@/hooks/use-quote-color';
 import {
   type DailySection,
   extractMacroStatTiles,
+  extractSectionNote,
   formatSectionTitle,
   isTableSection,
   parseSectionBody,
@@ -20,6 +21,30 @@ import { cn } from '@/lib/utils';
 import { DailyQuoteTable } from './daily-quote-table';
 import { MarkdownBody } from './markdown-body';
 
+/** Circled Info popover for section methodology / 口径 notes (same pattern as StatInfoAction). */
+function SectionNoteAction({ note, label }: { note: string; label: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+          aria-label={`${label} 说明`}
+        >
+          <Info className="h-3 w-3" strokeWidth={1.5} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        className="w-72 max-w-[min(18rem,90vw)] text-left text-xs leading-relaxed"
+      >
+        {note}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ProseSectionCard({
   section,
   fallbackTitle,
@@ -29,29 +54,37 @@ function ProseSectionCard({
 }) {
   const rawTitle = section.title || fallbackTitle;
   const title = section.title ? formatSectionTitle(section.title) : rawTitle;
+  const { note, body } = extractSectionNote(section.body);
   return (
     <LayerCard padding="none" className="daily-section-card">
-      <PanelHeading title={title} />
+      <PanelHeading
+        title={title}
+        action={
+          note ? <SectionNoteAction note={note} label={rawTitle || fallbackTitle} /> : undefined
+        }
+      />
       <LayerCard.Body className="daily-section-body">
-        <MarkdownBody markdown={section.body} />
+        <MarkdownBody markdown={body} />
       </LayerCard.Body>
     </LayerCard>
   );
 }
 
 function TableSectionCard({ section }: { section: DailySection }) {
-  const parsed = parseSectionBody(section.body);
+  const { note, body: cleaned } = extractSectionNote(section.body);
+  const parsed = parseSectionBody(cleaned);
   const heading = formatSectionTitle(section.title || '行情');
+  const label = section.title || '行情';
   return (
     <LayerCard padding="none" className="daily-section-card">
-      <PanelHeading title={heading} />
+      <PanelHeading
+        title={heading}
+        action={note ? <SectionNoteAction note={note} label={label} /> : undefined}
+      />
       <LayerCard.Body className="daily-section-body">
         {parsed.before ? <MarkdownBody markdown={parsed.before} className="mb-3" /> : null}
         {parsed.table ? <DailyQuoteTable table={parsed.table} /> : null}
         {parsed.after ? <MarkdownBody markdown={parsed.after} className="mt-3" /> : null}
-        {!parsed.table && !parsed.before && !parsed.after ? (
-          <MarkdownBody markdown={section.body} />
-        ) : null}
       </LayerCard.Body>
     </LayerCard>
   );

@@ -21,6 +21,7 @@ export interface DailyDetail {
   markdown: string;
   weekday?: string;
   session?: string;
+  methodology?: string;
   sources?: string[];
 }
 
@@ -62,6 +63,7 @@ export default function DailyDetailPage() {
                       <p>来源未在 frontmatter 中声明。</p>
                     )}
                     {data.session ? <p>会话口径：{data.session}</p> : null}
+                    {data.methodology ? <p>数据口径：{data.methodology}</p> : null}
                     <p>文件：content/macro-daily/{data.date}.md</p>
                   </DataInfo>
                 </span>

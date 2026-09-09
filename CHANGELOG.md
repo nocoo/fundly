@@ -1,3 +1,12 @@
+## 0.6.3 — 2026-09-10
+
+- feat(web): widen daily limited layout to 78rem and keep full-width mode
+- feat(web): peel section methodology notes into circled-i popovers; tighten prose list styling
+- feat(web): promote after-only dimension commentary above quote tables
+- feat(api): optional daily `methodology` frontmatter on list/detail + DataInfo
+- content: rewrite 2026-09-09 / 2026-09-10 dailies as bullet prose + table-first commentary
+- docs: align 17-MACRO-DAILY contract with bullets, methodology, and table order
+
 ## 0.6.1 — 2026-09-09
 
 - chore: bump basalt to 2.1.2
