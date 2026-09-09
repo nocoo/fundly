@@ -14,6 +14,13 @@ describe('isItemActive', () => {
     expect(isItemActive('/ranking', '/funds')).toBe(false);
   });
 
+  it('highlights 日报 for list and detail paths', () => {
+    expect(isItemActive('/daily', '/daily')).toBe(true);
+    expect(isItemActive('/daily', '/daily/2026-09-09')).toBe(true);
+    expect(isItemActive('/daily', '/daily-archive')).toBe(false);
+    expect(isItemActive('/market', '/daily/2026-09-09')).toBe(false);
+  });
+
   it('keeps the originating list active on a fund detail', () => {
     expect(isItemActive('/ranking', '/funds/000001', { path: '/ranking', search: '' })).toBe(true);
     expect(isItemActive('/funds', '/funds/000001', { path: '/ranking', search: '' })).toBe(false);
