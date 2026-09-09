@@ -148,7 +148,7 @@ export async function listDailyReports(repoRoot: string): Promise<DailyListItem[
       const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
       items.push({
         date: resolvedDate,
-        title: meta.title?.trim() || `宏观日报 · ${resolvedDate}`,
+        title: meta.title?.trim() || `📊 财经日报 · ${resolvedDate}`,
         summary: meta.summary?.trim() || '',
         path: `content/macro-daily/${date}.md`,
       });
@@ -170,7 +170,7 @@ export async function getDailyReport(repoRoot: string, date: string): Promise<Da
   const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
   return {
     date: resolvedDate,
-    title: meta.title?.trim() || `宏观日报 · ${resolvedDate}`,
+    title: meta.title?.trim() || `📊 财经日报 · ${resolvedDate}`,
     summary: meta.summary?.trim() || '',
     markdown: body,
     ...(meta.sources && meta.sources.length > 0 ? { sources: meta.sources } : {}),

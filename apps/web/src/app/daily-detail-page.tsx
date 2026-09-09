@@ -28,7 +28,7 @@ export default function DailyDetailPage() {
   );
 
   const notFound = error instanceof ApiError && error.status === 404;
-  const title = data?.title ?? (valid ? `宏观日报 · ${date}` : '宏观日报');
+  const title = data?.title ?? (valid ? `📊 财经日报 · ${date}` : '财经日报');
 
   return (
     <AppShell breadcrumbs={[{ label: '日报', href: '/daily' }, { label: valid ? date : '详情' }]}>

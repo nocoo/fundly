@@ -247,7 +247,7 @@ export function createApi(
     return c.json(detail);
   });
 
-  // 宏观日报（仓库 content/macro-daily/*.md）
+  // 财经日报 / 宏观日报（仓库 content/macro-daily/*.md）
   app.get('/api/daily', async (c) => c.json(await listDailyReports(repoRoot)));
   app.get('/api/daily/:date', async (c) => {
     const date = c.req.param('date');

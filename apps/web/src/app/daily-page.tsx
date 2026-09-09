@@ -24,9 +24,9 @@ export default function DailyPage() {
     <AppShell breadcrumbs={[{ label: '日报' }]}>
       <div className="research-page">
         <ResearchHeader
-          title="宏观日报"
+          title="财经日报"
           icon={Newspaper}
-          description="利率、汇率、商品与风险偏好的日度摘要。正文为仓库内 Markdown，部署后即可阅读。"
+          description="全球宏观、黄金、AI 七巨头与中国相关标的的日度摘要（potato style）。正文为仓库 Markdown，部署后即可阅读。"
         />
 
         <LayerCard padding="none">
@@ -65,7 +65,7 @@ export default function DailyPage() {
               </div>
             ) : items.length === 0 ? (
               <ResearchEmpty
-                title="暂无宏观日报"
+                title="暂无财经日报"
                 description="将 Markdown 放到 content/macro-daily/YYYY-MM-DD.md 并部署后，这里会自动出现列表。"
               />
             ) : (
