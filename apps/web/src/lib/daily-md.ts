@@ -184,7 +184,10 @@ const STAT_ALIASES: Array<{ label: string; match: RegExp }> = [
   { label: 'S&P 500', match: /s\s*&\s*p\s*500|标普/i },
   { label: 'VIX', match: /\bvix\b/i },
   // Tenor-specific only: bare 美债 / bare 10Y would steal 2Y (or other) rows first.
-  { label: 'US 10Y', match: /(?:us\s*10\s*y|美债\s*10\s*y|10\s*y\s*美债|美债\s*10\s*年|10\s*年(?:期)?\s*美债)/i },
+  {
+    label: 'US 10Y',
+    match: /(?:us\s*10\s*y|美债\s*10\s*y|10\s*y\s*美债|美债\s*10\s*年|10\s*年(?:期)?\s*美债)/i,
+  },
   // Index only: bare 美元 would match 美元兑人民币 before 美元指数.
   { label: 'DXY', match: /(?:\bdxy\b|美元指数)/i },
   { label: 'Gold', match: /gold|黄金|gc\b|gld/i },
