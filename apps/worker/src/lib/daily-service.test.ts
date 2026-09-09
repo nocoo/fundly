@@ -16,11 +16,13 @@ describe('parseFrontmatter', () => {
     expect(body).toBe('# Hello\n\nworld');
   });
 
-  test('parses title date summary and list sources', () => {
+  test('parses title date weekday summary session and list sources', () => {
     const raw = `---
 title: 测试日报
 date: 2026-09-09
+weekday: 周三
 summary: 一行摘要
+session: 美东上一交易日收盘；Asia/Shanghai 生成
 sources:
   - Alpha
   - Beta
@@ -34,7 +36,9 @@ table time
     expect(meta).toEqual({
       title: '测试日报',
       date: '2026-09-09',
+      weekday: '周三',
       summary: '一行摘要',
+      session: '美东上一交易日收盘；Asia/Shanghai 生成',
       sources: ['Alpha', 'Beta'],
     });
     expect(body.startsWith('# Body')).toBe(true);
@@ -52,7 +56,7 @@ x
 });
 
 describe('daily filesystem reader', () => {
-  test('lists newest first and loads detail markdown', async () => {
+  test('lists newest first and loads detail markdown with optional fields', async () => {
     const root = mkdtempSync(join(tmpdir(), 'fundly-daily-'));
     try {
       const dir = join(root, 'content', 'macro-daily');
@@ -72,7 +76,10 @@ old body
         `---
 title: Newer
 date: 2026-09-09
+weekday: 周三
 summary: new
+session: US cash close
+sources: [Yahoo Finance, FRED]
 ---
 | a | b |
 | - | - |
@@ -88,10 +95,18 @@ summary: new
         title: 'Newer',
         summary: 'new',
         path: 'content/macro-daily/2026-09-09.md',
+        weekday: '周三',
+        session: 'US cash close',
+        sources: ['Yahoo Finance', 'FRED'],
       });
+      expect(list[1]?.weekday).toBeUndefined();
+      expect(list[1]?.sources).toBeUndefined();
 
       const detail = await getDailyReport(root, '2026-09-09');
       expect(detail?.title).toBe('Newer');
+      expect(detail?.weekday).toBe('周三');
+      expect(detail?.session).toBe('US cash close');
+      expect(detail?.sources).toEqual(['Yahoo Finance', 'FRED']);
       expect(detail?.markdown).toContain('| a | b |');
       expect(await getDailyReport(root, '2099-01-01')).toBeNull();
     } finally {

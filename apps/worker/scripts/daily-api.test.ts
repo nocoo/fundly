@@ -80,7 +80,10 @@ describe('local daily API integration', () => {
       '2099-01-02.md': `---
 title: Future Two
 date: 2099-01-02
+weekday: 周四
 summary: second
+session: US cash close
+sources: [Yahoo Finance, FRED]
 ---
 ## Hello
 
@@ -106,6 +109,9 @@ body one
       title: 'Future Two',
       summary: 'second',
       path: 'content/macro-daily/2099-01-02.md',
+      weekday: '周四',
+      session: 'US cash close',
+      sources: ['Yahoo Finance', 'FRED'],
     });
 
     const detailRes = await app.request('/api/daily/2099-01-02');
@@ -115,6 +121,9 @@ body one
       date: '2099-01-02',
       title: 'Future Two',
       summary: 'second',
+      weekday: '周四',
+      session: 'US cash close',
+      sources: ['Yahoo Finance', 'FRED'],
     });
     expect(detail.markdown).toContain('| col |');
     expect((detail as { html?: string }).html).toBeUndefined();

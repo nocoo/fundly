@@ -256,12 +256,7 @@ export function createApi(
     }
     const report = await getDailyReport(repoRoot, date);
     if (!report) return c.json({ error: 'Not found' }, 404);
-    return c.json({
-      date: report.date,
-      title: report.title,
-      summary: report.summary,
-      markdown: report.markdown,
-    });
+    return c.json(report);
   });
 
   // 宏观大屏与跨资产接口

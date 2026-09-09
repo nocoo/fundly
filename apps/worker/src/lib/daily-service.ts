@@ -5,7 +5,9 @@ export const DAILY_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export interface DailyFrontmatter {
   title?: string;
   date?: string;
+  weekday?: string;
   summary?: string;
+  session?: string;
   sources?: string[];
 }
 
@@ -14,6 +16,9 @@ export interface DailyListItem {
   title: string;
   summary: string;
   path: string;
+  weekday?: string;
+  session?: string;
+  sources?: string[];
 }
 
 export interface DailyDetail {
@@ -21,12 +26,16 @@ export interface DailyDetail {
   title: string;
   summary: string;
   markdown: string;
+  weekday?: string;
+  session?: string;
   sources?: string[];
 }
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
-/** Lightweight YAML-ish frontmatter for title/date/summary/sources only. */
+const STRING_KEYS = ['title', 'date', 'weekday', 'summary', 'session'] as const;
+
+/** Lightweight YAML-ish frontmatter for title/date/weekday/summary/session/sources. */
 export function parseFrontmatter(raw: string): { meta: DailyFrontmatter; body: string } {
   const match = FRONTMATTER_RE.exec(raw);
   if (!match) return { meta: {}, body: raw };
@@ -71,8 +80,8 @@ export function parseFrontmatter(raw: string): { meta: DailyFrontmatter; body: s
       i += 1;
       continue;
     }
-    if (key === 'title' || key === 'date' || key === 'summary') {
-      meta[key] = unquote(rest);
+    if ((STRING_KEYS as readonly string[]).includes(key)) {
+      meta[key as (typeof STRING_KEYS)[number]] = unquote(rest);
     }
     i += 1;
   }
@@ -85,6 +94,16 @@ function unquote(value: string): string {
     return v.slice(1, -1);
   }
   return v;
+}
+
+function optionalFields(
+  meta: DailyFrontmatter,
+): Pick<DailyListItem, 'weekday' | 'session' | 'sources'> {
+  const out: Pick<DailyListItem, 'weekday' | 'session' | 'sources'> = {};
+  if (meta.weekday?.trim()) out.weekday = meta.weekday.trim();
+  if (meta.session?.trim()) out.session = meta.session.trim();
+  if (meta.sources && meta.sources.length > 0) out.sources = meta.sources;
+  return out;
 }
 
 export function resolveDailyDir(repoRoot: string): string {
@@ -148,9 +167,10 @@ export async function listDailyReports(repoRoot: string): Promise<DailyListItem[
       const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
       items.push({
         date: resolvedDate,
-        title: meta.title?.trim() || `📊 财经日报 · ${resolvedDate}`,
+        title: meta.title?.trim() || '财经日报',
         summary: meta.summary?.trim() || '',
         path: `content/macro-daily/${date}.md`,
+        ...optionalFields(meta),
       });
     } catch {
       // skip unreadable files
@@ -170,10 +190,10 @@ export async function getDailyReport(repoRoot: string, date: string): Promise<Da
   const resolvedDate = meta.date && DAILY_DATE_RE.test(meta.date) ? meta.date : date;
   return {
     date: resolvedDate,
-    title: meta.title?.trim() || `📊 财经日报 · ${resolvedDate}`,
+    title: meta.title?.trim() || '财经日报',
     summary: meta.summary?.trim() || '',
     markdown: body,
-    ...(meta.sources && meta.sources.length > 0 ? { sources: meta.sources } : {}),
+    ...optionalFields(meta),
   };
 }
 
