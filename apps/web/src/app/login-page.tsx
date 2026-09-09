@@ -6,7 +6,7 @@ import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';
 import { googleStartUrl, loginErrorMessage } from '@/lib/login-vm';
 
-const APP_VERSION = '0.6.1';
+const APP_VERSION = '0.6.2';
 const FEATURES = [
   { icon: Globe2, title: '市场全景', text: '沪深指数与跨资产环境，观察市场大势。' },
   { icon: ChartCandlestick, title: '行业观察', text: '从行业走势进入 ETF，沿真实 K 线深入。' },

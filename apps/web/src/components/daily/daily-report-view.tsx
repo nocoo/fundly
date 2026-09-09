@@ -1,18 +1,20 @@
-import { LayerCard } from '@nocoo/basalt';
+import { Button, LayerCard } from '@nocoo/basalt';
+import { Popover, PopoverContent, PopoverTrigger } from '@nocoo/basalt/components/popover';
+import { Info } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PanelHeading, StatTile } from '@/components/layout/research-layout';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import {
-  bareSectionTitle,
   type DailySection,
   extractMacroStatTiles,
   formatSectionTitle,
-  isNewsPairSection,
   isTableSection,
   parseSectionBody,
+  partitionDailyReportSections,
   peelDisclaimer,
   splitDailySections,
 } from '@/lib/daily-md';
+import { dailyStatInfo } from '@/lib/daily-stat-info';
 import { quoteToneClass } from '@/lib/quote-color';
 import { cn } from '@/lib/utils';
 import { DailyQuoteTable } from './daily-quote-table';
@@ -55,52 +57,73 @@ function TableSectionCard({ section }: { section: DailySection }) {
   );
 }
 
+/** One prose row: pair side-by-side when both exist; full-width single card otherwise. */
+function ProsePairRow({
+  left,
+  right,
+  leftFallback,
+  rightFallback,
+}: {
+  left: DailySection | undefined;
+  right: DailySection | undefined;
+  leftFallback: string;
+  rightFallback: string;
+}) {
+  if (!left && !right) return null;
+  if (left && right) {
+    return (
+      <div className="daily-prose-row">
+        <ProseSectionCard section={left} fallbackTitle={leftFallback} />
+        <ProseSectionCard section={right} fallbackTitle={rightFallback} />
+      </div>
+    );
+  }
+  const only = left ?? right;
+  if (!only) return null;
+  return <ProseSectionCard section={only} fallbackTitle={left ? leftFallback : rightFallback} />;
+}
+
+function StatInfoAction({ label }: { label: string }) {
+  const text = dailyStatInfo(label);
+  if (!text) return null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+          aria-label={`${label} 说明`}
+        >
+          <Info className="h-3 w-3" strokeWidth={1.5} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 text-left text-xs leading-relaxed">
+        {text}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function DailyReportView({ markdown }: { markdown: string }) {
   const rawSections = splitDailySections(markdown);
   const { color: quoteColor } = useQuoteColor();
   const tiles = extractMacroStatTiles(rawSections);
   const { sections: main, disclaimer } = peelDisclaimer(rawSections);
+  const { overview, observations, goodNews, badNews, rest } = partitionDailyReportSections(main);
 
-  const nodes: ReactNode[] = [];
-  for (let idx = 0; idx < main.length; idx += 1) {
-    const section = main[idx];
+  const restNodes: ReactNode[] = [];
+  for (let idx = 0; idx < rest.length; idx += 1) {
+    const section = rest[idx];
     if (!section) continue;
     if (!section.title && !section.body.trim()) continue;
 
     if (isTableSection(section.title)) {
-      nodes.push(<TableSectionCard key={`t-${section.title}-${idx}`} section={section} />);
+      restNodes.push(<TableSectionCard key={`t-${section.title}-${idx}`} section={section} />);
       continue;
     }
 
-    // Pair consecutive 好消息 + 坏消息 (either order) into a two-card grid.
-    if (isNewsPairSection(section.title)) {
-      const next = main[idx + 1];
-      if (
-        next &&
-        isNewsPairSection(next.title) &&
-        bareSectionTitle(section.title) !== bareSectionTitle(next.title)
-      ) {
-        nodes.push(
-          <div key={`news-pair-${idx}`} className="daily-news-pair">
-            <ProseSectionCard section={section} fallbackTitle="消息" />
-            <ProseSectionCard section={next} fallbackTitle="消息" />
-          </div>,
-        );
-        idx += 1; // consume the pair partner
-        continue;
-      }
-      // Single half of the pair → full-width card
-      nodes.push(
-        <ProseSectionCard
-          key={`news-${section.title}-${idx}`}
-          section={section}
-          fallbackTitle="消息"
-        />,
-      );
-      continue;
-    }
-
-    nodes.push(
+    restNodes.push(
       <ProseSectionCard
         key={`p-${section.title || 'body'}-${idx}`}
         section={section}
@@ -109,8 +132,27 @@ export function DailyReportView({ markdown }: { markdown: string }) {
     );
   }
 
+  const hasLead = overview != null || observations != null || goodNews != null || badNews != null;
+
   return (
     <div className="daily-report">
+      {hasLead ? (
+        <div className="daily-prose-grid">
+          <ProsePairRow
+            left={overview}
+            right={observations}
+            leftFallback="概述"
+            rightFallback="观察要点"
+          />
+          <ProsePairRow
+            left={goodNews}
+            right={badNews}
+            leftFallback="好消息"
+            rightFallback="坏消息"
+          />
+        </div>
+      ) : null}
+
       {tiles.length > 0 ? (
         <div className="research-stats daily-stat-strip">
           {tiles.map((tile) => (
@@ -128,12 +170,13 @@ export function DailyReportView({ markdown }: { markdown: string }) {
                 </span>
               }
               hint={tile.latest ? `最新 ${tile.latest}` : undefined}
+              action={<StatInfoAction label={tile.label} />}
             />
           ))}
         </div>
       ) : null}
 
-      {nodes}
+      {restNodes}
 
       <p className="daily-disclaimer">{disclaimer ?? '仅供信息参考，不构成投资建议。'}</p>
     </div>

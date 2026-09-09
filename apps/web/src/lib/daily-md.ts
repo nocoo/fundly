@@ -123,6 +123,14 @@ export const TABLE_SECTION_TITLES = new Set([
 /** Bare titles for the 好消息 / 坏消息 dual-list pair. */
 const NEWS_PAIR_TITLES = new Set(['好消息', '坏消息']);
 
+/**
+ * Lead prose blocks reordered to the top of DailyReportView (2×2 grid).
+ * Order here is documentation only; layout pairs 概述|观察要点 and 好消息|坏消息.
+ */
+export const DAILY_LEAD_PROSE_TITLES = ['概述', '观察要点', '好消息', '坏消息'] as const;
+
+const LEAD_PROSE_TITLE_SET = new Set<string>(DAILY_LEAD_PROSE_TITLES);
+
 /** Strip leading emoji / punctuation so bare CJK/Latin title can be matched. */
 export function bareSectionTitle(title: string): string {
   return title.replace(/^[^\w\u4e00-\u9fff]+/, '').trim();
@@ -137,6 +145,44 @@ export function isTableSection(title: string): boolean {
 export function isNewsPairSection(title: string): boolean {
   const bare = bareSectionTitle(title);
   return NEWS_PAIR_TITLES.has(title) || NEWS_PAIR_TITLES.has(bare);
+}
+
+/** First section whose bare title equals `bare` (emoji-prefixed MD still matches). */
+export function findSectionByBareTitle(
+  sections: DailySection[],
+  bare: string,
+): DailySection | undefined {
+  return sections.find((s) => {
+    if (!s.title && !bare) return true;
+    const t = bareSectionTitle(s.title);
+    return t === bare || s.title === bare;
+  });
+}
+
+export interface PartitionedDailySections {
+  overview: DailySection | undefined;
+  observations: DailySection | undefined;
+  goodNews: DailySection | undefined;
+  badNews: DailySection | undefined;
+  /** Remaining sections in original order (tables + other prose). */
+  rest: DailySection[];
+}
+
+/**
+ * Pull lead prose (概述 / 观察要点 / 好消息 / 坏消息) out for the top 2×2 grid;
+ * leave tables and any other H2 blocks in `rest` in document order.
+ */
+export function partitionDailyReportSections(sections: DailySection[]): PartitionedDailySections {
+  return {
+    overview: findSectionByBareTitle(sections, '概述'),
+    observations: findSectionByBareTitle(sections, '观察要点'),
+    goodNews: findSectionByBareTitle(sections, '好消息'),
+    badNews: findSectionByBareTitle(sections, '坏消息'),
+    rest: sections.filter((s) => {
+      const bare = bareSectionTitle(s.title);
+      return !LEAD_PROSE_TITLE_SET.has(bare) && !LEAD_PROSE_TITLE_SET.has(s.title);
+    }),
+  };
 }
 
 /** Tasteful H2 → PanelHeading labels (old MD without emoji still gets a prefix). */

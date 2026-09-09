@@ -3,9 +3,13 @@ import { ChevronRight, Newspaper } from 'lucide-react';
 import { Link } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
+import { DailyWidthToggle } from '@/components/daily/daily-width-toggle';
 import { AppShell } from '@/components/layout';
 import { PanelHeading, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { useDailyWidthMode } from '@/hooks/use-daily-width-mode';
+import { dailyPageWidthClass } from '@/lib/daily-width-mode';
 import { formatCount } from '@/lib/format-number';
+import { cn } from '@/lib/utils';
 import './research-pages.css';
 import './daily-page.css';
 
@@ -20,16 +24,18 @@ export interface DailyListItem {
 }
 
 export default function DailyPage() {
+  const { mode: widthMode } = useDailyWidthMode();
   const { data, error, isLoading, mutate } = useSWR<DailyListItem[]>('/api/daily', fetchAPI);
   const items = data ?? [];
 
   return (
     <AppShell breadcrumbs={[{ label: '日报' }]}>
-      <div className="research-page">
+      <div className={cn('research-page', dailyPageWidthClass(widthMode))}>
         <ResearchHeader
           title="财经日报"
           icon={Newspaper}
           description="跨资产研究摘要：全球宏观、贵金属、科技龙头与中国资产（指数 + ETF），并以好消息 / 坏消息双列表呈现当日张力。正文来自仓库 Markdown，部署后即可阅读。"
+          actions={<DailyWidthToggle />}
         />
 
         <LayerCard padding="none">
