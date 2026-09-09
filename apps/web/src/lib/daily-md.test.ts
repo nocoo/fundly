@@ -94,6 +94,41 @@ describe('isTableSection / extractMacroStatTiles', () => {
     expect(tiles[0]?.change).toContain('-0.4');
     expect(tiles[0]?.tone).toBe('down');
   });
+
+  test('maps DXY and US 10Y to exact instruments, not CNY or 2Y decoys', () => {
+    const md = `## 全球宏观
+
+| 标的 | 最新 | 涨跌 | 备注 |
+|------|------|------|------|
+| 美元兑人民币 | 7.20 | +0.1% | FX |
+| 美元指数 | 101.0 | -0.3% | DXY |
+| 美债 2Y | 4.80% | +1 bp | short |
+| 美债 10Y | 4.05% | -3 bp | belly |
+`;
+    const tiles = extractMacroStatTiles(splitDailySections(md));
+    const byLabel = Object.fromEntries(tiles.map((t) => [t.label, t]));
+    expect(byLabel.DXY?.latest).toBe('101.0');
+    expect(byLabel.DXY?.change).toContain('-0.3');
+    expect(byLabel['US 10Y']?.latest).toBe('4.05%');
+    expect(byLabel['US 10Y']?.change).toContain('-3');
+    // Decoys must not win via broad aliases + duplicate suppression.
+    expect(tiles.some((t) => t.latest === '7.20' || t.latest === '4.80%')).toBe(false);
+  });
+
+  test('also accepts US 10Y latin label among decoys', () => {
+    const md = `## 全球宏观
+
+| 标的 | 最新 | 涨跌 |
+|------|------|------|
+| 美元兑人民币 | 7.20 | +0.1% |
+| 美元指数 | 101.0 | -0.3% |
+| 美债 2Y | 4.80% | +1 bp |
+| US 10Y | 4.05% | -3 bp |
+`;
+    const tiles = extractMacroStatTiles(splitDailySections(md));
+    expect(tiles.find((t) => t.label === 'US 10Y')?.latest).toBe('4.05%');
+    expect(tiles.find((t) => t.label === 'DXY')?.latest).toBe('101.0');
+  });
 });
 
 describe('peelDisclaimer', () => {

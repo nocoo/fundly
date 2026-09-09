@@ -53,6 +53,16 @@ x
 `);
     expect(meta.sources).toEqual(['A', 'B']);
   });
+
+  test('keeps commas inside quoted sources items', () => {
+    const { meta } = parseFrontmatter(`---
+title: T
+sources: ["Federal Reserve, Board", FRED]
+---
+x
+`);
+    expect(meta.sources).toEqual(['Federal Reserve, Board', 'FRED']);
+  });
 });
 
 describe('daily filesystem reader', () => {

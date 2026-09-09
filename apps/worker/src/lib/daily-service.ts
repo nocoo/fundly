@@ -71,11 +71,7 @@ export function parseFrontmatter(raw: string): { meta: DailyFrontmatter; body: s
         }
         meta.sources = [];
       } else if (rest.startsWith('[') && rest.endsWith(']')) {
-        meta.sources = rest
-          .slice(1, -1)
-          .split(',')
-          .map((s) => unquote(s.trim()))
-          .filter(Boolean);
+        meta.sources = splitInlineList(rest.slice(1, -1));
       }
       i += 1;
       continue;
@@ -94,6 +90,36 @@ function unquote(value: string): string {
     return v.slice(1, -1);
   }
   return v;
+}
+
+/** Split YAML-ish inline list; commas inside quotes stay inside the item. */
+function splitInlineList(inner: string): string[] {
+  const items: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  for (let i = 0; i < inner.length; i += 1) {
+    const ch = inner[i] ?? '';
+    if (quote) {
+      if (ch === quote) quote = null;
+      current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === ',') {
+      const item = unquote(current.trim());
+      if (item) items.push(item);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  const tail = unquote(current.trim());
+  if (tail) items.push(tail);
+  return items;
 }
 
 function optionalFields(
