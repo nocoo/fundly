@@ -17,6 +17,7 @@ const components: Components = {
 };
 
 export function MarkdownBody({ markdown, className }: { markdown: string; className?: string }) {
+  if (!markdown.trim()) return null;
   return (
     <div className={cn('daily-md', className)}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>

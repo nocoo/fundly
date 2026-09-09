@@ -23,10 +23,76 @@
   background: hsl(var(--basalt-muted) / 0.55);
 }
 
-.daily-detail-body {
-  padding: 18px 20px 24px;
+.daily-source-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
+.daily-source-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: hsl(var(--basalt-muted-foreground));
+  background: hsl(var(--basalt-muted) / 0.55);
+  border: 1px solid hsl(var(--basalt-border) / 0.45);
+}
+
+.daily-header-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.daily-header-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: hsl(var(--basalt-muted-foreground));
+}
+
+.daily-header-session {
+  max-width: 36rem;
+}
+
+.daily-report {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.daily-stat-strip {
+  margin: 0;
+}
+
+.daily-stat-strip .research-stat-value {
+  font-size: clamp(18px, 1.4vw, 24px);
+}
+
+.daily-section-card {
+  min-width: 0;
+}
+
+.daily-section-body {
+  padding: 14px 16px 18px;
+}
+
+.daily-disclaimer {
+  margin: 4px 2px 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: hsl(var(--basalt-muted-foreground));
+  text-align: center;
+}
+
+/* Prose (react-markdown) */
 .daily-md {
   max-width: 52rem;
   color: hsl(var(--basalt-foreground));
@@ -46,25 +112,24 @@
 .daily-md h2,
 .daily-md h3,
 .daily-md h4 {
-  margin: 1.4em 0 0.55em;
+  margin: 1.2em 0 0.5em;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.4;
   letter-spacing: -0.02em;
   color: hsl(var(--basalt-foreground));
-  /* emoji in headings need a bit more line box on dark Basalt */
   overflow-wrap: anywhere;
 }
 
 .daily-md h1 {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
 }
 
 .daily-md h2 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
 }
 
 .daily-md h3 {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
 }
 
 .daily-md p,
@@ -72,7 +137,7 @@
 .daily-md ol,
 .daily-md blockquote,
 .daily-md pre {
-  margin: 0.75em 0;
+  margin: 0.7em 0;
 }
 
 .daily-md ul,
@@ -81,7 +146,7 @@
 }
 
 .daily-md li + li {
-  margin-top: 0.25em;
+  margin-top: 0.35em;
 }
 
 .daily-md a {
@@ -96,9 +161,10 @@
 
 .daily-md blockquote {
   margin-left: 0;
-  padding: 0.35em 0 0.35em 0.9em;
+  padding: 0.4em 0 0.4em 0.9em;
   border-left: 3px solid hsl(var(--basalt-border));
   color: hsl(var(--basalt-muted-foreground));
+  font-size: 13px;
 }
 
 .daily-md code {
@@ -127,7 +193,7 @@
 .daily-md-table-wrap {
   width: 100%;
   overflow-x: auto;
-  margin: 1em 0;
+  margin: 0.85em 0;
   border-radius: 8px;
   border: 1px solid hsl(var(--basalt-border) / 0.55);
 }
@@ -140,7 +206,7 @@
 
 .daily-md th,
 .daily-md td {
-  padding: 10px 12px;
+  padding: 9px 12px;
   text-align: left;
   border-bottom: 1px solid hsl(var(--basalt-border) / 0.4);
   vertical-align: middle;
@@ -167,17 +233,56 @@
 }
 
 .daily-md hr {
-  margin: 1.5em 0;
+  margin: 1.4em 0;
   border: 0;
   border-top: 1px solid hsl(var(--basalt-border) / 0.55);
 }
 
-@media (max-width: 767px) {
-  .daily-detail-body {
-    padding: 14px 12px 20px;
-  }
+/* Basalt quote tables (hybrid sections) */
+.daily-quote-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--basalt-border) / 0.5);
+}
 
+.daily-quote-table {
+  width: 100%;
+  font-size: 13px;
+}
+
+.daily-quote-table thead th {
+  height: auto;
+  padding: 8px 12px;
+  background: hsl(var(--basalt-muted) / 0.4);
+  border-bottom: 1px solid hsl(var(--basalt-border) / 0.5);
+  white-space: nowrap;
+}
+
+.daily-quote-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid hsl(var(--basalt-border) / 0.35);
+  vertical-align: middle;
+}
+
+.daily-quote-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.daily-quote-table tbody tr:hover td {
+  background: hsl(var(--basalt-muted) / 0.3);
+}
+
+@media (max-width: 767px) {
   .daily-list-item {
     padding: 12px;
+  }
+
+  .daily-section-body {
+    padding: 12px 12px 16px;
+  }
+
+  .research-stats.daily-stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

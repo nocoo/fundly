@@ -14,6 +14,9 @@ export interface DailyListItem {
   title: string;
   summary: string;
   path: string;
+  weekday?: string;
+  session?: string;
+  sources?: string[];
 }
 
 export default function DailyPage() {
@@ -26,7 +29,7 @@ export default function DailyPage() {
         <ResearchHeader
           title="财经日报"
           icon={Newspaper}
-          description="全球宏观、黄金、AI 七巨头与中国相关标的的日度摘要（potato style）。正文为仓库 Markdown，部署后即可阅读。"
+          description="跨资产研究摘要：全球宏观、贵金属、精选科技龙头与中国相关资产。正文来自仓库 Markdown，部署后即可阅读。"
         />
 
         <LayerCard padding="none">
@@ -81,6 +84,11 @@ export default function DailyPage() {
                           >
                             {item.date}
                           </time>
+                          {item.weekday ? (
+                            <span className="text-xs text-basalt-muted-foreground">
+                              {item.weekday}
+                            </span>
+                          ) : null}
                           <span className="text-sm font-medium text-basalt-foreground">
                             {item.title}
                           </span>
@@ -89,6 +97,15 @@ export default function DailyPage() {
                           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-basalt-muted-foreground">
                             {item.summary}
                           </p>
+                        ) : null}
+                        {item.sources && item.sources.length > 0 ? (
+                          <div className="daily-source-chips mt-2">
+                            {item.sources.map((src) => (
+                              <span key={src} className="daily-source-chip">
+                                {src}
+                              </span>
+                            ))}
+                          </div>
                         ) : null}
                       </div>
                       <ChevronRight
