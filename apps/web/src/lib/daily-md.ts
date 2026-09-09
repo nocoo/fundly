@@ -107,12 +107,60 @@ export function parseSectionBody(body: string): ParsedSectionBody {
   return { before: body.trim(), table: null, after: '' };
 }
 
-/** Sections that should prefer Basalt table rendering when a GFM table is present. */
-export const TABLE_SECTION_TITLES = new Set(['全球宏观', '贵金属', '科技龙头观察', '中国相关资产']);
+/**
+ * Sections that should prefer Basalt table rendering when a GFM table is present.
+ * Includes both new short titles and legacy long titles for backward compat.
+ */
+export const TABLE_SECTION_TITLES = new Set([
+  '全球宏观',
+  '贵金属',
+  '科技龙头',
+  '科技龙头观察',
+  '中国资产',
+  '中国相关资产',
+]);
+
+/** Bare titles for the 好消息 / 坏消息 dual-list pair. */
+const NEWS_PAIR_TITLES = new Set(['好消息', '坏消息']);
+
+/** Strip leading emoji / punctuation so bare CJK/Latin title can be matched. */
+export function bareSectionTitle(title: string): string {
+  return title.replace(/^[^\w\u4e00-\u9fff]+/, '').trim();
+}
 
 export function isTableSection(title: string): boolean {
-  const bare = title.replace(/^[^\w\u4e00-\u9fff]+/, '').trim();
+  const bare = bareSectionTitle(title);
   return TABLE_SECTION_TITLES.has(title) || TABLE_SECTION_TITLES.has(bare);
+}
+
+/** True when bare title is 好消息 or 坏消息 (emoji-prefixed MD still matches). */
+export function isNewsPairSection(title: string): boolean {
+  const bare = bareSectionTitle(title);
+  return NEWS_PAIR_TITLES.has(title) || NEWS_PAIR_TITLES.has(bare);
+}
+
+/** Tasteful H2 → PanelHeading labels (old MD without emoji still gets a prefix). */
+const SECTION_TITLE_EMOJI: Record<string, string> = {
+  概述: '📌',
+  全球宏观: '🌐',
+  贵金属: '🥇',
+  科技龙头: '💻',
+  科技龙头观察: '💻',
+  中国资产: '🇨🇳',
+  中国相关资产: '🇨🇳',
+  好消息: '✅',
+  坏消息: '⚠️',
+  要闻: '📰',
+  观察要点: '🔭',
+};
+
+/** Map bare section title to a polished PanelHeading string; avoid double-emoji. */
+export function formatSectionTitle(title: string): string {
+  const bare = bareSectionTitle(title);
+  if (!bare) return title;
+  const emoji = SECTION_TITLE_EMOJI[bare];
+  if (!emoji) return bare === title ? title : bare;
+  return `${emoji} ${bare}`;
 }
 
 export type ChangeParse =
@@ -121,14 +169,42 @@ export type ChangeParse =
   | { kind: 'points'; value: number; display: string }
   | { kind: 'text'; display: string; tone: 'up' | 'down' | 'flat' };
 
+/** Unicode minus / en-dash / em-dash → ASCII hyphen-minus for numeric parse. */
+function normalizeMinusSigns(s: string): string {
+  return s
+    .replace(/\u2212/g, '-')
+    .replace(/\u2013/g, '-')
+    .replace(/\u2014/g, '-');
+}
+
 /**
  * Parse a 涨跌 cell into a signed numeric tone when possible.
- * Handles: -0.4%, +0.8%, -3 bp, +0.8, 持平, —, 0.0%
+ * Handles: -0.4%, −0.58%, +0.8%, -3 bp, +0.8, +0.42 点, ≈0.00%, 持平, —, 0.0%
  */
 export function parseChangeCell(raw: string): ChangeParse {
-  const s = raw.replace(/[🟢🔴]/gu, '').trim();
-  if (!s || s === '—' || s === '-' || s === '–' || s === '持平' || s === '平') {
-    return { kind: 'text', display: s || '—', tone: 'flat' };
+  const stripped = raw.replace(/[🟢🔴]/gu, '').trim();
+  // Lone dash / placeholder cells stay flat (check before dash normalization).
+  if (
+    !stripped ||
+    stripped === '—' ||
+    stripped === '-' ||
+    stripped === '–' ||
+    stripped === '−' ||
+    stripped === '持平' ||
+    stripped === '平'
+  ) {
+    return { kind: 'text', display: stripped || '—', tone: 'flat' };
+  }
+
+  const s = normalizeMinusSigns(stripped);
+
+  // Leading ≈ near-zero → flat (display keeps the original ≈ form).
+  const approx = /^≈\s*([+-]?\d+(?:\.\d+)?)\s*%?$/.exec(s);
+  if (approx) {
+    const value = Number(approx[1]);
+    if (Number.isFinite(value) && value === 0) {
+      return { kind: 'text', display: stripped, tone: 'flat' };
+    }
   }
 
   const bp = /^([+-]?\d+(?:\.\d+)?)\s*bp$/i.exec(s);
@@ -149,6 +225,15 @@ export function parseChangeCell(raw: string): ChangeParse {
         value,
         display: s.startsWith('+') || s.startsWith('-') ? s : value > 0 ? `+${s}` : s,
       };
+    }
+  }
+
+  // Points with optional trailing 点 (e.g. +0.42 点, −0.5点).
+  const pointsUnit = /^([+-]?\d+(?:\.\d+)?)\s*点$/.exec(s);
+  if (pointsUnit) {
+    const value = Number(pointsUnit[1]);
+    if (Number.isFinite(value)) {
+      return { kind: 'points', value, display: s };
     }
   }
 

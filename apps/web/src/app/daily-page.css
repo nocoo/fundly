@@ -80,6 +80,19 @@
   min-width: 0;
 }
 
+/* 好消息 + 坏消息 side-by-side on wide screens; stack on mobile. */
+.daily-news-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  min-width: 0;
+}
+
+.daily-news-pair > .daily-section-card {
+  min-width: 0;
+  height: 100%;
+}
+
 .daily-section-body {
   padding: 14px 16px 18px;
 }
@@ -248,7 +261,26 @@
 
 .daily-quote-table {
   width: 100%;
+  min-width: 36rem; /* keep intrinsic width so wrap can scroll on phones */
+  table-layout: fixed;
   font-size: 13px;
+}
+
+/* Shared column widths across all quote tables (MD order preserved). */
+.daily-quote-table .daily-quote-col-name {
+  width: 28%;
+}
+
+.daily-quote-table .daily-quote-col-last {
+  width: 18%;
+}
+
+.daily-quote-table .daily-quote-col-change {
+  width: 18%;
+}
+
+.daily-quote-table .daily-quote-col-note {
+  width: auto;
 }
 
 .daily-quote-table thead th {
@@ -263,6 +295,7 @@
   padding: 9px 12px;
   border-bottom: 1px solid hsl(var(--basalt-border) / 0.35);
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .daily-quote-table tbody tr:last-child td {
@@ -273,6 +306,25 @@
   background: hsl(var(--basalt-muted) / 0.3);
 }
 
+/* 涨跌 is the visual hero; 最新 stays secondary. */
+.daily-quote-change {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.daily-quote-change-glyph {
+  font-size: 0.72em;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.daily-quote-last {
+  letter-spacing: -0.01em;
+}
+
 @media (max-width: 767px) {
   .daily-list-item {
     padding: 12px;
@@ -280,6 +332,10 @@
 
   .daily-section-body {
     padding: 12px 12px 16px;
+  }
+
+  .daily-news-pair {
+    grid-template-columns: 1fr;
   }
 
   .research-stats.daily-stat-strip {
