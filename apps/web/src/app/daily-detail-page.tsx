@@ -5,8 +5,12 @@ import useSWR from 'swr';
 import { ApiError, fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { DailyReportView } from '@/components/daily/daily-report-view';
+import { DailyWidthToggle } from '@/components/daily/daily-width-toggle';
 import { AppShell } from '@/components/layout';
 import { ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { useDailyWidthMode } from '@/hooks/use-daily-width-mode';
+import { dailyPageWidthClass } from '@/lib/daily-width-mode';
+import { cn } from '@/lib/utils';
 import './research-pages.css';
 import './daily-page.css';
 
@@ -26,6 +30,7 @@ export default function DailyDetailPage() {
   const { date: rawDate } = useParams<{ date: string }>();
   const date = rawDate ?? '';
   const valid = DATE_RE.test(date);
+  const { mode: widthMode } = useDailyWidthMode();
   const { data, error, isLoading, mutate } = useSWR<DailyDetail>(
     valid ? `/api/daily/${date}` : null,
     fetchAPI,
@@ -37,7 +42,7 @@ export default function DailyDetailPage() {
 
   return (
     <AppShell breadcrumbs={[{ label: '日报', href: '/daily' }, { label: valid ? date : '详情' }]}>
-      <div className="research-page">
+      <div className={cn('research-page', dailyPageWidthClass(widthMode))}>
         <ResearchHeader
           title={title}
           icon={Newspaper}
@@ -68,12 +73,15 @@ export default function DailyDetailPage() {
             )
           }
           actions={
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/daily">
-                <ArrowLeft className="size-3.5" strokeWidth={1.5} />
-                返回列表
-              </Link>
-            </Button>
+            <div className="daily-header-actions">
+              <DailyWidthToggle />
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/daily">
+                  <ArrowLeft className="size-3.5" strokeWidth={1.5} />
+                  返回列表
+                </Link>
+              </Button>
+            </div>
           }
         />
 

@@ -3,11 +3,13 @@ import {
   bareSectionTitle,
   changeTone,
   extractMacroStatTiles,
+  findSectionByBareTitle,
   formatSectionTitle,
   isNewsPairSection,
   isTableSection,
   parseChangeCell,
   parseSectionBody,
+  partitionDailyReportSections,
   peelDisclaimer,
   splitDailySections,
 } from './daily-md';
@@ -235,5 +237,65 @@ describe('peelDisclaimer', () => {
     expect(disclaimer).toContain('仅供信息参考');
     const news = sections.find((s) => s.title === '要闻');
     expect(news?.body).not.toContain('仅供信息参考');
+  });
+});
+
+describe('partitionDailyReportSections / findSectionByBareTitle', () => {
+  test('pulls lead prose and keeps tables in rest order', () => {
+    const md = `## 概述
+
+Thesis.
+
+## 全球宏观
+
+| 标的 | 最新 | 涨跌 |
+|------|------|------|
+| S&P 500 | 1 | -0.1% |
+
+## 观察要点
+
+- next
+
+## 好消息
+
+- up
+
+## 坏消息
+
+- down
+
+## 贵金属
+
+| 标的 | 最新 | 涨跌 |
+|------|------|------|
+| Gold | 2 | +0.2% |
+`;
+    const parts = partitionDailyReportSections(splitDailySections(md));
+    expect(parts.overview?.body).toContain('Thesis');
+    expect(parts.observations?.body).toContain('next');
+    expect(parts.goodNews?.body).toContain('up');
+    expect(parts.badNews?.body).toContain('down');
+    expect(parts.rest.map((s) => s.title)).toEqual(['全球宏观', '贵金属']);
+  });
+
+  test('matches emoji-prefixed titles and omits missing lead cells', () => {
+    const md = `## 📌 概述
+
+Only overview.
+
+## 🌐 全球宏观
+
+| 标的 | 最新 | 涨跌 |
+|------|------|------|
+| VIX | 16 | +1 |
+`;
+    const sections = splitDailySections(md);
+    expect(findSectionByBareTitle(sections, '概述')?.body).toContain('Only overview');
+    const parts = partitionDailyReportSections(sections);
+    expect(parts.overview).toBeTruthy();
+    expect(parts.observations).toBeUndefined();
+    expect(parts.goodNews).toBeUndefined();
+    expect(parts.badNews).toBeUndefined();
+    expect(parts.rest.map((s) => bareSectionTitle(s.title))).toEqual(['全球宏观']);
   });
 });

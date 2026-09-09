@@ -61,6 +61,25 @@
   max-width: 36rem;
 }
 
+.daily-header-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Limited mode: readable measure; full uses research-page width. */
+.research-page.daily-page--limited {
+  max-width: 60rem;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.research-page.daily-page--full {
+  max-width: none;
+}
+
 .daily-report {
   display: flex;
   min-width: 0;
@@ -80,7 +99,15 @@
   min-width: 0;
 }
 
-/* 好消息 + 坏消息 side-by-side on wide screens; stack on mobile. */
+/* Lead prose: stacked rows (概述|观察要点, 好消息|坏消息). */
+.daily-prose-grid {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.daily-prose-row,
 .daily-news-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -88,6 +115,7 @@
   min-width: 0;
 }
 
+.daily-prose-row > .daily-section-card,
 .daily-news-pair > .daily-section-card {
   min-width: 0;
   height: 100%;
@@ -105,9 +133,8 @@
   text-align: center;
 }
 
-/* Prose (react-markdown) */
+/* Prose (react-markdown) — width controlled by page mode only */
 .daily-md {
-  max-width: 52rem;
   color: hsl(var(--basalt-foreground));
   font-size: 14px;
   line-height: 1.75;
@@ -334,6 +361,7 @@
     padding: 12px 12px 16px;
   }
 
+  .daily-prose-row,
   .daily-news-pair {
     grid-template-columns: 1fr;
   }
