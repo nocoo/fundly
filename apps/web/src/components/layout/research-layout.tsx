@@ -9,27 +9,39 @@ export function ResearchHeader({
   title,
   description,
   icon: Icon,
+  leading,
   actions,
 }: {
   title: ReactNode;
   description?: ReactNode;
   icon?: LucideIcon;
+  /** Focusable control rendered outside PageHeader's h1 (e.g. back link). */
+  leading?: ReactNode;
   actions?: ReactNode;
 }) {
+  const header = (
+    <PageHeader
+      title={
+        <span className="flex min-w-0 items-center gap-2.5">
+          {Icon ? <Icon className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} /> : null}
+          {title}
+        </span>
+      }
+      description={description}
+      actions={actions}
+    />
+  );
+
   return (
     <div className="research-heading">
-      <PageHeader
-        title={
-          <span className="flex min-w-0 items-center gap-2.5">
-            {Icon ? (
-              <Icon className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
-            ) : null}
-            {title}
-          </span>
-        }
-        description={description}
-        actions={actions}
-      />
+      {leading ? (
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="mt-1 shrink-0">{leading}</div>
+          <div className="min-w-0 flex-1">{header}</div>
+        </div>
+      ) : (
+        header
+      )}
     </div>
   );
 }
