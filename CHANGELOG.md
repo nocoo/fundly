@@ -1,3 +1,8 @@
+## 0.6.4 — 2026-09-10
+
+- fix(web): move daily detail back control left of the title (icon arrow), keep width toggle on the right
+- fix(a11y): ResearchHeader optional `leading` slot outside PageHeader h1 so back link is not part of the heading name
+
 ## 0.6.3 — 2026-09-10
 
 - feat(web): widen daily limited layout to 78rem and keep full-width mode

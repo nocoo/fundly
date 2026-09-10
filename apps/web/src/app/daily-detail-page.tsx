@@ -1,5 +1,5 @@
 import { Button } from '@nocoo/basalt';
-import { ArrowLeft, Newspaper } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import useSWR from 'swr';
 import { ApiError, fetchAPI } from '@/api';
@@ -27,6 +27,16 @@ export interface DailyDetail {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function BackLink() {
+  return (
+    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
+      <Link to="/daily" aria-label="返回日报列表">
+        <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+      </Link>
+    </Button>
+  );
+}
+
 export default function DailyDetailPage() {
   const { date: rawDate } = useParams<{ date: string }>();
   const date = rawDate ?? '';
@@ -45,8 +55,8 @@ export default function DailyDetailPage() {
     <AppShell breadcrumbs={[{ label: '日报', href: '/daily' }, { label: valid ? date : '详情' }]}>
       <div className={cn('research-page', dailyPageWidthClass(widthMode))}>
         <ResearchHeader
+          leading={<BackLink />}
           title={title}
-          icon={Newspaper}
           description={
             data ? (
               <span className="daily-header-desc">
@@ -74,17 +84,7 @@ export default function DailyDetailPage() {
               '日期格式无效'
             )
           }
-          actions={
-            <div className="daily-header-actions">
-              <DailyWidthToggle />
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/daily">
-                  <ArrowLeft className="size-3.5" strokeWidth={1.5} />
-                  返回列表
-                </Link>
-              </Button>
-            </div>
-          }
+          actions={<DailyWidthToggle />}
         />
 
         {!valid ? (
