@@ -99,15 +99,27 @@ export function createApi(
     await next();
   });
 
-  app.get('/api/live', (c) =>
-    c.json({
-      status: 'ok',
-      version: APP_VERSION,
-      component: opts.component ?? 'local-api',
-      timestamp: new Date().toISOString(),
-      uptime: 0,
-    }),
-  );
+  app.get('/api/live', async (c) => {
+    let connected = false;
+    try {
+      await sqlite.first('SELECT fund_code FROM fund_basic_info LIMIT 1');
+      connected = true;
+    } catch {
+      connected = false;
+    }
+    return c.json(
+      {
+        status: connected ? 'ok' : 'error',
+        version: APP_VERSION,
+        component: opts.component ?? 'local-api',
+        timestamp: new Date().toISOString(),
+        uptime: Math.round(process.uptime()),
+        database: { connected },
+      },
+      connected ? 200 : 503,
+      { 'Cache-Control': 'no-store' },
+    );
+  });
 
   registerAuthRoutes(app, auth);
   app.use('/api/*', (c, next) => requireSession(c, auth, next));

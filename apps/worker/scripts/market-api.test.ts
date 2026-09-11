@@ -15,6 +15,7 @@ import { chinaInstrument } from '../../../src/utils/market-watchlist.ts';
 import type { AuthConfig } from '../src/lib/auth-config.ts';
 import type { getMarketBars, MarketOverviewData } from '../src/lib/market-service.ts';
 import { SESSION_COOKIE, signSession } from '../src/lib/session.ts';
+import { APP_VERSION } from '../src/lib/version.ts';
 import { createApi, withMarketSnapshot } from './app.ts';
 
 const cleanup: Array<() => void> = [];
@@ -52,6 +53,27 @@ function database(market = true) {
 }
 
 describe('local market API integration', () => {
+  test('public health checks the real SQLite catalogue and reports read failures', async () => {
+    const { path, db } = database(false);
+    const app = createApi(path);
+    const healthy = await app.request('/api/live');
+    expect(healthy.status).toBe(200);
+    expect(healthy.headers.get('cache-control')).toBe('no-store');
+    expect(await healthy.json()).toMatchObject({
+      status: 'ok',
+      version: APP_VERSION,
+      database: { connected: true },
+    });
+
+    db.exec('DROP TABLE fund_basic_info');
+    const unavailable = await app.request('/api/live');
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get('cache-control')).toBe('no-store');
+    const body = await unavailable.json();
+    expect(body).toMatchObject({ status: 'error', database: { connected: false } });
+    expect(JSON.stringify(body)).not.toContain('fund_basic_info');
+  });
+
   test('every market route requires a session and a valid session can read the market', async () => {
     const { path } = database();
     const auth: AuthConfig = {

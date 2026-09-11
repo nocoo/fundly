@@ -131,7 +131,10 @@ curl -sS https://fundly.hexly.ai/api/live
 curl -sS https://fundly.hexly.ai/api/stats
 ```
 
-`/api/live` 应含 `"status":"ok"` 和 `"version"`。首次 `/api/stats` 扫 3069 万净值行约 15s，之后约 2.5s。
+`/api/live` 无需登录，使用 `Cache-Control: no-store`，轻量只读查询基金主表。
+数据库可读时返回 HTTP 200、`"status":"ok"` 和当前 `version`；读取失败返回
+HTTP 503、`"status":"error"`，不公开数据库路径或错误细节。空表仍表示连接正常。
+首次 `/api/stats` 扫 3069 万净值行约 15s，之后约 2.5s。
 
 ---
 
