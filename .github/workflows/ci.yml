@@ -15,7 +15,6 @@ jobs:
     with:
       runtime-version: "1.3.14"
       install-policy: "project"
-      coverage-path: "coverage"
       extra-install-dirs: "apps/web,apps/worker"
       typecheck-command: "bun run typecheck && bun run typecheck:scripts && bun run typecheck:web"
       lint-command: "bun run lint"
