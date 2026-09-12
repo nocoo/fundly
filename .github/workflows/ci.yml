@@ -21,4 +21,5 @@ jobs:
       test-command: "bun run test && bun run test:web"
       build: true
       build-command: "bun run build:web"
+      gitleaks-config: ".gitleaks.toml"
       lockfiles: "bun.lock,apps/web/bun.lock,apps/worker/bun.lock"

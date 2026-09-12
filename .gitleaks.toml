@@ -1,0 +1,16 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Cloudflare Access audience is a public JWT identifier"
+condition = "AND"
+paths = ['''^apps/worker/\.dev\.vars\.example$''']
+regexTarget = "line"
+regexes = ['''^CF_ACCESS_AUD=[a-f0-9]{64}$''']
+
+[[allowlists]]
+description = "Monthly volatility column key is a public metric name"
+condition = "AND"
+paths = ['''^apps/web/src/lib/select-vm\.ts$''']
+regexTarget = "secret"
+regexes = ['''^dca_month_vol_3y$''']
