@@ -131,28 +131,6 @@
 	--radius-lg: var(--radius);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-sm: calc(var(--radius) - 4px);
-
-	/* Animations */
-	--animate-accordion-down: accordion-down 0.2s ease-out;
-	--animate-accordion-up: accordion-up 0.2s ease-out;
-}
-
-@keyframes accordion-down {
-	from {
-		height: 0;
-	}
-	to {
-		height: var(--radix-accordion-content-height);
-	}
-}
-
-@keyframes accordion-up {
-	from {
-		height: var(--radix-accordion-content-height);
-	}
-	to {
-		height: 0;
-	}
 }
 
 /*
@@ -416,28 +394,6 @@
 			var(--font-inter), "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
 			system-ui, sans-serif;
 	}
-}
-
-/*
- * Custom utilities
- */
-@utility font-display {
-	font-family: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
-}
-
-@keyframes fade-up {
-	from {
-		opacity: 0;
-		transform: translateY(12px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@utility animate-fade-up {
-	animation: fade-up 0.4s ease-out both;
 }
 
 /*
