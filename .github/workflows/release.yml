@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vX.Y.Z tag whose commit passed main push CI
+        required: true
+        type: string
+      source-run-id:
+        description: Successful main push CI run ID for the tag
+        required: true
+        type: string
+      publish:
+        description: Publish a new GitHub Release after verification
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish verified source release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Prove the tag passed main CI
+        id: source
+        uses: nocoo/base-ci/.github/actions/release-source@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f  # v2026.7
+        with:
+          github-token: ${{ github.token }}
+          expected-workflow-path: .github/workflows/ci.yml
+          expected-workflow-name: CI
+          expected-branch: main
+          allowed-source-events: push
+          source-run-id: ${{ inputs.source-run-id || '' }}
+          tag: ${{ env.RELEASE_TAG }}
+          source-sha: ${{ github.event_name == 'push' && github.sha || '' }}
+          package-version-match: 'true'
+          require-fresh-main: 'false'
+
+      - name: Checkout proven source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ steps.source.outputs.target-sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify application versions and prepare release notes
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.target-sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source-run-id }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$SOURCE_SHA"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
+              raise SystemExit('Release tag must be vX.Y.Z')
+          version = tag[1:]
+          for path in ('package.json', 'apps/web/package.json', 'apps/worker/package.json'):
+              if json.loads(Path(path).read_text())['version'] != version:
+                  raise SystemExit(f'{path} version does not match {tag}')
+          runtime = Path('apps/worker/src/lib/version.ts').read_text()
+          if not re.search(r"export const APP_VERSION = ['\"]" + re.escape(version) + r"['\"];", runtime):
+              raise SystemExit('API runtime version does not match tag')
+          changelog = Path('CHANGELOG.md').read_text()
+          entry = re.search(
+              r'^## ' + re.escape(version) + r'\s+[^\n]*\n(.*?)(?=^## |\Z)',
+              changelog, re.MULTILINE | re.DOTALL,
+          )
+          if not entry or not entry[1].strip():
+              raise SystemExit(f'Missing changelog entry for {tag}')
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id = os.environ['SOURCE_RUN_ID']
+          sha = os.environ['SOURCE_SHA']
+          notes = (
+              f'{entry[1].strip()}\n\n'
+              f'Source: `{sha}`. Verified by [CI](https://github.com/{repo}/actions/runs/{run_id}).\n\n'
+              'This is a source release. Railway deploys main through its GitHub integration; '
+              'this workflow does not deploy or modify the SQLite volume.\n'
+          )
+          (Path(os.environ['RUNNER_TEMP']) / 'fundly-release-notes.md').write_text(notes)
+          PY
+
+      - name: Record verified release source
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.target-sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source-run-id }}
+        run: |
+          {
+            printf 'Tag: %s\n\nSource: %s\n\nCI run: %s\n\n' "$RELEASE_TAG" "$SOURCE_SHA" "$SOURCE_RUN_ID"
+            cat "$RUNNER_TEMP/fundly-release-notes.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish a new GitHub Release
+        if: github.event_name == 'push' || inputs.publish
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" \
+            --notes-file "$RUNNER_TEMP/fundly-release-notes.md"
