@@ -99,7 +99,8 @@ bun run test:coverage  # 确认覆盖率 ≥ 95%
 
 ### Git 规范
 
-- **直接在 main 分支提交**（个人项目，无 PR 流程）
+- 从最新 `main` 建立分支并提交 PR；必需的 **CI Gate** 通过且分支与 `main` 同步后才能合并
+- 版本 tag 必须指向已通过 main push CI 的提交；发布流程见 `docs/09-RAILWAY.md`
 - **原子化提交**：一个逻辑变更 = 一个 commit
 - **Conventional Commits**：`feat:` / `fix:` / `docs:` / `test:` / `chore:` / `refactor:`
 - Commit message 首行不超过 72 字符

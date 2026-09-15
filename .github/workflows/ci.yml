@@ -9,17 +9,50 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f
+  workflow-lint:
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f  # v2026.7
     with:
+      yamllint: true
+      required-reusable-workflow: nocoo/base-ci/.github/actions/release-source
+
+  quality:
+    uses: nocoo/base-ci/.github/workflows/quality.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f  # v2026.7
+    with:
+      package-manager: bun
       runtime-version: "1.3.14"
       install-policy: "project"
       extra-install-dirs: "apps/web,apps/worker"
       typecheck-command: "bun run typecheck && bun run typecheck:scripts && bun run typecheck:web"
       lint-command: "bun run lint"
-      test-command: "bun run test && bun run test:web"
+      test-command: "bun run test:coverage"
+      coverage-path: coverage
       build: true
       build-command: "bun run build:web"
       gitleaks-config: ".gitleaks.toml"
       lockfiles: "bun.lock,apps/web/bun.lock,apps/worker/bun.lock"
+
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [quality, workflow-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job to succeed on this commit
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
+          TESTED_SHA: ${{ needs.quality.outputs.tested-sha }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          test "$QUALITY_RESULT" = success
+          test "$WORKFLOW_LINT_RESULT" = success
+          test "$TESTED_SHA" = "$EXPECTED_SHA"
