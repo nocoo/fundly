@@ -321,7 +321,7 @@
   font-size: 13px;
 }
 
-/* Shared column widths across all quote tables (MD order preserved). */
+/* Legacy 4-col widths (no 简介). */
 .daily-quote-table .daily-quote-col-name {
   width: 28%;
 }
@@ -336,6 +336,27 @@
 
 .daily-quote-table .daily-quote-col-note {
   width: auto;
+}
+
+/* 5-col with 简介: name smaller, intro ~24%, change still primary. */
+.daily-quote-table.daily-quote-table--with-intro {
+  min-width: 42rem;
+}
+
+.daily-quote-table.daily-quote-table--with-intro .daily-quote-col-name {
+  width: 14%;
+}
+
+.daily-quote-table.daily-quote-table--with-intro .daily-quote-col-intro {
+  width: 24%;
+}
+
+.daily-quote-table.daily-quote-table--with-intro .daily-quote-col-last {
+  width: 12%;
+}
+
+.daily-quote-table.daily-quote-table--with-intro .daily-quote-col-change {
+  width: 14%;
 }
 
 .daily-quote-table thead th {
@@ -378,6 +399,17 @@
 
 .daily-quote-last {
   letter-spacing: -0.01em;
+}
+
+/* 简介 / 说明 / 释义: muted secondary blurb, wraps; not numeric / not change. */
+.daily-quote-intro {
+  display: block;
+  color: hsl(var(--basalt-muted-foreground));
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 767px) {

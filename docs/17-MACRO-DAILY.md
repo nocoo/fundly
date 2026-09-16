@@ -37,7 +37,7 @@ sources: [Yahoo Finance, FRED, Tavily]
 | # | 标题 | 要求 |
 |---|------|------|
 | 1 | `## 概述` | **Thesis first**：3–6 条无序列表（跨资产读法 + 相对前一交易日变化）；**不要**长散文段与口径 blockquote 混排 |
-| 2 | `## 全球宏观` | **短 bullet 点评在上**，再接 **GFM 表**。优先列序：`标的 \| 涨跌 \| 最新 \| 备注`（旧样例 `标的 \| 最新 \| 涨跌 \| 备注` 仍可解析）。行至少：S&P 500、NASDAQ、Dow、VIX、US 10Y、DXY（或 broad USD）、crude（USO 或 WTI）、USD/CNY。遗留「仅表后散文」会被前端提升为表前点评 |
+| 2 | `## 全球宏观` | **短 bullet 点评在上**，再接 **GFM 表**。优先列序：`标的 \| 简介 \| 涨跌 \| 最新 \| 备注`（旧样例 `标的 \| 涨跌 \| 最新 \| 备注` 与更早的 `标的 \| 最新 \| 涨跌 \| 备注` 仍可解析）。行至少：S&P 500、NASDAQ、Dow、VIX、US 10Y、DXY（或 broad USD）、crude（USO 或 WTI）、USD/CNY。遗留「仅表后散文」会被前端提升为表前点评 |
 | 3 | `## 贵金属` | 同上：bullet 点评 → 表。Gold futures / GLD；沪金可知则写 |
 | 4 | `## 科技龙头` | 同上：bullet 点评 → 表。精选 mega-cap（如 TSM、GOOGL、META、AMZN、MSFT、AAPL、NVDA）。**旧标题** `## 科技龙头观察` 仍被前端接受 |
 | 5 | `## 中国资产` | 同上：bullet 点评 → 表。**指数 + 代表性 ETF + 行业/主题 ETF**（及可选 ADR）。不限于 FXI / KWEB / MCHI / BABA。**旧标题** `## 中国相关资产` 仍被前端接受 |
@@ -48,9 +48,20 @@ sources: [Yahoo Finance, FRED, Tavily]
 
 表格用 GitHub Flavored Markdown。前端将表段解析为 Basalt `Table`，散文段用 `react-markdown` + `remark-gfm`。UI 会给 section 标题补 tasteful emoji；**Markdown 源标题保持纯文字、不加 emoji**。
 
+### 维度表列：`简介`
+
+新稿维度表列序：`标的 | 简介 | 涨跌 | 最新 | 备注`。
+
+| 列 | 含义 |
+|----|------|
+| `简介` | **短固定 blurb**：该指数是什么 / 该公司是谁、做什么。同一标的跨日保持同一段简介文案；**不要**把当日行情点评写进简介（当日读法放 `备注`） |
+| `涨跌` / `最新` / `备注` | 与既有契约相同；涨跌仍是视觉主列 |
+
+表头同义：`简介` / `说明` / `释义` 均可被前端识别为 muted 次要文字列（非数值、非涨跌）。**历史无简介列的 4 列表仍有效**，UI 必须继续解析。本变更是模板/契约更新，供后续日报采用；**不要**回填改写已有 `content/macro-daily/*.md`。
+
 布局：概述|观察要点、好消息|坏消息 为 2×2 散文卡；维度表在下方。有界宽模式约 `78rem`（可切全宽）。
 
-**向后兼容**：前端 `isTableSection` / `formatSectionTitle` 同时识别新旧 H2（`科技龙头` ↔ `科技龙头观察`，`中国资产` ↔ `中国相关资产`；旧 `要闻` 仍可渲染）。`content/macro-daily/2026-09-09.md` 与 `2026-09-10.md` 已按本契约（bullet 概述、methodology frontmatter、表前点评）；**UI 仍必须两种标题都吃**，以便历史文件可读。
+**向后兼容**：前端 `isTableSection` / `formatSectionTitle` 同时识别新旧 H2（`科技龙头` ↔ `科技龙头观察`，`中国资产` ↔ `中国相关资产`；旧 `要闻` 仍可渲染）。维度表无 `简介` 的 4 列历史稿（含 `标的 | 涨跌 | 最新 | 备注` 与更早列序）必须仍可解析。`content/macro-daily/2026-09-09.md` 与 `2026-09-10.md` 等样例可保留旧表头；**UI 仍必须新旧 H2 与有/无简介列都吃**，以便历史文件可读。
 
 ### 明确不做
 
