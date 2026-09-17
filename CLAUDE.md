@@ -1,157 +1,97 @@
-# CLAUDE.md — Fundly 项目上下文（AI 协作规约）
+# Fundly
 
-> 本文档给 Claude / Codex / Grok 等 AI 编程 agent 使用。人类开发者请优先看 [`README.md`](README.md)。
+Personal fund, ETF, stock and macro research using Bun collection, SQLite and a private web reader.
+Profile: ts-worker-web (Bun/Hono server on Railway, despite the `apps/worker` directory name).
+Direction: [architecture](docs/01-ARCHITECTURE.md), [UI architecture](docs/06-ARCH-UI.md).
 
-## 🎯 项目定位
+## Sources of Truth
 
-Fundly 是**基金、ETF、股票研究与宏观市场大屏**，由 Bun 采集、SQLite 和私人 Web 浏览层组成。
+This handbook is the contract. Hooks, CI and config enforce it; raise enforcement to meet requirements, never reduce the contract. Frameworks must not rewrite this file.
 
-- **语言/运行时**：Bun + TypeScript 7.0.2（不是 Node，参考 `README.md`）
-- **数据库**：`bun:sqlite`（原生内置，**不要引入 better-sqlite3**）
-- **Lint/Format**：Biome（**不要引入 ESLint/Prettier**）
-- **测试**：`bun test`（**不要引入 vitest/jest**）
-- **HTTP**：内置 `fetch`（**不要引入 axios/node-fetch**）
-- **浏览层**：Vite + React + 本机 Hono API，数据只读 sqlite
+| Fact | Where |
+| --- | --- |
+| Human docs | [README.md](README.md), [docs/README.md](docs/README.md) |
+| Version | Root `package.json`; synchronize app versions during release |
+| Enforcement | `.github/workflows/ci.yml` and three package manifests |
+| Environment | Ignored `.env`, tracked `.env.example`; ignored `data/` |
+| Accidents | [Retrospective.md](Retrospective.md) |
 
-## 📁 目录规约
+## Project Invariants
 
-```
-fundly/
-├── docs/                # 项目文档（编号 01-99）
-├── apps/
-│   ├── web/             # Vite SPA
-│   └── worker/          # Hono Worker + 静态资源
-├── data/                # SQLite 数据库（gitignore）
-├── scripts/             # CLI 入口
-├── src/
-│   ├── db/              # 数据访问层
-│   ├── fetchers/        # 抓取器（按数据源分文件）
-│   ├── metrics/         # 收益 / 排名 / 4433 纯计算（无 I/O、无 View）
-│   └── utils/           # 通用工具
-├── tests/               # 单元测试（覆盖率 ≥ 95%）
-├── README.md
-├── CLAUDE.md            # 本文件
-├── package.json
-├── tsconfig.json
-└── biome.json
-```
+- Use Bun/ESM, `bun:sqlite`, built-in fetch, Bun test and Biome. Preserve this toolchain without adding Node SQLite adapters, Vitest/Jest or duplicate utility dependencies.
+- Separate collection (`src/`, `scripts/`, `tests/`) from browser/API changes (`apps/`) in atomic commits. Metric models stay pure and independent of I/O/Views.
+- Railway serves the app with a persistent SQLite volume. Market browsing is read-only; backup settings/restore use explicit write paths. Removed Cloudflare Worker/D1 deployments stay removed.
+- Keep Google OAuth/PKCE and configured email access rules. `ALLOWED_EMAILS` empty currently allows all authenticated Google accounts; missing required auth configuration rejects protected APIs.
+- `HITHINK_FINANCE_API_KEY` is server-only. Do not commit databases, backups, raw credentials or fabricated data-scale claims.
+- Use Eastmoney `pingzhongdata.js`, not the category-ranking endpoint for whole-market NAV. Preserve the global 5 QPS limit and bounded deep collection; starts/watch loops remain explicit.
+- A code release does not populate the production volume. Preserve source coverage/missing states, mutable upserts and historical data; no trading or invented collection results.
 
-采集在 `src/` / `scripts/` / `tests/`，浏览在 `apps/`，两边不要混在同一个 commit 里改。
+## Stack / Layout
 
-### `docs/` 文档编号规则
+| Component | Choice |
+| --- | --- |
+| Collection | Bun + TypeScript 7.0.2, `src/fetchers/`, `src/db/`, `src/metrics/` |
+| Web | Vite/React/Basalt, `apps/web/`; pure ViewModels |
+| API | Hono on Bun, `apps/worker/scripts/app.ts`, read-only market SQLite |
+| Data | `data/fundly.db`; production path selected by `FUNDLY_SQLITE` |
 
-**必须按数字前缀命名**，方便阅读顺序和交叉引用：
+Detailed document numbering, collection constraints and historical status are in [collaboration guide](docs/18-COLLABORATION.md). Number new Chinese docs sequentially with uppercase hyphenated names; update the index on splits/merges.
 
-| 编号 | 文档 | 内容 |
-|---|---|---|
-| **01** | `01-ARCHITECTURE.md` | 采集架构分层、数据流、反爬策略、测试策略 |
-| **02** | `02-SCHEMA.md` | 数据表 DDL、字段说明、索引 |
-| **03** | `03-SCRIPTS.md` | 所有 CLI 脚本的用途 + 使用姿势 |
-| **04** | `04-DATA_SOURCES.md` | 数据源清单、URL、请求头、限流约定 |
-| **05** | `05-CREDITS.md` | 致敬与参考项目（GoFundBot、AKShare 等） |
-| **06** | `06-ARCH-UI.md` | UI / Worker 架构、本地域名 |
-| **07** | `07-DASHBOARD.md` | 仪表盘 `/api/stats` 与空态 |
-| **08** | `08-BACKY.md` | 本机 SQLite → Backy / R2 备份与换机恢复 |
-| **09** | `09-RAILWAY.md` | Railway 单服务 + Volume 挂 sqlite |
-| **10** | `10-AUTH.md` | Google 登录、白名单、回调 URL |
-| **11** | `11-PHASE2-REPORT.md` | Phase 2 卫星表实测覆盖 |
-| **12** | `12-FUND-SCREENING.md` | 选基分类、下属页、指标口径与落库 |
-| **13** | `13-MACRO-DASHBOARD.md` | 宏观大屏、跨资产来源实测、行业 / ETF 下钻与接入方案 |
-| **14** | `14-MACRO-IMPLEMENTATION.md` | 宏观大屏实现、真实 K 线、采集 / 持续更新与只读 API |
-| **15** | `15-ETF-SCREENING.md` | ETF 配置、交易质量、成本规模与净值风险筛选 |
-| **16** | `16-STOCK-SCREENING.md` | 股票估值、经营质量、成长、现金流与趋势风险筛选 |
-| **17** | `17-MACRO-DAILY.md` | 财经日报（跨资产研究摘要）Markdown 契约、只读 API 与 `/daily` 混合渲染 |
+## Commands
 
-**新增文档规则**：
-- 数字**顺延**（下一份文档用 `18-`）
-- 文件名**大写字母 + 短横线**（`10-BACKTEST-ENGINE.md`）
-- 主标题第一行必须写 `# NN · 中文标题`（示例：`# 03 · 脚本手册`）
-- 内容以**中文为主**，代码/命令保持英文
-- 涉及数据规模、耗时的数字**必须来自真实实测**，不能是拍脑袋估算
+Run from root with Bun 1.3+ (CI 1.3.14). Each of the three packages owns a lockfile.
 
-**修改文档规则**：
-- 只调整**存量文档内容**时不需要改编号
-- **文档合并/拆分**必须同步更新 `README.md` 和本文件的编号表
-
-## 🛠 开发工作流
-
-### 每次改代码后必跑
-
-```bash
-bun run typecheck   # 爬虫 TS 类型检查
-bun run lint        # Biome 检查
-bun run test        # 爬虫单测
-```
-
-改 `apps/` 时额外：
-
-```bash
+```sh
+bun install --frozen-lockfile
+bun install --cwd apps/web --frozen-lockfile
+bun install --cwd apps/worker --frozen-lockfile
+bun run dev:all
+bun run typecheck
+bun run typecheck:scripts
 bun run typecheck:web
+bun run lint
+bun run build:web
+bun run test
 bun run test:web
+bun run test:coverage
 ```
 
-### 提交前必做
+Initialize an intended empty local database with `bun run db:init`; do not run collectors or restores merely to test code. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `ALLOWED_EMAILS` for normal dev login. `build:web` writes `apps/worker/static/`; `bun run start` serves the built UI and API.
 
-```bash
-bun run lint:fix    # 自动修格式
-bun run test:coverage  # 确认覆盖率 ≥ 95%
-```
+## Verification
 
-### Git 规范
+6DQ = L1/L2/L3 + G1/G2 + D1. Status: `enforced`, `planned`, `manual`, `N/A`. Required L1: statements/branches/functions/lines each ≥95%, no skipped/focused tests.
 
-- 从最新 `main` 建立分支并提交 PR；必需的 **CI Gate** 通过且分支与 `main` 同步后才能合并
-- 版本 tag 必须指向已通过 main push CI 的提交；发布流程见 `docs/09-RAILWAY.md`
-- **原子化提交**：一个逻辑变更 = 一个 commit
-- **Conventional Commits**：`feat:` / `fix:` / `docs:` / `test:` / `chore:` / `refactor:`
-- Commit message 首行不超过 72 字符
-- 不要 `git add -A`
+| Piece | Requirement and current reality | Status | Evidence |
+| --- | --- | --- | --- |
+| L1 | ≥95% each across collectors, scripts and app logic | planned | CI runs Bun coverage; no four-metric 95% gate. Historical 2026-09-06 lines/functions were 89.62%/87.13% |
+| L2 | Real HTTP for every endpoint/method plus real SQLite | planned | `bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts` uses Hono in-process requests with temporary SQLite |
+| L3 | Browser research/login and process-level collection workflows | planned | No independent system runner |
+| G1 | All TypeScript lanes and check-only lint, zero warnings/errors | planned | CI runs types and Biome; `lint` lacks explicit warning-failure option |
+| G2 | Required OSV and gitleaks, all three lockfiles | enforced | Shared quality CI lists root, Web and API Bun locks |
+| D1 | Per-run temporary data with target guards before fixture writes/cleanup | planned | Temporary SQLite tests exist; full HTTP/CLI/browser isolation is missing |
+| Build | Vite output | enforced | CI `build:web` |
+| Docs | Chinese numbered docs, measured claims and current commands | manual | Review and [document rules](docs/18-COLLABORATION.md) |
 
-## 📊 数据抓取要点
+No repository pre-commit/pre-push hook is currently configured. Required target: check-only index-snapshot L1/G1 <30s; stdin pushed-ref L2/G2 in parallel <3min. Never bypass commit or branch-push checks. CI Gate must be green and current with main for the normal PR merge flow.
 
-详见 [`docs/03-SCRIPTS.md`](docs/03-SCRIPTS.md) 和 [`docs/04-DATA_SOURCES.md`](docs/04-DATA_SOURCES.md)。
+## Resources / Isolation
 
-**核心接口**：东方财富 `pingzhongdata.js`——一次请求拿到某基金完整历史 + 业绩。**不要**尝试用 `fundtradenew.aspx`（被证明只是分类排行榜，不是全市场净值接口）。
+| Purpose | Resource | Isolation |
+| --- | --- | --- |
+| Dev | Caddy `https://fundly.dev.hexly.ai`, Vite 7044 / API 7045 | Intended local `FUNDLY_SQLITE` |
+| Unit/in-process API | Test-created SQLite | No production/daily-dev database fixtures |
+| Production | Railway volume, normally `/data` | Never use for automated test writes |
 
-**限流**：全局 5 QPS，历史已跑 55,054 次请求 **0 失败**。改并发/QPS 要慎重。
+Future HTTP/browser/CLI harnesses must own new temporary SQLite and ports, validate their test context before writes/restores, and clean only their own directory. No Cloudflare test resources belong to this runtime.
 
-## 🚫 反模式（不要做的事）
+## Operations / Release
 
-- ❌ 不要引入 `axios / lodash / dayjs / dotenv` — Bun 内置全覆盖
-- ❌ 不要用 `require()` — 全项目 ESM，用 `import`
-- ❌ 不要在 `data/` 目录提交 `.db` 文件（已 gitignore）
-- ❌ 不要在 `README` 用未实测的数据规模数字
-- ❌ 不要动 `bun.lock` 手工编辑
-- ❌ 不要引入 CommonJS 依赖除非绝对必要
-- ❌ 不要给 bun 设全局 registry（会把镜像 URL 写进 lockfile）
-
-## ✅ 当前进度（截至最后一次更新）
-
-- ✅ Phase 1 MVP 完成：3.7GB 数据库、27,527 只基金、3069 万净值行
-- ✅ 当前验收（2026-09-06）：514 项测试通过，行覆盖率 89.62% / 函数 87.13%；尚未达到 95% 目标，不沿用 Phase 1 的旧覆盖率数字
-- ✅ 每日增量脚本 `fetch:daily` 上线
-- ✅ UI：本机 sqlite 浏览、仪表盘读 `/api/stats`、Backy 备份页、Google 登录
-- ✅ 生产：Railway `fundly` + Volume `/data`，https://fundly.hexly.ai 已读到 27,527 / 3069 万行
-- ✅ Phase 2 卫星数据：风险指标/分红/费率/经理履历/持仓
-- ✅ 宏观大屏代码已随 v0.5.0 部署：Basalt 2.0.3、真实日 K、沪深广度、行业 / ETF / 基金下钻、23 个跨资产指标；`fetch:macro` 及 `--watch`；生产 SQLite 的宏观数据需单独采集/同步
-- ✅ v0.6.0 选 ETF / 选股：docs/15、16 规划及实现完成；六个 ETF 列表、七个股票列表、两个独立详情，Basalt 2.0.3；本地真实目录 1,670 / 5,567，K 线深度池 60 / 80，股票年报 80，生产覆盖需以 Volume 实际数据为准
-- ✅ `fetch:selection` 独立表、只读 API、有界深采与失败保留；本轮完成实采但没有启用 `--watch` / 常驻调度，生产 SQLite 需另行同步
-- 📋 Phase 3 待办：4433 法则筛选、多因子打分、Reits ETF 补齐、回测引擎、Discord 推送
+Authorized releases use `bun run release` and [Railway runbook](docs/09-RAILWAY.md). Tags must refer to passing main CI and remain immutable. Backup/restore procedures are in [Backy](docs/08-BACKY.md); after replacing the production database, restart the app. Inspect public `/api/live` for the deployed version; code push alone does not verify database coverage.
 
 ## Retrospective
 
-- `v0.1.1` 打在 D1 bind-limit 修复之前。不要移动已发布 tag；含导入修复的版本走 `0.1.2`。
-- 可变表不能只 `INSERT OR IGNORE`，否则业绩/经理永远停在首次导入。
-- 已拆除 Cloudflare Worker 与 D1 `fundly-db`。不要再 `deploy:web` / `import:d1`。
-- Railway 灌库不要走 `volume files upload`（4GB 会 session closed，906MB gzip 约 6MB/min）。容器从 Backy/R2 直拉再 gunzip；换库后必须 `railway restart`。
+Narratives and migration lessons live in [Retrospective.md](Retrospective.md). Keep recurring project rules short; cross-project lessons go to global rules/nmem and deterministic checks to tests/hooks.
 
-## 🔗 关键文件快速链接
-
-- 数据库入口：`src/db/repo.ts`
-- 抓取器主力：`src/fetchers/eastmoney.ts`
-- HTTP 客户端：`src/utils/http.ts`
-- 限流/并发池：`src/utils/pool.ts`
-- 测试套件：`tests/`
-- UI 入口：`apps/web/src/`
-- 本机 / Railway API 入口：`apps/worker/scripts/app.ts`
-- 宏观采集入口：`scripts/fetch-macro.ts`（密钥只读服务端 `HITHINK_FINANCE_API_KEY`，不得放进前端）
-- ETF / 股票采集入口：`scripts/fetch-selection.ts`；网络流程 `src/fetchers/selection-collection.ts`；只读 API `apps/worker/src/lib/selection-service.ts`
+- Mutable source tables require updating existing rows; `INSERT OR IGNORE` alone freezes them.
+- Never move published tags or revive removed `deploy:web` / `import:d1` commands.
