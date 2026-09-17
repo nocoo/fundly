@@ -1,5 +1,3 @@
-import { HeaderTooltip, HexlyLink } from "./header-links";
-import { ThemeToggle } from "./theme-toggle";
 import { Button, ContentIsland, Sheet, SheetContent, SheetTitle } from '@nocoo/basalt';
 import { AppHeader } from '@nocoo/basalt/components/app-header';
 import {
@@ -13,8 +11,10 @@ import { useLocation } from 'react-router';
 import { Github } from '@/components/icons/github';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { HeaderTooltip, HexlyLink } from './header-links';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
+import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
   children: React.ReactNode;

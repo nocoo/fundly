@@ -1,5 +1,3 @@
-import { HeaderTooltip, HexlyLink } from "../components/layout/header-links";
-import { ThemeToggle } from "../components/layout/theme-toggle";
 import { Button, LayerCard } from '@nocoo/basalt';
 import { ChartCandlestick, Globe2, LockKeyhole, Search } from 'lucide-react';
 import { Navigate, useSearchParams } from 'react-router';
@@ -7,6 +5,8 @@ import { Github } from '@/components/icons/github';
 import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';
 import { googleStartUrl, loginErrorMessage } from '@/lib/login-vm';
+import { HeaderTooltip, HexlyLink } from '../components/layout/header-links';
+import { ThemeToggle } from '../components/layout/theme-toggle';
 
 const APP_VERSION = '0.6.5';
 const FEATURES = [
