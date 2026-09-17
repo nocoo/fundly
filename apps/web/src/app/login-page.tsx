@@ -1,10 +1,12 @@
-import { Button, LayerCard, ThemeToggle } from '@nocoo/basalt';
+import { Button, LayerCard } from '@nocoo/basalt';
 import { ChartCandlestick, Globe2, LockKeyhole, Search } from 'lucide-react';
 import { Navigate, useSearchParams } from 'react-router';
 import { Github } from '@/components/icons/github';
 import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';
 import { googleStartUrl, loginErrorMessage } from '@/lib/login-vm';
+import { HeaderTooltip, HexlyLink } from '../components/layout/header-links';
+import { ThemeToggle } from '../components/layout/theme-toggle';
 
 const APP_VERSION = '0.6.5';
 const FEATURES = [
@@ -29,16 +31,19 @@ export default function LoginPage() {
           Fundly
         </a>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-8" asChild>
-            <a
-              href="https://github.com/nocoo/fundly"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="GitHub repository"
-            >
-              <Github className="size-[18px]" strokeWidth={1.5} />
-            </a>
-          </Button>
+          <HeaderTooltip label="GitHub repository">
+            <Button variant="ghost" size="icon" className="size-8" asChild>
+              <a
+                href="https://github.com/nocoo/fundly"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub repository"
+              >
+                <Github className="size-[18px]" strokeWidth={1.5} />
+              </a>
+            </Button>
+          </HeaderTooltip>
+          <HexlyLink />
           <ThemeToggle aria-label="切换主题" />
         </div>
       </header>

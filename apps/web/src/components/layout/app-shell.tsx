@@ -1,4 +1,4 @@
-import { Button, ContentIsland, Sheet, SheetContent, SheetTitle, ThemeToggle } from '@nocoo/basalt';
+import { Button, ContentIsland, Sheet, SheetContent, SheetTitle } from '@nocoo/basalt';
 import { AppHeader } from '@nocoo/basalt/components/app-header';
 import {
   AppMain,
@@ -11,8 +11,10 @@ import { useLocation } from 'react-router';
 import { Github } from '@/components/icons/github';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { HeaderTooltip, HexlyLink } from './header-links';
 import { Sidebar } from './sidebar';
 import { SidebarProvider, useSidebar } from './sidebar-context';
+import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -71,30 +73,35 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
           <AppHeader
             leading={
               isMobile ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setMobileOpen(true)}
-                  aria-label="打开导航菜单"
-                  className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
-                >
-                  <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
-                </Button>
+                <HeaderTooltip label="打开导航菜单">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setMobileOpen(true)}
+                    aria-label="打开导航菜单"
+                    className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
+                  >
+                    <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
+                  </Button>
+                </HeaderTooltip>
               ) : null
             }
             breadcrumbs={isMobile ? [] : ancestorCrumbs}
             title={currentTitle}
             actions={
               <div className="flex items-center gap-1">
-                <a
-                  href="https://github.com/nocoo/fundly"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="GitHub repository"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
-                >
-                  <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
-                </a>
+                <HeaderTooltip label="GitHub repository">
+                  <a
+                    href="https://github.com/nocoo/fundly"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="GitHub repository"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
+                  >
+                    <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
+                  </a>
+                </HeaderTooltip>
+                <HexlyLink />
                 <ThemeToggle aria-label="切换主题" />
               </div>
             }
