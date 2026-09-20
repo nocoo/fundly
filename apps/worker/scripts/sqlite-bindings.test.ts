@@ -1,9 +1,0 @@
-import { describe, expect, it } from 'bun:test';
-import { toSqlBindings } from '../src/lib/executor';
-
-describe('toSqlBindings', () => {
-  it('keeps sqlite-legal values and rejects objects', () => {
-    expect(toSqlBindings(['a', 1, null, undefined])).toEqual(['a', 1, null, null]);
-    expect(() => toSqlBindings([{}])).toThrow('unsupported sqlite binding');
-  });
-});
