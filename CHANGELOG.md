@@ -1,3 +1,12 @@
+## 0.6.7 — 2026-10-01
+
+- Upgrade React and its types to 19.3.0, React Router to 8.4.0, Lucide to 1.49.0, and tailwind-merge to 3.7.0.
+- Upgrade Vite to 8.3.2, its React plugin to 6.1.1, Biome to 2.5.15, and Bun types to 1.4.2.
+- Upgrade Hono to 4.13.12 and jose to 6.2.12 while preserving Google OAuth, PKCE, and read-only market browsing.
+- Remove the unused Cloudflare runtime, Wrangler, Workers types, and their undici and sharp dependency chains.
+- Synchronize package, API, sidebar, and login versions; validate the drawdown test fixture without a non-null assertion.
+- Include changes since the last published tag v0.6.5: Basalt 2.1.8, header accessibility and project links, optional daily quote descriptions, verified-source CI/release gates, and macro daily reports through October 1.
+
 ## 0.6.5 — 2026-09-11
 
 - fix: check database health without caching
