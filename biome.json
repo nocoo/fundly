@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -11,8 +11,7 @@
       "scripts/**/*.ts",
       "tests/**/*.ts",
       "apps/**/*.ts",
-      "apps/**/*.tsx",
-      "!apps/worker/worker-configuration.d.ts"
+      "apps/**/*.tsx"
     ]
   },
   "formatter": {

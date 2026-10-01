@@ -167,8 +167,9 @@ describe('computeRiskMetrics', () => {
 
   test('all-history max drawdown includes points outside 5y window', () => {
     const navs = generate('2015-01-01', 4000, 0.05);
-    // 手动加一个极端点
-    navs[100] = { ...navs[100]!, unitNav: 5 };
+    const outlier = navs[100];
+    if (!outlier) throw new Error('Missing outlier fixture');
+    navs[100] = { ...outlier, unitNav: 5 };
     const m = computeRiskMetrics(navs);
     expect(m.maxDrawdownAll ?? 0).toBeGreaterThan(50);
   });
