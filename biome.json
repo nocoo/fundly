@@ -11,8 +11,7 @@
       "scripts/**/*.ts",
       "tests/**/*.ts",
       "apps/**/*.ts",
-      "apps/**/*.tsx",
-      "!apps/worker/worker-configuration.d.ts"
+      "apps/**/*.tsx"
     ]
   },
   "formatter": {

@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "types": "wrangler types",
     "typecheck": "tsc --noEmit",
     "test": "bun test src"
   },
@@ -13,12 +12,6 @@
     "jose": "6.2.8"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260817.1",
-    "typescript": "7.0.2",
-    "wrangler": "4.123.0"
-  },
-  "overrides": {
-    "sharp": "0.35.4",
-    "undici": "7.29.1"
+    "typescript": "7.0.2"
   }
 }

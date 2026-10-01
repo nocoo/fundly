@@ -17,7 +17,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "worker-configuration.d.ts",
     "../../src/metrics/**/*.ts",
     "../../src/analytics/share-class.ts"
   ],
