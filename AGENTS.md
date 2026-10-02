@@ -57,7 +57,7 @@ Initialize an intended empty local database with `bun run db:init`; do not run c
 | Build | Vite output | enforced | CI `build:web` |
 | Docs | Chinese numbered docs, measured claims and current commands | manual | Review and [document rules](docs/18-COLLABORATION.md) |
 
-No repository pre-commit/pre-push hook is currently configured. Required target: check-only index-snapshot unified L1 <30s; stdin pushed-ref L2/G2 in parallel <3min. Never bypass commit or branch-push checks. CI Gate must be green and current with main for the normal PR merge flow.
+No repository pre-commit/pre-push hook is currently configured. Required target: check-only index-snapshot unified L1 <30s; stdin pushed-ref L2/G2 in parallel <3min. Never bypass commit or branch-push checks. Direct pushes to `main` are allowed; CI Gate runs after every push and must be green before release tagging.
 
 ## Resources and isolation
 

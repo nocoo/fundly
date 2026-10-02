@@ -110,7 +110,7 @@ Web 构建结果写入 `apps/worker/static/`，`bun run start` 由 Bun 同时提
 
 测试使用 Bun 内置测试运行器，API 集成测试通过临时 SQLite 与 Hono 请求调用运行。可用 `bun run test:coverage` 查看报告；当前没有独立浏览器端到端测试命令。
 
-PR 与 `main` push 通过 `base-ci v2026.7` 运行类型检查、lint、测试与覆盖率、构建、安全扫描和 workflow 校验；`CI Gate` 为合并必需检查。版本 tag 通过 main CI 来源验证后发布 GitHub Release，流程见 [CI 与发布说明](docs/09-RAILWAY.md#github-release)。
+`main` push 与可选 PR 通过 `base-ci v2026.7` 运行类型检查、lint、测试与覆盖率、构建、安全扫描和 workflow 校验；仓库允许直接推送 `main`，`CI Gate` 在推送后验证提交。版本 tag 通过 main CI 来源验证后发布 GitHub Release，流程见 [CI 与发布说明](docs/09-RAILWAY.md#github-release)。
 
 ## 技术栈
 

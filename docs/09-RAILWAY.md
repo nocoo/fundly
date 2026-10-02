@@ -104,7 +104,7 @@ railway domain
 
 ## CI 与自动部署
 
-GitHub Actions：`.github/workflows/ci.yml`。`main` 的 push / PR 和手动运行复用
+GitHub Actions：`.github/workflows/ci.yml`。`main` 的 push、可选 PR 和手动运行复用
 `nocoo/base-ci v2026.7`（固定 SHA `ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f`）：
 
 - 使用 Bun 1.3.14，以项目 lifecycle 策略冻结安装根目录、`apps/web`、`apps/worker` 三套依赖。
@@ -112,9 +112,9 @@ GitHub Actions：`.github/workflows/ci.yml`。`main` 的 push / PR 和手动运�
 - 上传覆盖率报告，运行 Gitleaks 与三套 lockfile 的 OSV 扫描，以及 actionlint / YAML 校验。
 - 不启用浏览器 E2E / L3。CI 无需生产 secrets，只有 `contents: read` 权限。
 
-`main` 的必需 check 为 **CI Gate**（GitHub Actions）。该 job 始终汇总质量检查和 workflow
-校验，任何失败、取消、非预期跳过或 tested SHA 不匹配都会失败。分支保护要求分支与 `main`
-保持同步，并对管理员生效；通过 PR 合并，不直接 push `main`。
+**CI Gate**（GitHub Actions）始终汇总质量检查和 workflow 校验，任何失败、取消、非预期
+跳过或 tested SHA 不匹配都会失败。仓库允许直接 push `main`，也可按需使用 PR；分支保护
+继续禁止 force push 和删除 `main`，但不要求 PR 或预先通过 CI。
 
 Railway 服务已接 `nocoo/fundly`。要让它**等 CI 全绿再部署**：
 
@@ -134,12 +134,11 @@ SQLite 数据迁移。
 
 发布步骤：
 
-1. 在版本分支更新三个 `package.json`、API / UI 版本与 `CHANGELOG.md`，提交 PR。
+1. 在 `main` 更新三个 `package.json`、API / UI 版本与 `CHANGELOG.md` 并提交。
    `bun run release patch` 可以生成版本 commit，但也会创建一个本地 tag；此时不要推送该 tag。
-2. 合并版本 PR 后，等待合并提交的 **main push CI** 全绿。PR 的检查记录不能作为发布凭据。
-3. 为该 main 提交创建 `vX.Y.Z` tag 并推送。若第 1 步生成的本地 tag 指向合并前的提交，
-   先确认远端没有同名 tag，再删除这个未推送的本地 tag，并在已通过 CI 的 main 提交上重建。
-   已发布的 tag 不可移动。
+2. 推送版本 commit 后，等待该提交的 **main push CI** 全绿。
+3. 推送 `bun run release patch` 创建的 `vX.Y.Z` tag；若 tag 不指向已通过 CI 的 main 提交，
+   先确认远端没有同名 tag，再删除这个未推送的本地 tag，并在正确提交上重建。已发布的 tag 不可移动。
 4. tag push 自动触发 Release。共享 `release-source` action 通过 GitHub API 核对仓库、
    workflow 路径 / 名称、main 分支、push 事件、成功状态、tag 与完整 commit SHA；同时要求
    tag 与根包版本一致。随后验证子包、API 版本和 changelog，再创建带 CI 链接的 Release。
@@ -156,7 +155,7 @@ SQLite 数据迁移。
 ```bash
 bun run build:web          # 只改前端时先构建
 railway up --yes --detach  # 本机直推，不等 GitHub CI
-# 合并 PR 后的 main push 走 GitHub → CI →（Wait for CI 打开后）Railway
+# main push 走 GitHub → CI →（Wait for CI 打开后）Railway
 ```
 
 探活：
