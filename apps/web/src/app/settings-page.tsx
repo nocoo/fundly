@@ -5,6 +5,7 @@ import { Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { AppShell } from '@/components/layout';
 import { PanelHeading, ResearchHeader } from '@/components/layout/research-layout';
+import { ApiTokens } from '@/components/settings/api-tokens';
 import { BenchmarkBrowser } from '@/components/settings/benchmark-browser';
 import { DataOverview } from '@/components/settings/data-overview';
 import { Metric } from '@/components/ui/metric';
@@ -36,6 +37,7 @@ export default function SettingsPage() {
           <TabsList aria-label="设置分类">
             <TabsTrigger value="display">显示与图表</TabsTrigger>
             <TabsTrigger value="data">数据状态</TabsTrigger>
+            <TabsTrigger value="tokens">API Tokens</TabsTrigger>
           </TabsList>
           <TabsContent value="display">
             <div className="research-settings-grid">
@@ -128,6 +130,9 @@ export default function SettingsPage() {
           </TabsContent>
           <TabsContent value="data">
             <DataOverview />
+          </TabsContent>
+          <TabsContent value="tokens">
+            <ApiTokens />
           </TabsContent>
         </Tabs>
       </div>
