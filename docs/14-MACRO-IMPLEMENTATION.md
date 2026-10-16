@@ -58,6 +58,8 @@ bun run fetch:macro --sqlite /path/to/fundly.db --history-days 1826
 bun run fetch:macro --offline --evidence-dir output/macro-research-2026-09-06/evidence
 ```
 
+退出码：至少一个来源成功发布时返回 0（部分缺项仍记录 warning 和来源状态）；全部来源失败或启动 / 参数错误时返回 1，避免部分上游故障阻断串联的其他采集任务。扶摇观察池空价格或单个快照端点不可用时保留其余行情及旧数据，证券身份错配仍拒绝发布。上期所今日盘中报告没有完整收盘 OHLC 时回查最近完整日报；非法 JSON、日期错配和历史日报异常不会作为休市静默忽略。
+
 支持来源名：`fuyao,shfe,cboe,ecb,shibor,lpr,fred`。持续更新间隔允许 15–1440 分钟；不接受离线证据模式。`Ctrl+C` / `SIGTERM` 会在当前批次完成后退出。当前交付没有安装系统定时任务，也没有在 Railway 启动采集进程；需要持续更新时启动上面的 `--watch` 命令。可见页面每分钟同步总览与当前标的 K 线，“刷新”可立即同步；两者均只读取本地缓存，不触发上游采集。
 
 同一数据库的采集器通过旁路 SQLite 排他锁防止重入，锁文件为 `<sqlite>.macro.lock`，进程退出或崩溃后操作系统自动释放锁。网络采集期间不锁住基金主库。不同数据库可以独立采集。

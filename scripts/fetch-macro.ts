@@ -121,6 +121,10 @@ export async function fetchMacro(options: {
   }
 }
 
+export function macroExitCode(results: ReadonlyArray<{ success: boolean }>): number {
+  return results.some((result) => result.success) ? 0 : 1;
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     args: process.argv.slice(2),
@@ -171,7 +175,7 @@ async function main(): Promise<void> {
     do {
       const result = await fetchMacro(options);
       if (!values.watch) {
-        if (result.some((r) => !r.success)) process.exitCode = 1;
+        process.exitCode = macroExitCode(result);
         break;
       }
       if (stopping) break;

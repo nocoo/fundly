@@ -40,6 +40,29 @@ export function assertSymbolSet(
   }
 }
 
+export function parseWatchlistSnapshot(
+  data: FuyaoData,
+  kind: 'index' | 'industry' | 'etf',
+  symbols: readonly string[],
+  tradeDate: string,
+  warnings: string[],
+): MarketQuote[] {
+  const received = new Set(data.item.map((row) => String(row.thscode)));
+  if (received.size !== data.item.length || [...received].some((s) => !symbols.includes(s)))
+    throw new Error('Duplicate or mismatched watchlist identity');
+  const quotes: MarketQuote[] = [];
+  for (const symbol of symbols) {
+    const row = data.item.find((item) => item.thscode === symbol);
+    const quote = row ? parseFuyaoQuote(`${kind}:${symbol}`, row, data.timestamp, tradeDate) : null;
+    if (!quote || quote.price == null || quote.price <= 0) {
+      warnings.push(`Missing watchlist price: ${symbol}`);
+      continue;
+    }
+    quotes.push({ ...quote, collectedAt: data.collectedAt });
+  }
+  return quotes;
+}
+
 export function calendarDates(data: FuyaoData): string[] {
   const dates = data.item
     .map((row) => {
@@ -192,44 +215,36 @@ export async function collectFuyao(
     kind: 'index' | 'industry' | 'etf',
     symbols: readonly string[],
   ): void {
-    assertSymbolSet(data.item, new Set(symbols));
-    for (const row of data.item) {
-      const q = parseFuyaoQuote(`${kind}:${row.thscode}`, row, data.timestamp, tradeDate);
-      if (q.price == null || q.price <= 0)
-        throw new Error(`Missing watchlist price: ${row.thscode}`);
-      batch.quotes.push({ ...q, collectedAt: data.collectedAt });
-    }
+    batch.quotes.push(...parseWatchlistSnapshot(data, kind, symbols, tradeDate, warnings));
   }
   const indexSymbols = MAJOR_INDICES.map(([code]) => code);
-  snapshot(
-    await reader.fuyao(
+  const indices = await optional('指数快照', () =>
+    reader.fuyao(
       '/api/a-share-index/prices/snapshot',
       { thscodes: indexSymbols.join(',') },
       'major_indices.json',
     ),
-    'index',
-    indexSymbols,
   );
+  if (indices) snapshot(indices, 'index', indexSymbols);
   const industrySymbols = INDUSTRY_WATCHLIST.map((i) => i.symbol);
-  snapshot(
-    await reader.fuyao(
+  const industries = await optional('行业快照', () =>
+    reader.fuyao(
       '/api/a-share-index/prices/snapshot',
       { thscodes: industrySymbols.join(',') },
       'industry_snapshot_selected.json',
     ),
-    'industry',
-    industrySymbols,
   );
-  for (const [symbol] of ETF_WATCHLIST)
-    snapshot(
-      await reader.fuyao(
+  if (industries) snapshot(industries, 'industry', industrySymbols);
+  for (const [symbol] of ETF_WATCHLIST) {
+    const data = await optional(`${symbol} 快照`, () =>
+      reader.fuyao(
         '/api/fund/market/snapshot',
         { thscode: symbol },
         `etf_snapshot_${symbol.slice(0, 6)}.json`,
       ),
-      'etf',
-      [symbol],
     );
+    if (data) snapshot(data, 'etf', [symbol]);
+  }
 
   const stockRows: Array<Record<string, unknown>> = [];
   const stockQuotes: MarketQuote[] = [];
@@ -252,6 +267,7 @@ export async function collectFuyao(
   assertSymbolSet(stockRows, stockSet);
   batch.quotes.push(...stockQuotes);
   batch.actualItems = batch.quotes.length;
+  batch.missingItems = batch.expectedItems - batch.actualItems;
   progress('股票分页集合一致，开始采集日 K 与披露资料');
 
   async function limitPool(kind: 'up' | 'down' | 'break'): Promise<number | null> {

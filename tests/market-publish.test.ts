@@ -52,6 +52,20 @@ function collection(batchId: string, price = 10): MarketCollection {
 }
 
 describe('atomic market publication', () => {
+  test('explicit warned missing items publish valid peers without weakening completeness checks', () => {
+    const db = database();
+    const partial = collection('partial');
+    partial.expectedItems = 2;
+    partial.missingItems = 1;
+    partial.warnings = ['Missing watchlist price: 399001.SZ'];
+    publishMarketCollection(db, partial);
+    expect(db.query('SELECT COUNT(*) AS n FROM market_quote_latest').get()).toEqual({ n: 1 });
+    for (const missingItems of [-1, 0.5, 2]) {
+      expect(() => publishMarketCollection(db, { ...partial, missingItems })).toThrow('Incomplete');
+    }
+    expect(() => publishMarketCollection(db, { ...partial, warnings: [] })).toThrow('Incomplete');
+  });
+
   test('rolls back metadata, quotes, breadth and status when a late publication step fails', () => {
     const db = database();
     publishMarketCollection(db, collection('good'));

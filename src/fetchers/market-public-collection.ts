@@ -5,7 +5,7 @@ import type {
   MarketInstrument,
   MarketSeriesObservation,
 } from '../utils/market-types.ts';
-import { chinaMarketDate, shiftMarketDate } from '../utils/market-validation.ts';
+import { chinaMarketDate, marketNumber, shiftMarketDate } from '../utils/market-validation.ts';
 import { FRED_SERIES } from '../utils/market-watchlist.ts';
 import { MarketReadError, type MarketReader } from './market-reader.ts';
 import {
@@ -219,6 +219,51 @@ export async function collectFred(
   return finish(reader, batch);
 }
 
+export function isPublishedShfeReport(raw: string, date: string, today: string): boolean {
+  const report = JSON.parse(raw);
+  if (report.report_date !== date.replaceAll('-', '') || !Array.isArray(report.o_curinstrument))
+    throw new Error('Invalid SHFE daily report');
+  let pending = false;
+  for (const product of ['au', 'cu']) {
+    const row = (report.o_curinstrument as Array<Record<string, unknown>>)
+      .filter(
+        (r) =>
+          r &&
+          String(r.PRODUCTID).trim().toLowerCase() === `${product}_f` &&
+          /^\d{2}(0[1-9]|1[0-2])$/.test(String(r.DELIVERYMONTH).trim()),
+      )
+      .sort(
+        (a, b) => (marketNumber(b.OPENINTEREST) ?? -1) - (marketNumber(a.OPENINTEREST) ?? -1),
+      )[0];
+    if (!row) throw new Error('Incomplete SHFE daily report');
+    const open = marketNumber(row.OPENPRICE);
+    const high = marketNumber(row.HIGHESTPRICE);
+    const low = marketNumber(row.LOWESTPRICE);
+    const close = marketNumber(row.CLOSEPRICE);
+    const settlement = marketNumber(row.SETTLEMENTPRICE);
+    if (
+      open === null ||
+      high === null ||
+      low === null ||
+      low <= 0 ||
+      open < low ||
+      open > high ||
+      (row.CLOSEPRICE !== '' && (close === null || close < low || close > high)) ||
+      (row.SETTLEMENTPRICE !== '' && (settlement === null || settlement <= 0))
+    )
+      throw new Error('Invalid SHFE contract prices');
+    if (row.CLOSEPRICE === '' || row.SETTLEMENTPRICE === '') pending = true;
+  }
+  if (pending) {
+    if (date === today) return false;
+    throw new Error('Incomplete SHFE daily report');
+  }
+  const parsed = parseShfeDailyJson(raw);
+  if (parsed.quotes.length !== 2 || parsed.bars.length !== 2)
+    throw new Error('Incomplete SHFE daily report');
+  return true;
+}
+
 export async function collectShfe(
   db: Database,
   reader: MarketReader,
@@ -233,14 +278,13 @@ export async function collectShfe(
     for (let offset = 0; offset < 16; offset++) {
       const date = shiftMarketDate(today, -offset);
       try {
-        latest = await reader.text(
+        const response = await reader.text(
           'https://www.shfe.com.cn/data/tradedata/future/dailydata/kx' +
             date.replaceAll('-', '') +
             '.dat',
         );
-        const quotes = parseShfeDailyJson(latest.text).quotes;
-        if (quotes.length !== 2 || quotes.some((q) => q.tradeDate !== date))
-          throw new Error('Invalid SHFE daily report');
+        if (!isPublishedShfeReport(response.text, date, today)) continue;
+        latest = response;
         break;
       } catch (error) {
         if (!(error instanceof MarketReadError) || error.status !== 404) throw error;
@@ -249,8 +293,18 @@ export async function collectShfe(
   }
   if (!latest) throw new Error('No published SHFE daily report');
   const parsed = parseShfeDailyJson(latest.text);
-  if (parsed.quotes.length !== 2 || parsed.bars.length !== 2)
-    throw new Error('Incomplete SHFE contracts or OHLC');
+  if (
+    parsed.quotes.length !== 2 ||
+    parsed.bars.length !== 2 ||
+    parsed.quotes.some((quote) => quote.settlementPrice == null)
+  )
+    throw new Error('Incomplete SHFE contracts, OHLC or settlement');
+  const published = db
+    .query("SELECT MAX(trade_date) AS date FROM market_quote_latest WHERE source = 'shfe'")
+    .get() as { date: string | null };
+  const publishedDate = published.date;
+  if (publishedDate && parsed.quotes.some((quote) => quote.tradeDate < publishedDate))
+    throw new Error('SHFE report is older than published quotes');
   const collectedAt = latest.collectedAt;
   batch.quotes = parsed.quotes.map((q) => ({ ...q, collectedAt }));
   batch.bars = parsed.bars.map((b) => ({ ...b, collectedAt }));

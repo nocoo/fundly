@@ -32,6 +32,7 @@ export interface MarketCollection {
   tradeDate: string;
   expectedItems: number;
   actualItems: number;
+  missingItems?: number;
   instruments: MarketInstrument[];
   quotes: MarketQuote[];
   bars: MarketDailyBar[];
@@ -53,7 +54,10 @@ export function publishMarketCollection(db: Database, batch: MarketCollection): 
     !Number.isInteger(batch.actualItems) ||
     !Number.isInteger(batch.expectedItems) ||
     batch.actualItems < 1 ||
-    batch.actualItems !== batch.expectedItems
+    !Number.isInteger(batch.missingItems ?? 0) ||
+    (batch.missingItems ?? 0) < 0 ||
+    ((batch.missingItems ?? 0) > 0 && !batch.warnings?.length) ||
+    batch.actualItems + (batch.missingItems ?? 0) !== batch.expectedItems
   )
     throw new Error('Incomplete market collection');
   if (!isMarketDate(batch.tradeDate)) throw new Error('Invalid collection trade date');

@@ -28,7 +28,7 @@ export function parseSelectionOptions(argv: string[]): SelectionOptions {
       'etf-limit': { type: 'string', default: '60' },
       'stock-limit': { type: 'string', default: '80' },
       symbols: { type: 'string' },
-      sqlite: { type: 'string', default: 'data/fundly.db' },
+      sqlite: { type: 'string', default: process.env.FUNDLY_SQLITE ?? 'data/fundly.db' },
       'skip-deep': { type: 'boolean', default: false },
       watch: { type: 'boolean', default: false },
       'interval-minutes': { type: 'string', default: '1440' },
