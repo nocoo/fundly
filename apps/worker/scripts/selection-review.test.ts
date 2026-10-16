@@ -28,6 +28,7 @@ function fixture() {
   initSchema(db);
   initSelectionSchema(db);
   const app = createApi(path, {
+    authDbPath: ':memory:',
     auth: {
       enabled: false,
       required: false,

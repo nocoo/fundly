@@ -1,5 +1,5 @@
 import { Database } from 'bun:sqlite';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
@@ -11,8 +11,10 @@ import {
   readBackyConfig,
   saveBackyConfig,
 } from '../../../src/backup/settings.ts';
+import { defaultAuthDbPath, TokenStore } from '../src/lib/api-tokens.ts';
 import { type AuthConfig, loadAuthConfig } from '../src/lib/auth-config.ts';
-import { registerAuthRoutes, requireSession } from '../src/lib/auth-routes.ts';
+import { registerAuthRoutes } from '../src/lib/auth-routes.ts';
+import { queryDailyReports } from '../src/lib/daily-query.ts';
 import { DAILY_DATE_RE, getDailyReport, listDailyReports } from '../src/lib/daily-service.ts';
 import type { QueryExec, SqlBinding } from '../src/lib/executor.ts';
 import { parseFundListQuery } from '../src/lib/fund-query.ts';
@@ -31,6 +33,8 @@ import {
   getMarketObservations,
   getMarketOverview,
 } from '../src/lib/market-service.ts';
+import { apiCors, defaultOriginPolicy, type OriginPolicy } from '../src/lib/origin-policy.ts';
+import { ReadQueryError, registerReadRoutes } from '../src/lib/read-query.ts';
 import {
   type EtfListQuery,
   getSelectionEtfBars,
@@ -41,6 +45,7 @@ import {
   listSelectionStocks,
   type StockListQuery,
 } from '../src/lib/selection-service.ts';
+import { registerTokenRoutes, requireSessionOrToken } from '../src/lib/token-auth.ts';
 import { APP_VERSION } from '../src/lib/version.ts';
 
 export function defaultSqlitePath(): string {
@@ -86,18 +91,22 @@ export async function withMarketSnapshot<T>(
 
 export function createApi(
   sqlitePath: string,
-  opts: { staticDir?: string; component?: string; auth?: AuthConfig } = {},
+  opts: {
+    staticDir?: string;
+    component?: string;
+    auth?: AuthConfig;
+    tokenStore?: TokenStore;
+    authDbPath?: string;
+    originPolicy?: OriginPolicy;
+  } = {},
 ): Hono {
   const sqlite = openReadonlySqlite(sqlitePath);
   const app = new Hono();
   const repoRoot = resolve(import.meta.dirname, '../../..');
   const auth = opts.auth ?? loadAuthConfig(process.env, true);
 
-  app.use('/api/*', async (c, next) => {
-    c.header('access-control-allow-origin', c.req.header('origin') ?? '*');
-    c.header('access-control-allow-credentials', 'true');
-    await next();
-  });
+  const originPolicy = opts.originPolicy ?? defaultOriginPolicy(auth.originOverride);
+  app.use('/api/*', apiCors(originPolicy));
 
   app.get('/api/live', async (c) => {
     let connected = false;
@@ -121,8 +130,19 @@ export function createApi(
     );
   });
 
+  const authDbPath = opts.authDbPath ?? defaultAuthDbPath();
+  if (
+    !opts.tokenStore &&
+    (resolve(authDbPath) === resolve(sqlitePath) ||
+      (existsSync(authDbPath) && realpathSync(authDbPath) === realpathSync(sqlitePath)))
+  ) {
+    throw new Error('AUTH_DB_PATH must be separate from the market database');
+  }
+  const tokenStore = opts.tokenStore ?? new TokenStore(authDbPath);
+  app.use('/api/*', (c, next) => requireSessionOrToken(c, auth, tokenStore, next, originPolicy));
   registerAuthRoutes(app, auth);
-  app.use('/api/*', (c, next) => requireSession(c, auth, next));
+  registerTokenRoutes(app, auth, tokenStore);
+  registerReadRoutes(app, (read) => withMarketSnapshot(sqlitePath, read));
 
   app.get('/api/source', (c) => c.json({ source: 'sqlite', allowed: ['sqlite'], rejected: false }));
 
@@ -260,7 +280,16 @@ export function createApi(
   });
 
   // 财经日报 / 宏观日报（仓库 content/macro-daily/*.md）
-  app.get('/api/daily', async (c) => c.json(await listDailyReports(repoRoot)));
+  app.get('/api/daily', async (c) => {
+    const items = await listDailyReports(repoRoot);
+    if (!Object.keys(c.req.query()).length) return c.json(items);
+    try {
+      return c.json(queryDailyReports(items, c.req.query()));
+    } catch (error) {
+      if (error instanceof ReadQueryError) return c.json({ error: error.message }, 400);
+      throw error;
+    }
+  });
   app.get('/api/daily/:date', async (c) => {
     const date = c.req.param('date');
     if (!DAILY_DATE_RE.test(date)) {

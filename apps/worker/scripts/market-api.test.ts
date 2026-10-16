@@ -55,7 +55,7 @@ function database(market = true) {
 describe('local market API integration', () => {
   test('public health checks the real SQLite catalogue and reports read failures', async () => {
     const { path, db } = database(false);
-    const app = createApi(path);
+    const app = createApi(path, { authDbPath: ':memory:' });
     const healthy = await app.request('/api/live');
     expect(healthy.status).toBe(200);
     expect(healthy.headers.get('cache-control')).toBe('no-store');
@@ -84,7 +84,7 @@ describe('local market API integration', () => {
       sessionSecret: 'unit-test-session-signing-value',
       allowedEmails: ['market-test@example.invalid'],
     };
-    const app = createApi(path, { auth });
+    const app = createApi(path, { auth, authDbPath: ':memory:' });
     for (const route of [
       'overview',
       'bars/index:000300.SH',
@@ -115,7 +115,7 @@ describe('local market API integration', () => {
 
   test('an older database serves an empty market and clean 404 details without mutation', async () => {
     const { path, db } = database(false);
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     const response = await app.request('/api/market/overview');
     expect(response.status).toBe(200);
     expect(((await response.json()) as MarketOverviewData).ready).toBe(false);
@@ -145,7 +145,7 @@ describe('local market API integration', () => {
         volume: 0,
       })),
     );
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     for (const [limit, count] of [
       ['20', 20],
       ['60', 60],
@@ -179,7 +179,7 @@ describe('local market API integration', () => {
         volume: 0,
       })),
     );
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     for (const [years, from, count] of [
       [1, '2025-09-04', 366],
       [3, '2023-09-04', 1097],
@@ -230,7 +230,7 @@ describe('local market API integration', () => {
         close: 11,
       },
     ]);
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     const data = (await (
       await app.request('/api/market/bars/index%3A000300.SH?years=5')
     ).json()) as Awaited<ReturnType<typeof getMarketBars>>;

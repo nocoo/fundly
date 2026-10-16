@@ -129,6 +129,7 @@ Web 构建结果写入 `apps/worker/static/`，`bun run start` 由 Bun 同时提
 ## 文档
 
 - [文档索引](docs/README.md)
+- [Read API and API tokens](docs/api.md)
 - [架构](docs/01-ARCHITECTURE.md)与[数据表](docs/02-SCHEMA.md)
 - [选基指标口径](docs/12-FUND-SCREENING.md)
 - [部署与持久卷](docs/09-RAILWAY.md)

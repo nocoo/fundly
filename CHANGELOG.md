@@ -1,3 +1,9 @@
+## Unreleased
+
+- Add session-managed, scoped read-only API tokens in an independent auth SQLite database that survives daily market snapshot replacement.
+- Expose all non-secret market-schema resources through typed, whitelisted, parameterized read APIs with batch filters, date ranges, projection and pagination; document authentication and every route in `docs/api.md`.
+- Add Settings → API Tokens with one-time secret display/copy, optional expiry, revocation and revoked-token deletion.
+
 ## 0.6.7 — 2026-10-01
 
 - Upgrade React and its types to 19.3.0, React Router to 8.4.0, Lucide to 1.49.0, and tailwind-merge to 3.7.0.

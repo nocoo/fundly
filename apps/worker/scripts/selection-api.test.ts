@@ -43,6 +43,7 @@ function createTestApp(withTables = true): { app: ReturnType<typeof createApi>; 
   if (withTables) initSelectionSchema(db);
 
   const app = createApi(path, {
+    authDbPath: ':memory:',
     auth: publicAuth,
   });
   return { app, db };

@@ -60,7 +60,7 @@ describe('local daily API integration', () => {
       sessionSecret: 'unit-test-session-signing-value',
       allowedEmails: ['daily-test@example.invalid'],
     };
-    const app = createApi(path, { auth });
+    const app = createApi(path, { auth, authDbPath: ':memory:' });
     expect((await app.request('/api/daily')).status).toBe(401);
     expect((await app.request('/api/daily/2026-09-09')).status).toBe(401);
 
@@ -99,7 +99,7 @@ summary: first
 body one
 `,
     });
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     const listRes = await app.request('/api/daily');
     expect(listRes.status).toBe(200);
     const list = (await listRes.json()) as DailyListItem[];
@@ -131,7 +131,7 @@ body one
 
   test('invalid date is 400 and missing report is 404', async () => {
     const path = emptyDb();
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     expect((await app.request('/api/daily/not-a-date')).status).toBe(400);
     expect((await app.request('/api/daily/2026-9-9')).status).toBe(400);
     // Format-valid YYYY-MM-DD with no file → 404 (no calendar validation)
@@ -140,7 +140,7 @@ body one
 
   test('path traversal style dates are rejected as invalid', async () => {
     const path = emptyDb();
-    const app = createApi(path, { auth: publicAuth });
+    const app = createApi(path, { auth: publicAuth, authDbPath: ':memory:' });
     for (const date of ['../etc/passwd', '..%2Fsecret', '2026-09-09%2F..%2F..%2Fetc']) {
       const res = await app.request(`/api/daily/${date}`);
       expect([400, 404]).toContain(res.status);
