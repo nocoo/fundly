@@ -81,6 +81,21 @@ fundly/
 
 ## 界面壳
 
+Authenticated routes share one `RequireAuth` and a persistent `AppLayout` / `AppShell`.
+Only the `Outlet` content is inside `Suspense`; `/login` stays outside the shell.
+Pages call `usePageChrome` to supply their title, optional parent breadcrumb and
+market wall mode. Keep navigation groups keyed by group identity, not location,
+and bind the mobile drawer to `SheetTrigger` so closing it restores focus.
+
+Navigation regression: run `bun run build:web`, then
+`bun run --cwd apps/web test:navigation`. It uses Bun tests and a local headless
+Chrome (`CHROME_BIN` can override its executable), an ephemeral browser profile,
+an ephemeral loopback port and synthetic API responses. It never opens a database
+or contacts market APIs. It checks real links, history, retained chrome and sidebar
+state, lazy content, dynamic breadcrumbs, wall mode, mobile focus and login
+isolation, and rejects unexpected document requests. This browser check is a
+separate command, not part of the default unit-test discovery or current CI.
+
 模板来自 Surety 的 Basalt 壳，砍掉保单业务：
 
 | 区域 | 行为 |

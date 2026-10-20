@@ -22,7 +22,7 @@ import {
   defaultInterval,
 } from '@/components/charts/market-chart-controls';
 import { StockFinancialChart } from '@/components/charts/stock-financial-chart';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import {
   PanelHeading,
   ResearchEmpty,
@@ -78,6 +78,7 @@ interface StockDetailResponse {
 }
 
 export function StockDetailPage() {
+  usePageChrome();
   const { symbol = '' } = useParams<{ symbol: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -132,7 +133,7 @@ export function StockDetailPage() {
   const notReady = detailError instanceof ApiError && detailError.status === 503;
 
   return (
-    <AppShell>
+    <>
       <div className="mb-3">
         <Button
           variant="ghost"
@@ -495,7 +496,7 @@ export function StockDetailPage() {
           </LayerCard>
         </>
       )}
-    </AppShell>
+    </>
   );
 }
 export default StockDetailPage;

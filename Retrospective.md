@@ -20,6 +20,17 @@ The first token-store implementation assumed `bun:sqlite` accepted a file `mode`
 
 The Vite build also removed the tracked `apps/worker/static/.gitkeep` while cleaning its output directory. It was restored after verification; generated build cleanup must not enter the controller's source commits.
 
+## 2026-10-21 — Navigation chrome needs stable ownership
+
+Each route page owned an application shell and sidebar provider, so changing page
+types discarded chrome DOM and local navigation state. Moving the shell alone
+was insufficient: navigation groups also used pathname-dependent keys. Share the
+authenticated route layout and key groups by identity. The first browser regression
+passed on desktop but exposed missing mobile focus restoration: the drawer opener
+was an ordinary button outside the Sheet context. Use the public SheetTrigger
+instead of manually opening the drawer, and exercise mobile close/focus as well as
+desktop node identity before accepting a navigation fix.
+
 ## Undated entries migrated from CLAUDE.md
 
 - `v0.1.1` 打在 D1 bind-limit 修复之前。不要移动已发布 tag；含导入修复的版本走 `0.1.2`。

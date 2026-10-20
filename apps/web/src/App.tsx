@@ -1,6 +1,7 @@
 import { LinkProvider, ThemeProvider, TooltipProvider } from '@nocoo/basalt';
 import { lazy, Suspense } from 'react';
 import { Route, Link as RouterLink, Routes } from 'react-router';
+import { AppLayout } from '@/components/layout';
 import LoadingScreen from '@/components/loading-screen';
 import { RequireAuth } from '@/components/require-auth';
 
@@ -22,10 +23,6 @@ const RankingRedirect = lazy(() =>
 );
 const NotFound = lazy(() => import('@/app/not-found-page'));
 const Login = lazy(() => import('@/app/login-page'));
-
-function Guard({ children }: { children: React.ReactNode }) {
-  return <RequireAuth>{children}</RequireAuth>;
-}
 
 function AppLink({
   href,
@@ -51,149 +48,43 @@ export function App() {
     <ThemeProvider>
       <LinkProvider render={AppLink}>
         <TooltipProvider>
-          <Suspense fallback={<LoadingScreen />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <Guard>
-                    <Dashboard />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/market"
-                element={
-                  <Guard>
-                    <Market />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/daily"
-                element={
-                  <Guard>
-                    <Daily />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/daily/:date"
-                element={
-                  <Guard>
-                    <DailyDetail />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/funds"
-                element={
-                  <Guard>
-                    <Funds />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/funds/:code"
-                element={
-                  <Guard>
-                    <FundDetail />
-                  </Guard>
-                }
-              />
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <Suspense fallback={<LoadingScreen />}>
+                  <Login />
+                </Suspense>
+              }
+            />
+            <Route
+              element={
+                <RequireAuth>
+                  <AppLayout />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/market" element={<Market />} />
+              <Route path="/daily" element={<Daily />} />
+              <Route path="/daily/:date" element={<DailyDetail />} />
+              <Route path="/funds" element={<Funds />} />
+              <Route path="/funds/:code" element={<FundDetail />} />
               {/* 选 ETF 系列路由 */}
-              <Route
-                path="/etfs"
-                element={
-                  <Guard>
-                    <Etfs forcedLens="browse" />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/etfs/:symbol"
-                element={
-                  <Guard>
-                    <EtfDetail />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/select-etf/:lens"
-                element={
-                  <Guard>
-                    <Etfs />
-                  </Guard>
-                }
-              />
+              <Route path="/etfs" element={<Etfs forcedLens="browse" />} />
+              <Route path="/etfs/:symbol" element={<EtfDetail />} />
+              <Route path="/select-etf/:lens" element={<Etfs />} />
               {/* 选股系列路由 */}
-              <Route
-                path="/stocks"
-                element={
-                  <Guard>
-                    <Stocks forcedLens="browse" />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/stocks/:symbol"
-                element={
-                  <Guard>
-                    <StockDetail />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/select-stock/:lens"
-                element={
-                  <Guard>
-                    <Stocks />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/select/:lens"
-                element={
-                  <Guard>
-                    <Select />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/ranking"
-                element={
-                  <Guard>
-                    <RankingRedirect />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/backup"
-                element={
-                  <Guard>
-                    <Backup />
-                  </Guard>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <Guard>
-                    <Settings />
-                  </Guard>
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <Guard>
-                    <NotFound />
-                  </Guard>
-                }
-              />
-            </Routes>
-          </Suspense>
+              <Route path="/stocks" element={<Stocks forcedLens="browse" />} />
+              <Route path="/stocks/:symbol" element={<StockDetail />} />
+              <Route path="/select-stock/:lens" element={<Stocks />} />
+              <Route path="/select/:lens" element={<Select />} />
+              <Route path="/ranking" element={<RankingRedirect />} />
+              <Route path="/backup" element={<Backup />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
         </TooltipProvider>
       </LinkProvider>
     </ThemeProvider>

@@ -380,7 +380,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
           <SidebarNav className="pt-1">
             {NAV_GROUPS.map((group) => (
               <NavGroupSection
-                key={`${group.label}:${pathname}:${listOrigin?.path ?? ''}`}
+                key={group.label}
                 group={group}
                 pathname={pathname}
                 listOrigin={listOrigin}

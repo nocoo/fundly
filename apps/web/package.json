@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --port 7044",
     "typecheck": "tsc --noEmit",
-    "test": "bun test src"
+    "test": "bun test src",
+    "test:navigation": "bun test ./scripts/navigation.browser.ts"
   },
   "dependencies": {
     "@nocoo/basalt": "2.1.8",

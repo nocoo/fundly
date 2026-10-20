@@ -21,7 +21,7 @@ import {
   DataInfo,
   defaultInterval,
 } from '@/components/charts/market-chart-controls';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import {
   PanelHeading,
   ResearchEmpty,
@@ -80,6 +80,7 @@ interface EtfDetailResponse {
 }
 
 export function EtfDetailPage() {
+  usePageChrome();
   const { symbol = '' } = useParams<{ symbol: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ export function EtfDetailPage() {
   const notReady = detailError instanceof ApiError && detailError.status === 503;
 
   return (
-    <AppShell>
+    <>
       <div className="mb-3">
         <Button
           variant="ghost"
@@ -481,7 +482,7 @@ export function EtfDetailPage() {
           </div>
         </>
       )}
-    </AppShell>
+    </>
   );
 }
 export default EtfDetailPage;

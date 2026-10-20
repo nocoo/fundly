@@ -1,4 +1,11 @@
-import { Button, ContentIsland, Sheet, SheetContent, SheetTitle } from '@nocoo/basalt';
+import {
+  Button,
+  ContentIsland,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from '@nocoo/basalt';
 import { AppHeader } from '@nocoo/basalt/components/app-header';
 import {
   AppMain,
@@ -52,12 +59,12 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
       : [];
 
   return (
-    <BasaltAppShell>
-      <AppSkipLink>跳至主内容</AppSkipLink>
-      {!isMobile && !wallMode ? <Sidebar /> : null}
+    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      <BasaltAppShell>
+        <AppSkipLink>跳至主内容</AppSkipLink>
+        {!isMobile && !wallMode ? <Sidebar /> : null}
 
-      {isMobile ? (
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        {isMobile ? (
           <SheetContent
             side="left"
             className="w-[260px] max-w-[260px] border-0 bg-basalt-background p-0"
@@ -65,61 +72,64 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
             <SheetTitle className="sr-only">导航菜单</SheetTitle>
             <Sidebar mobile />
           </SheetContent>
-        </Sheet>
-      ) : null}
-
-      <AppMain>
-        {!wallMode ? (
-          <AppHeader
-            leading={
-              isMobile ? (
-                <HeaderTooltip label="打开导航菜单">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setMobileOpen(true)}
-                    aria-label="打开导航菜单"
-                    className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
-                  >
-                    <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
-                  </Button>
-                </HeaderTooltip>
-              ) : null
-            }
-            breadcrumbs={isMobile ? [] : ancestorCrumbs}
-            title={currentTitle}
-            actions={
-              <div className="flex items-center gap-1">
-                <HeaderTooltip label="GitHub repository">
-                  <a
-                    href="https://github.com/nocoo/fundly"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="GitHub repository"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
-                  >
-                    <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
-                  </a>
-                </HeaderTooltip>
-                <HexlyLink />
-                <ThemeToggle aria-label="切换主题" />
-              </div>
-            }
-          />
         ) : null}
 
-        <div
-          className={cn(
-            'flex min-h-0 flex-1 flex-col',
-            wallMode ? 'p-1' : 'px-2 pb-2 md:px-3 md:pb-3',
-          )}
-        >
-          <ContentIsland className={cn('overflow-y-auto', wallMode ? 'p-2 md:p-3' : 'p-3 md:p-5')}>
-            {children}
-          </ContentIsland>
-        </div>
-      </AppMain>
-    </BasaltAppShell>
+        <AppMain>
+          {!wallMode ? (
+            <AppHeader
+              leading={
+                isMobile ? (
+                  <HeaderTooltip label="打开导航菜单">
+                    <SheetTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="打开导航菜单"
+                        className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
+                      >
+                        <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
+                      </Button>
+                    </SheetTrigger>
+                  </HeaderTooltip>
+                ) : null
+              }
+              breadcrumbs={isMobile ? [] : ancestorCrumbs}
+              title={currentTitle}
+              actions={
+                <div className="flex items-center gap-1">
+                  <HeaderTooltip label="GitHub repository">
+                    <a
+                      href="https://github.com/nocoo/fundly"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="GitHub repository"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
+                    >
+                      <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
+                    </a>
+                  </HeaderTooltip>
+                  <HexlyLink />
+                  <ThemeToggle aria-label="切换主题" />
+                </div>
+              }
+            />
+          ) : null}
+
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col',
+              wallMode ? 'p-1' : 'px-2 pb-2 md:px-3 md:pb-3',
+            )}
+          >
+            <ContentIsland
+              className={cn('overflow-y-auto', wallMode ? 'p-2 md:p-3' : 'p-3 md:p-5')}
+            >
+              {children}
+            </ContentIsland>
+          </div>
+        </AppMain>
+      </BasaltAppShell>
+    </Sheet>
   );
 }
 

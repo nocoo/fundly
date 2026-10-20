@@ -13,7 +13,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import {
   ListPagination,
   PanelHeading,
@@ -67,6 +67,7 @@ const SORTS = [
 const RETURN_KEYS = new Set(['return_1y', 'return_1m', 'return_3m', 'return_6m']);
 
 export default function FundsPage() {
+  usePageChrome({ title: '基金浏览' });
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -164,221 +165,219 @@ export default function FundsPage() {
   ].sort();
 
   return (
-    <AppShell breadcrumbs={[{ label: '基金浏览' }]}>
-      <div className="research-page research-list-page">
-        <ResearchHeader
-          title="基金浏览"
-          icon={Search}
-          description="从全市场找到研究标的，按分类与阶段收益逐层筛选。"
-          actions={
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/select/return">
-                多维选基 <ArrowUp className="size-3.5 rotate-45" />
-              </Link>
-            </Button>
+    <div className="research-page research-list-page">
+      <ResearchHeader
+        title="基金浏览"
+        icon={Search}
+        description="从全市场找到研究标的，按分类与阶段收益逐层筛选。"
+        actions={
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/select/return">
+              多维选基 <ArrowUp className="size-3.5 rotate-45" />
+            </Link>
+          </Button>
+        }
+      />
+      <LayerCard className="research-toolbar overflow-visible" padding="none">
+        <div className="research-search">
+          <Search strokeWidth={1.5} aria-hidden="true" />
+          <Input
+            id="fund-q"
+            value={search.value}
+            placeholder="代码 / 名称 / 拼音"
+            aria-label="关键词"
+            onChange={search.onChange}
+            onCompositionStart={search.onCompositionStart}
+            onCompositionEnd={search.onCompositionEnd}
+          />
+        </div>
+        <FilterDropdown
+          label="大类"
+          value={typeL1 || 'all'}
+          options={l1Options}
+          onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
+        />
+        {l2Options.length > 0 ? (
+          <FilterDropdown
+            label="细类"
+            value={typeL2 || 'all'}
+            options={l2Options}
+            onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
+          />
+        ) : null}
+        <FilterCheck
+          label="MVP 池"
+          checked={mvpOnly}
+          onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
+        />
+        <FilterCheck
+          label="有净值"
+          checked={hasNav}
+          onChange={(checked) => set({ hasNav: checked ? '1' : null })}
+        />
+        <div className="flex items-center gap-2 md:hidden">
+          <FilterDropdown
+            label="排序"
+            value={sort}
+            options={SORTS.map(([value, label]) => ({ value, label }))}
+            includeAll={false}
+            onChange={toggleSort}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="切换排序方向"
+            onClick={() => set({ dir: dir === 'asc' ? 'desc' : 'asc' })}
+          >
+            {dir === 'asc' ? '升序' : '降序'}
+          </Button>
+        </div>
+        {filterActive || search.value ? (
+          <Button variant="ghost" size="sm" className="ml-auto text-xs" onClick={resetFilters}>
+            重置筛选
+          </Button>
+        ) : null}
+      </LayerCard>
+
+      <LayerCard className="research-data-table" padding="none">
+        <PanelHeading
+          title={
+            <span className="flex items-center gap-2">
+              {filterActive ? '筛选结果' : '全部基金'}
+              <span className="font-mono text-xs font-normal text-basalt-muted-foreground">
+                {data ? formatCount(data.total) : '—'}
+              </span>
+            </span>
+          }
+          action={
+            <div className="flex items-center gap-2 text-[11px] text-basalt-muted-foreground">
+              <span aria-live="polite">{isValidating ? '更新中…' : '点击基金，查看详情'}</span>
+              <DataInfo name="基金列表" date={pageDates.at(-1)} source="东方财富">
+                <p>
+                  阶段收益按各基金可用数据展示。本页业绩日期：{pageDates[0] || '—'}
+                  {pageDates.length > 1 ? ` 至 ${pageDates.at(-1)}` : ''}。
+                </p>
+              </DataInfo>
+            </div>
           }
         />
-        <LayerCard className="research-toolbar overflow-visible" padding="none">
-          <div className="research-search">
-            <Search strokeWidth={1.5} aria-hidden="true" />
-            <Input
-              id="fund-q"
-              value={search.value}
-              placeholder="代码 / 名称 / 拼音"
-              aria-label="关键词"
-              onChange={search.onChange}
-              onCompositionStart={search.onCompositionStart}
-              onCompositionEnd={search.onCompositionEnd}
-            />
-          </div>
-          <FilterDropdown
-            label="大类"
-            value={typeL1 || 'all'}
-            options={l1Options}
-            onChange={(value) => set({ typeL1: value === 'all' ? null : value, typeL2: null })}
-          />
-          {l2Options.length > 0 ? (
-            <FilterDropdown
-              label="细类"
-              value={typeL2 || 'all'}
-              options={l2Options}
-              onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
-            />
-          ) : null}
-          <FilterCheck
-            label="MVP 池"
-            checked={mvpOnly}
-            onChange={(checked) => set({ mvpOnly: checked ? '1' : null })}
-          />
-          <FilterCheck
-            label="有净值"
-            checked={hasNav}
-            onChange={(checked) => set({ hasNav: checked ? '1' : null })}
-          />
-          <div className="flex items-center gap-2 md:hidden">
-            <FilterDropdown
-              label="排序"
-              value={sort}
-              options={SORTS.map(([value, label]) => ({ value, label }))}
-              includeAll={false}
-              onChange={toggleSort}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="切换排序方向"
-              onClick={() => set({ dir: dir === 'asc' ? 'desc' : 'asc' })}
-            >
-              {dir === 'asc' ? '升序' : '降序'}
-            </Button>
-          </div>
-          {filterActive || search.value ? (
-            <Button variant="ghost" size="sm" className="ml-auto text-xs" onClick={resetFilters}>
-              重置筛选
-            </Button>
-          ) : null}
-        </LayerCard>
-
-        <LayerCard className="research-data-table" padding="none">
-          <PanelHeading
-            title={
-              <span className="flex items-center gap-2">
-                {filterActive ? '筛选结果' : '全部基金'}
-                <span className="font-mono text-xs font-normal text-basalt-muted-foreground">
-                  {data ? formatCount(data.total) : '—'}
-                </span>
-              </span>
-            }
-            action={
-              <div className="flex items-center gap-2 text-[11px] text-basalt-muted-foreground">
-                <span aria-live="polite">{isValidating ? '更新中…' : '点击基金，查看详情'}</span>
-                <DataInfo name="基金列表" date={pageDates.at(-1)} source="东方财富">
-                  <p>
-                    阶段收益按各基金可用数据展示。本页业绩日期：{pageDates[0] || '—'}
-                    {pageDates.length > 1 ? ` 至 ${pageDates.at(-1)}` : ''}。
-                  </p>
-                </DataInfo>
-              </div>
-            }
-          />
-          <LayerCard.Body className="flex min-h-0 flex-1 p-0">
-            <div ref={tableViewport} className="research-table-viewport" aria-busy={isLoading}>
-              {error ? (
-                <ResearchEmpty
-                  title="基金列表加载失败"
-                  description={error.message}
-                  action={
-                    <Button variant="outline" size="sm" onClick={() => void mutate()}>
-                      重试
-                    </Button>
-                  }
-                />
-              ) : isLoading && !data ? (
-                <LayerCard.Loading label="加载基金列表" />
-              ) : data?.items.length === 0 ? (
-                <ResearchEmpty
-                  title="没有符合条件的基金"
-                  description="试试更换关键词或放宽筛选条件。"
-                  action={
-                    <Button variant="outline" size="sm" onClick={resetFilters}>
-                      重置筛选
-                    </Button>
-                  }
-                />
-              ) : data ? (
-                <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
-                  <TableHeader>
-                    <TableRow>
-                      {SORTS.map(([key, label]) => (
-                        <TableHead
-                          key={key}
-                          aria-sort={
-                            sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
-                          }
-                          className={
-                            RETURN_KEYS.has(key)
-                              ? 'text-right'
-                              : key === 'fund_code' || key === 'fund_type'
-                                ? 'hidden md:table-cell'
-                                : undefined
-                          }
+        <LayerCard.Body className="flex min-h-0 flex-1 p-0">
+          <div ref={tableViewport} className="research-table-viewport" aria-busy={isLoading}>
+            {error ? (
+              <ResearchEmpty
+                title="基金列表加载失败"
+                description={error.message}
+                action={
+                  <Button variant="outline" size="sm" onClick={() => void mutate()}>
+                    重试
+                  </Button>
+                }
+              />
+            ) : isLoading && !data ? (
+              <LayerCard.Loading label="加载基金列表" />
+            ) : data?.items.length === 0 ? (
+              <ResearchEmpty
+                title="没有符合条件的基金"
+                description="试试更换关键词或放宽筛选条件。"
+                action={
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    重置筛选
+                  </Button>
+                }
+              />
+            ) : data ? (
+              <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+                <TableHeader>
+                  <TableRow>
+                    {SORTS.map(([key, label]) => (
+                      <TableHead
+                        key={key}
+                        aria-sort={
+                          sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
+                        }
+                        className={
+                          RETURN_KEYS.has(key)
+                            ? 'text-right'
+                            : key === 'fund_code' || key === 'fund_type'
+                              ? 'hidden md:table-cell'
+                              : undefined
+                        }
+                      >
+                        <Button
+                          variant="ghost"
+                          className="research-sort"
+                          onClick={() => toggleSort(key)}
                         >
-                          <Button
-                            variant="ghost"
-                            className="research-sort"
-                            onClick={() => toggleSort(key)}
+                          {label}
+                          {sort === key ? (
+                            dir === 'asc' ? (
+                              <ArrowUp className="size-3 text-basalt-primary" />
+                            ) : (
+                              <ArrowDown className="size-3 text-basalt-primary" />
+                            )
+                          ) : null}
+                        </Button>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.items.map((row) => {
+                    const loc = fundDetailLink(row.fund_code, listOrigin);
+                    return (
+                      <TableRow
+                        key={row.fund_code}
+                        className="cursor-pointer"
+                        onClick={(event: React.MouseEvent) => {
+                          if ((event.target as HTMLElement).closest('a')) return;
+                          openDetail(row.fund_code);
+                        }}
+                      >
+                        <TableCell className="hidden w-24 font-mono text-xs text-basalt-muted-foreground md:table-cell">
+                          {row.fund_code}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            className="research-fund-name block font-medium text-basalt-foreground hover:text-basalt-primary"
+                            title={row.fund_name}
+                            to={loc.to}
+                            state={loc.state}
+                            onClick={() => writeListOrigin(listOrigin)}
                           >
-                            {label}
-                            {sort === key ? (
-                              dir === 'asc' ? (
-                                <ArrowUp className="size-3 text-basalt-primary" />
-                              ) : (
-                                <ArrowDown className="size-3 text-basalt-primary" />
-                              )
-                            ) : null}
-                          </Button>
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.items.map((row) => {
-                      const loc = fundDetailLink(row.fund_code, listOrigin);
-                      return (
-                        <TableRow
-                          key={row.fund_code}
-                          className="cursor-pointer"
-                          onClick={(event: React.MouseEvent) => {
-                            if ((event.target as HTMLElement).closest('a')) return;
-                            openDetail(row.fund_code);
-                          }}
-                        >
-                          <TableCell className="hidden w-24 font-mono text-xs text-basalt-muted-foreground md:table-cell">
+                            {row.fund_name}
+                          </Link>
+                          <span className="mt-1 block font-mono text-[11px] text-basalt-muted-foreground md:hidden">
                             {row.fund_code}
-                          </TableCell>
-                          <TableCell>
-                            <Link
-                              className="research-fund-name block font-medium text-basalt-foreground hover:text-basalt-primary"
-                              title={row.fund_name}
-                              to={loc.to}
-                              state={loc.state}
-                              onClick={() => writeListOrigin(listOrigin)}
-                            >
-                              {row.fund_name}
-                            </Link>
-                            <span className="mt-1 block font-mono text-[11px] text-basalt-muted-foreground md:hidden">
-                              {row.fund_code}
-                            </span>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <FundTypeBadges type={row.fund_type} />
-                          </TableCell>
-                          {(['return_1y', 'return_1m', 'return_3m', 'return_6m'] as const).map(
-                            (key) => (
-                              <TableCell key={key}>
-                                <Metric value={row[key]} kind="percent" signed align="end" />
-                              </TableCell>
-                            ),
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              ) : null}
-            </div>
-          </LayerCard.Body>
-          {data ? (
-            <ListPagination
-              page={data.page}
-              pages={pages}
-              total={data.total}
-              pageSize={data.pageSize}
-              onPageChange={(value) => set({ page: String(value) })}
-            />
-          ) : null}
-        </LayerCard>
-      </div>
-    </AppShell>
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <FundTypeBadges type={row.fund_type} />
+                        </TableCell>
+                        {(['return_1y', 'return_1m', 'return_3m', 'return_6m'] as const).map(
+                          (key) => (
+                            <TableCell key={key}>
+                              <Metric value={row[key]} kind="percent" signed align="end" />
+                            </TableCell>
+                          ),
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : null}
+          </div>
+        </LayerCard.Body>
+        {data ? (
+          <ListPagination
+            page={data.page}
+            pages={pages}
+            total={data.total}
+            pageSize={data.pageSize}
+            onPageChange={(value) => set({ page: String(value) })}
+          />
+        ) : null}
+      </LayerCard>
+    </div>
   );
 }

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { Metric } from '@/components/ui/metric';
@@ -74,6 +74,7 @@ const CONTEXT_LABEL: Record<'return_1y' | 'return_1m', string> = {
 };
 
 export default function RankingPage() {
+  usePageChrome({ title: '基金排名' });
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -174,183 +175,181 @@ export default function RankingPage() {
   const colSpan = 5 + contextKeys.length + (rankPctKey ? 1 : 0) + (showSamples ? 1 : 0);
 
   return (
-    <AppShell breadcrumbs={[{ label: '基金排名' }]}>
-      <div className="space-y-6">
-        <PageHeader
-          title="基金排名"
-          description="按收益率、夏普比率、最大回撤等多维度全市场基金排名与百分位对比。"
-          filters={
-            <div className="space-y-2.5">
+    <div className="space-y-6">
+      <PageHeader
+        title="基金排名"
+        description="按收益率、夏普比率、最大回撤等多维度全市场基金排名与百分位对比。"
+        filters={
+          <div className="space-y-2.5">
+            <FilterChips
+              label="大类"
+              value={normalized.typeL1}
+              options={l1Options}
+              includeAll
+              allValue={TYPE_L1_ALL}
+              onChange={(value) =>
+                set({
+                  typeL1: value === DEFAULT_TYPE_L1 ? null : value,
+                  typeL2: null,
+                })
+              }
+            />
+            {l2Options.length > 0 ? (
               <FilterChips
-                label="大类"
-                value={normalized.typeL1}
-                options={l1Options}
+                label="细类"
+                value={normalized.typeL2 || 'all'}
+                options={l2Options}
                 includeAll
-                allValue={TYPE_L1_ALL}
-                onChange={(value) =>
-                  set({
-                    typeL1: value === DEFAULT_TYPE_L1 ? null : value,
-                    typeL2: null,
-                  })
-                }
+                allLabel="全部细类"
+                onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
               />
-              {l2Options.length > 0 ? (
-                <FilterChips
-                  label="细类"
-                  value={normalized.typeL2 || 'all'}
-                  options={l2Options}
-                  includeAll
-                  allLabel="全部细类"
-                  onChange={(value) => set({ typeL2: value === 'all' ? null : value })}
-                />
-              ) : null}
-              <FilterChips
-                label="维度"
-                value={dim.key}
-                options={dimOptions}
-                onChange={(value) => set({ dim: value === DEFAULT_DIM_KEY ? null : value })}
+            ) : null}
+            <FilterChips
+              label="维度"
+              value={dim.key}
+              options={dimOptions}
+              onChange={(value) => set({ dim: value === DEFAULT_DIM_KEY ? null : value })}
+            />
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <FilterCheck
+                label="仅 4433"
+                checked={normalized.pass4433}
+                onChange={(checked) => set({ pass4433: checked ? '1' : null })}
               />
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <FilterCheck
-                  label="仅 4433"
-                  checked={normalized.pass4433}
-                  onChange={(checked) => set({ pass4433: checked ? '1' : null })}
-                />
-              </div>
-              {normalized.typeL1 === TYPE_L1_ALL ? (
-                <p className="text-xs text-basalt-muted-foreground">
-                  未选大类时货币与股票会排在同一榜，跨类型比较意义有限。
-                </p>
-              ) : null}
-              {showSamples ? (
-                <p className="text-xs text-basalt-muted-foreground">
-                  风险榜仅纳入净值样本 ≥ {formatCount(RISK_MIN_SAMPLES)}{' '}
-                  的基金；不足一年按已有历史计算。
-                </p>
-              ) : null}
             </div>
-          }
-        />
+            {normalized.typeL1 === TYPE_L1_ALL ? (
+              <p className="text-xs text-basalt-muted-foreground">
+                未选大类时货币与股票会排在同一榜，跨类型比较意义有限。
+              </p>
+            ) : null}
+            {showSamples ? (
+              <p className="text-xs text-basalt-muted-foreground">
+                风险榜仅纳入净值样本 ≥ {formatCount(RISK_MIN_SAMPLES)}{' '}
+                的基金；不足一年按已有历史计算。
+              </p>
+            ) : null}
+          </div>
+        }
+      />
 
-        {error && <p className="text-sm text-basalt-danger">{error.message}</p>}
-        {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
+      {error && <p className="text-sm text-basalt-danger">{error.message}</p>}
+      {isLoading && !data && <p className="text-sm text-basalt-muted-foreground">加载中…</p>}
 
-        {data && (
-          <LayerCard>
-            <LayerCard.Header className="flex items-center justify-between text-xs text-basalt-muted-foreground">
-              <span>
-                共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)}{' '}
-                页 · 每页 {formatCount(data.pageSize)}
-                {isValidating ? ' · 更新中…' : ''}
-              </span>
-            </LayerCard.Header>
-            <LayerCard.Body className="p-0">
-              <div className="overflow-x-auto">
-                <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
-                  <TableHeader>
+      {data && (
+        <LayerCard>
+          <LayerCard.Header className="flex items-center justify-between text-xs text-basalt-muted-foreground">
+            <span>
+              共 {formatCount(data.total)} 只 · 第 {formatCount(data.page)}/{formatCount(pages)} 页
+              · 每页 {formatCount(data.pageSize)}
+              {isValidating ? ' · 更新中…' : ''}
+            </span>
+          </LayerCard.Header>
+          <LayerCard.Body className="p-0">
+            <div className="overflow-x-auto">
+              <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16 text-right">名次</TableHead>
+                    <TableHead>代码</TableHead>
+                    <TableHead>名称</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead className="text-right">{dim.label}</TableHead>
+                    {contextKeys.map((key) => (
+                      <TableHead key={key} className="text-right">
+                        {CONTEXT_LABEL[key]}
+                      </TableHead>
+                    ))}
+                    {rankPctKey ? <TableHead className="text-right">同类%</TableHead> : null}
+                    {showSamples ? <TableHead className="text-right">样本</TableHead> : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.items.length === 0 ? (
                     <TableRow>
-                      <TableHead className="w-16 text-right">名次</TableHead>
-                      <TableHead>代码</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>类型</TableHead>
-                      <TableHead className="text-right">{dim.label}</TableHead>
-                      {contextKeys.map((key) => (
-                        <TableHead key={key} className="text-right">
-                          {CONTEXT_LABEL[key]}
-                        </TableHead>
-                      ))}
-                      {rankPctKey ? <TableHead className="text-right">同类%</TableHead> : null}
-                      {showSamples ? <TableHead className="text-right">样本</TableHead> : null}
+                      <TableCell
+                        colSpan={colSpan}
+                        className="text-center text-basalt-muted-foreground py-8"
+                      >
+                        这一页没有基金。
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.items.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={colSpan}
-                          className="text-center text-basalt-muted-foreground py-8"
-                        >
-                          这一页没有基金。
+                  ) : (
+                    data.items.map((row, index) => (
+                      <TableRow
+                        key={row.fund_code}
+                        className="cursor-pointer"
+                        onClick={(event: React.MouseEvent) => {
+                          if ((event.target as HTMLElement).closest('a')) return;
+                          openDetail(row.fund_code);
+                        }}
+                      >
+                        <TableCell className="text-right tabular-nums">
+                          {formatCount(listRank(data.page, data.pageSize, index))}
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      data.items.map((row, index) => (
-                        <TableRow
-                          key={row.fund_code}
-                          className="cursor-pointer"
-                          onClick={(event: React.MouseEvent) => {
-                            if ((event.target as HTMLElement).closest('a')) return;
-                            openDetail(row.fund_code);
-                          }}
-                        >
+                        <TableCell>
+                          <Link
+                            className="font-medium text-basalt-foreground hover:underline"
+                            to={fundDetailLink(row.fund_code, listOrigin).to}
+                            state={fundDetailLink(row.fund_code, listOrigin).state}
+                            onClick={() => writeListOrigin(listOrigin)}
+                          >
+                            {row.fund_code}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{row.fund_name}</TableCell>
+                        <TableCell>
+                          <FundTypeBadges type={row.fund_type} />
+                        </TableCell>
+                        <TableCell>
+                          <Metric
+                            value={row[dim.key]}
+                            kind={dim.kind}
+                            signed={dim.signed}
+                            align="end"
+                          />
+                        </TableCell>
+                        {contextKeys.map((key) => (
+                          <TableCell key={key}>
+                            <Metric value={row[key]} kind="percent" signed align="end" />
+                          </TableCell>
+                        ))}
+                        {rankPctKey ? (
+                          <TableCell>
+                            <Metric value={row[rankPctKey]} kind="percent" align="end" />
+                          </TableCell>
+                        ) : null}
+                        {showSamples ? (
                           <TableCell className="text-right tabular-nums">
-                            {formatCount(listRank(data.page, data.pageSize, index))}
+                            {formatCount(row.nav_samples_1y)}
                           </TableCell>
-                          <TableCell>
-                            <Link
-                              className="font-medium text-basalt-foreground hover:underline"
-                              to={fundDetailLink(row.fund_code, listOrigin).to}
-                              state={fundDetailLink(row.fund_code, listOrigin).state}
-                              onClick={() => writeListOrigin(listOrigin)}
-                            >
-                              {row.fund_code}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{row.fund_name}</TableCell>
-                          <TableCell>
-                            <FundTypeBadges type={row.fund_type} />
-                          </TableCell>
-                          <TableCell>
-                            <Metric
-                              value={row[dim.key]}
-                              kind={dim.kind}
-                              signed={dim.signed}
-                              align="end"
-                            />
-                          </TableCell>
-                          {contextKeys.map((key) => (
-                            <TableCell key={key}>
-                              <Metric value={row[key]} kind="percent" signed align="end" />
-                            </TableCell>
-                          ))}
-                          {rankPctKey ? (
-                            <TableCell>
-                              <Metric value={row[rankPctKey]} kind="percent" align="end" />
-                            </TableCell>
-                          ) : null}
-                          {showSamples ? (
-                            <TableCell className="text-right tabular-nums">
-                              {formatCount(row.nav_samples_1y)}
-                            </TableCell>
-                          ) : null}
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </LayerCard.Body>
-            <LayerCard.Footer className="flex items-center gap-2 p-3">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page <= 1}
-                onClick={() => set({ page: String(data.page - 1) })}
-              >
-                上一页
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page >= pages}
-                onClick={() => set({ page: String(data.page + 1) })}
-              >
-                下一页
-              </Button>
-            </LayerCard.Footer>
-          </LayerCard>
-        )}
-      </div>
-    </AppShell>
+                        ) : null}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </LayerCard.Body>
+          <LayerCard.Footer className="flex items-center gap-2 p-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={data.page <= 1}
+              onClick={() => set({ page: String(data.page - 1) })}
+            >
+              上一页
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={data.page >= pages}
+              onClick={() => set({ page: String(data.page + 1) })}
+            >
+              下一页
+            </Button>
+          </LayerCard.Footer>
+        </LayerCard>
+      )}
+    </div>
   );
 }

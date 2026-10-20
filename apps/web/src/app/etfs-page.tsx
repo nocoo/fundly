@@ -14,7 +14,7 @@ import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { MiniTrend } from '@/components/charts/mini-trend';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
@@ -104,6 +104,7 @@ interface EtfApiResponse {
 }
 
 export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
+  usePageChrome();
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams<{ lens?: string }>();
@@ -232,7 +233,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
   };
 
   return (
-    <AppShell>
+    <>
       <ResearchHeader
         title={title}
         description={subtitle}
@@ -764,7 +765,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
           </div>
         )}
       </LayerCard>
-    </AppShell>
+    </>
   );
 }
 export default EtfsPage;

@@ -47,7 +47,7 @@ import {
 } from '@/components/charts/market-chart-controls';
 import { MiniTrend } from '@/components/charts/mini-trend';
 import './market-page.css';
-import { AppShell } from '@/components/layout';
+import { usePageChrome } from '@/components/layout';
 import { useQuoteColor } from '@/hooks/use-quote-color';
 import { formatCompact } from '@/lib/format-number';
 import { etfDetailLink, fundDetailLink, stockDetailLink } from '@/lib/list-origin';
@@ -197,6 +197,7 @@ export default function MarketPage() {
   const selectedInstrumentId =
     searchParams.get('instrument') || searchParams.get('industry') || 'index:000300.SH';
   const isWallMode = searchParams.get('wall') === '1';
+  usePageChrome({ title: '宏观大屏', wallMode: isWallMode });
   const [showAllMacro, setShowAllMacro] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showEtfBrowser, setShowEtfBrowser] = useState(false);
@@ -470,7 +471,7 @@ export default function MarketPage() {
         });
 
   return (
-    <AppShell breadcrumbs={[{ label: '宏观大屏' }]} wallMode={isWallMode}>
+    <>
       <div className={cn('market-dashboard', isWallMode && 'market-dashboard--wall')}>
         <PageHeader
           title={
@@ -1856,6 +1857,6 @@ export default function MarketPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </>
   );
 }
