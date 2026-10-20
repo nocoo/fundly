@@ -1,8 +1,13 @@
-## Unreleased
+## 0.6.8 — 2026-10-21
 
 - Add session-managed, scoped read-only API tokens in an independent auth SQLite database that survives daily market snapshot replacement.
 - Expose all non-secret market-schema resources through typed, whitelisted, parameterized read APIs with batch filters, date ranges, projection and pagination; document authentication and every route in `docs/api.md`.
 - Add Settings → API Tokens with one-time secret display/copy, optional expiry, revocation and revoked-token deletion.
+- Enforce trusted-origin checks for session mutations and credentialed CORS while preserving Google OAuth and PKCE.
+- Keep the authenticated application shell, sidebar groups and collapse state mounted across navigation; restore mobile drawer focus and cover both layouts with an isolated Chrome regression test.
+- Tolerate partial Fuyao quotes and mid-session SHFE reports without replacing valid market observations with missing values.
+- Upgrade Vite to 8.3.3 for security fixes, Bun types to 1.4.3 and source-map-js to 1.2.2; update shared CI to v2026.9.
+- Include macro daily reports through October 21. This code release does not collect data or replace the production market database.
 
 ## 0.6.7 — 2026-10-01
 
