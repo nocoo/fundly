@@ -105,7 +105,7 @@ railway domain
 ## CI 与自动部署
 
 GitHub Actions：`.github/workflows/ci.yml`。`main` 的 push、可选 PR 和手动运行复用
-`nocoo/base-ci v2026.7`（固定 SHA `ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f`）：
+`nocoo/base-ci`（固定 SHA `ac635753a869cb85fad1f52aae4ccbd6119f3cae`，main 2026-10-22）：
 
 - 使用 Bun 1.3.14，以项目 lifecycle 策略冻结安装根目录、`apps/web`、`apps/worker` 三套依赖。
 - 执行三组 typecheck、Biome、`test:coverage`（包含采集、Web、API 与临时 SQLite 集成测试）、Web build。
