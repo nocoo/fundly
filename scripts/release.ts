@@ -4,7 +4,13 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { bump, changelogRange } from './release-lib.ts';
+import {
+  bump,
+  changelogRange,
+  RELEASE_PACKAGE_PATHS,
+  RELEASE_RUNTIME_VERSION_PATH,
+  RELEASE_UI_VERSION_PATHS,
+} from './release-lib.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const pkgPath = resolve(root, 'package.json');
@@ -24,7 +30,7 @@ const next = bump(previous, process.argv[2] ?? 'patch');
 pkg.version = next;
 writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
-const packagePaths = ['apps/web/package.json', 'apps/worker/package.json'];
+const packagePaths = RELEASE_PACKAGE_PATHS.filter((path) => path !== 'package.json');
 for (const path of packagePaths) {
   const absolute = resolve(root, path);
   const child = JSON.parse(readFileSync(absolute, 'utf8')) as { version: string };
@@ -32,10 +38,10 @@ for (const path of packagePaths) {
   writeFileSync(absolute, `${JSON.stringify(child, null, 2)}\n`);
 }
 
-const versionPath = resolve(root, 'apps/worker/src/lib/version.ts');
+const versionPath = resolve(root, RELEASE_RUNTIME_VERSION_PATH);
 writeFileSync(versionPath, `export const APP_VERSION = '${next}';\n`);
 
-const sidebarPath = resolve(root, 'apps/web/src/components/layout/sidebar.tsx');
+const sidebarPath = resolve(root, RELEASE_UI_VERSION_PATHS[0]);
 const sidebar = readFileSync(sidebarPath, 'utf8');
 writeFileSync(
   sidebarPath,
@@ -44,7 +50,7 @@ writeFileSync(
     : sidebar.replace(`v${previous}`, `v${next}`),
 );
 
-const loginPath = resolve(root, 'apps/web/src/app/login-page.tsx');
+const loginPath = resolve(root, RELEASE_UI_VERSION_PATHS[1]);
 const login = readFileSync(loginPath, 'utf8');
 writeFileSync(loginPath, login.replace(`'${previous}'`, `'${next}'`));
 
@@ -60,9 +66,8 @@ run('git', [
   'package.json',
   ...packagePaths,
   'CHANGELOG.md',
-  'apps/worker/src/lib/version.ts',
-  'apps/web/src/components/layout/sidebar.tsx',
-  'apps/web/src/app/login-page.tsx',
+  RELEASE_RUNTIME_VERSION_PATH,
+  ...RELEASE_UI_VERSION_PATHS,
 ]);
 run('git', ['commit', '-m', `chore: release ${next}`]);
 run('git', ['tag', `v${next}`]);
