@@ -93,7 +93,25 @@ docker network create edge  # 若尚未存在
 
 ---
 
+## Studio 每日库发布（`fundly-daily-sync.sh`）
+
+采集机在 Studio（与 jp4 同 Tailscale）本地跑抓取与校验后，经 SSH **只替换** `/data/fundly/data/fundly.db`（及 `-wal`/`-shm`），**不得**覆盖 `auth.db`、`.env.runtime`、`compose.yaml` 或 `backups/`。
+
+| 项 | 值 |
+|---|---|
+| 脚本（仓库） | `scripts/fundly-daily-sync.sh` |
+| Studio 安装 | `cp scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` 或 `ln -sf <repo>/scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` |
+| SSH | `nocoo@jp4`（MagicDNS），端口 `52722`；MagicDNS 不可用时设 `FUNDLY_JP4_HOST=100.101.0.6` |
+| 私钥 | `FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_ed25519`）；`known_hosts` 需包含 `[jp4]:52722` 与 `[100.101.0.6]:52722` |
+| 远端流程 | `scp` → `fundly.db.new.gz` → 校验 md5 → `gunzip` → `sqlite3 quick_check` + 行数/最新净值 → 原子 swap → `docker compose restart web` |
+| 验收 | `https://fundly.hexly.ai/api/live`：`status=ok`、`component=jp4`、`database.connected=true`；主机环回 `http://127.0.0.1:17040/api/live` |
+
+常用标志：`--no-fetch`、`--no-sync`、`--weekly`、`--skip-upload`（复用 jp4 上已有 `fundly.db.new`）、`--lock-check`。状态与日志默认在 `~/.local/state/fundly/`（`FUNDLY_STATE_DIR` 可改）。
+
+---
+
 ## 相关
 
 - [08-BACKY.md](./08-BACKY.md) — 备份与 restore
 - [10-AUTH.md](./10-AUTH.md) — Google OAuth（`AUTH_ORIGIN` 保持 `https://fundly.hexly.ai`）
+- [03-SCRIPTS.md](./03-SCRIPTS.md) — 脚本手册（含 daily-sync 摘要）
