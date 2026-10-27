@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 镜像 | `ghcr.io/nocoo/fundly`（digest 部署，`IMAGE_SHA` 标签为 commit SHA） |
+| 镜像 | `ghcr.io/nocoo/fundly:<commit SHA>`（CD 注入 `IMAGE_SHA`；digest 校验见 Deploy 私验） |
 | 主机 | jp4（Tailscale 短名 `jp4`，SSH `52722`） |
 | 部署目录 | `/data/fundly`（`compose.yaml`、`.env.runtime`、`.base-ci-releases/`） |
 | 数据盘 | `/data/fundly/data` bind → 容器 `/data`，`FUNDLY_SQLITE=/data/fundly.db` |
@@ -26,9 +26,23 @@
 
 ## 仓库内文件
 
-- `deploy/compose.yaml` — 单服务 `web`，`container_name: fundly-app`
+- `deploy/compose.yaml` — 单服务 `web`，`container_name: fundly-app`；`image` 使用 `${IMAGE_SHA:-deploy-required}`（见下节）
 - `Dockerfile` — Bun 生产镜像；`.dockerignore` 排除 `data/` 与 `*.db`
 - `scripts/verify-deployment.mjs` — 按 `DEPLOY_PHASE` / `DEPLOY_URL` / `DEPLOY_ORIGIN_MARKER` 做公网或私验
+
+---
+
+## `IMAGE_SHA` 与 Compose
+
+Compose 会**解析** `image` 行（含 `docker compose restart`），因此不能把「未设置就报错」的 `${IMAGE_SHA:?…}` 写在生产 `compose.yaml` 里：主机 `/data/fundly/.env` 通常**不**持久化 `IMAGE_SHA`，日常 `restart web`（如 Studio daily-sync 换库后）不应因缺变量而 `exit 1`。
+
+| 操作 | 谁设置 `IMAGE_SHA` | 行为 |
+|---|---|---|
+| **GitHub Actions 部署**（`deploy-docker`） | 远端 shell 注入为已通过 CI 的 **40 位 commit SHA** | `compose pull` / `up` 拉取并启动 `ghcr.io/nocoo/fundly:<sha>`；`deploy.yml` 私验核对 digest 与运行中容器 |
+| **`docker compose restart web`** | 不需要 | 仅重启已有 `fundly-app`；未设置时用占位标签 `deploy-required` 满足插值，**不会**改镜像 |
+| **手动 `pull` / `up` / `down`+`up`** | 运维必须 `export IMAGE_SHA=<40位 sha>`（或写入当次 shell 的 `.env`） | 勿用 `:latest`；缺 `IMAGE_SHA` 时会指向不存在的 `deploy-required` 标签并在拉取阶段失败 |
+
+部署目录中的 `.env.runtime` 只给**容器内**应用变量，**不**替代上述 `IMAGE_SHA`。
 
 ---
 
