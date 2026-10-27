@@ -117,7 +117,7 @@ docker network create edge  # 若尚未存在
 | Studio 安装 | `cp scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` 或 `ln -sf <repo>/scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` |
 | SSH | `nocoo@100.101.0.6`（或 MagicDNS `jp4`），端口 `52722`；私钥默认 `~/.ssh/id_rsa` |
 | 私钥 | `FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_rsa`）；`known_hosts` 需包含 `[jp4]:52722` 与 `[100.101.0.6]:52722` |
-| 远端流程 | `scp` → `fundly.db.new.gz` → 校验 md5 → `gunzip` → `sqlite3 quick_check` + 行数/最新净值 → 原子 swap → `docker compose restart web` |
+| 远端流程 | `scp` → `fundly.db.new.gz` → 校验 md5 → `gunzip` → `sqlite3 quick_check` + 行数/最新净值 → 原子 swap → `docker restart fundly-app` |
 | 验收 | `https://fundly.hexly.ai/api/live`：`status=ok`、`component=jp4`、`database.connected=true`；主机环回 `http://127.0.0.1:17040/api/live` |
 
 常用标志：`--no-fetch`、`--no-sync`、`--weekly`、`--skip-upload`（复用 jp4 上已有 `fundly.db.new`）、`--lock-check`。状态与日志默认在 `~/.local/state/fundly/`（`FUNDLY_STATE_DIR` 可改）。

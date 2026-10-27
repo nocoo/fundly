@@ -322,13 +322,13 @@ mv fundly.db.prev fundly.db
 rm -f fundly.db-wal fundly.db-shm fundly.db.bad-wal fundly.db.bad-shm
 REMOTE
 }
-# Restart compose web on jp4 and poll /api/live for a process started after the request.
+# Restart fundly-app on jp4 (plain docker restart; avoids compose IMAGE_SHA interpolation) and poll /api/live.
 # Sets: NEWPROC (1 = fresh healthy process seen), HEALTH (last probe ok), FIRST_HEALTH_SEC, RESTART_CLI_RC
 restart_and_wait(){ local tag=$1 t0 cli el j st up conn comp want
   want="$LIVE_COMPONENT"
   t0=$(date +%s); NEWPROC=0 HEALTH=0 FIRST_HEALTH_SEC=null RESTART_CLI_RC=null
-  log "== $tag: docker compose restart web on ${JP4_USER}@${JP4_HOST} (poll $LIVE_URL component=$want up to ${RESTART_WAIT}s)"
-  ssh_jp4 "cd /data/fundly && docker compose restart web" >>"$LOG" 2>&1 </dev/null &
+  log "== $tag: docker restart fundly-app on ${JP4_USER}@${JP4_HOST} (poll $LIVE_URL component=$want up to ${RESTART_WAIT}s)"
+  ssh_jp4 "docker restart fundly-app" >>"$LOG" 2>&1 </dev/null &
   cli=$!
   while :; do
     sleep 10

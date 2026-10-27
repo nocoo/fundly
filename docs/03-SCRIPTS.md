@@ -27,7 +27,7 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 
 ### Studio：`fundly-daily-sync.sh`
 
-在采集机（macOS Studio）上编排：本地 `fetch` / `refresh:select`（可选宏观与选股）→ `PRAGMA quick_check` → `VACUUM INTO` 快照 → gzip → **SSH 到 jp4** 替换 `fundly.db` 并 `docker compose restart web`。不调用 Railway CLI；不触碰远端 `auth.db`。
+在采集机（macOS Studio）上编排：本地 `fetch` / `refresh:select`（可选宏观与选股）→ `PRAGMA quick_check` → `VACUUM INTO` 快照 → gzip → **SSH 到 jp4** 替换 `fundly.db` 并 `docker restart fundly-app`（不经 compose，避免 `IMAGE_SHA` 插值）。不调用 Railway CLI；不触碰远端 `auth.db`。
 
 ```bash
 # 从仓库安装（launchd/cron 指向 ~/.local/bin）
