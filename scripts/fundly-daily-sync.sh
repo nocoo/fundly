@@ -3,8 +3,8 @@
 # Usage: fundly-daily-sync.sh [--no-fetch] [--no-sync] [--weekly] [--skip-upload] [--lock-check]
 #
 # jp4: SSH nocoo@jp4 (MagicDNS), port 52722; prod sqlite /data/fundly/data/fundly.db only.
-# Never upload or overwrite auth.db. Env: FUNDLY_JP4_SSH_KEY (default ~/.ssh/id_ed25519),
-# FUNDLY_JP4_HOST (default jp4), FUNDLY_JP4_USER (nocoo), FUNDLY_JP4_PORT (52722).
+# Never upload or overwrite auth.db. Env: FUNDLY_JP4_SSH_KEY (default ~/.ssh/id_rsa),
+# FUNDLY_JP4_HOST (default 100.101.0.6), FUNDLY_JP4_USER (nocoo), FUNDLY_JP4_PORT (52722).
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.bun/bin"
 REPO="$HOME/workspace/personal/fundly"
@@ -13,10 +13,10 @@ LOGDIR="${FUNDLY_STATE_DIR:-$HOME/.local/state/fundly}"; mkdir -p "$LOGDIR"
 DAY=$(date +%F); LOG="$LOGDIR/$DAY.log"; REPORT="$LOGDIR/report.json"
 LAUNCHD_LOG="$LOGDIR/launchd.log"
 LOCK="/tmp/fundly-daily-sync.lock"
-JP4_HOST="${FUNDLY_JP4_HOST:-jp4}"
+JP4_HOST="${FUNDLY_JP4_HOST:-100.101.0.6}"  # Studio MagicDNS often fails for short name jp4
 JP4_USER="${FUNDLY_JP4_USER:-nocoo}"
 JP4_PORT="${FUNDLY_JP4_PORT:-52722}"
-JP4_KEY="${FUNDLY_JP4_SSH_KEY:-$HOME/.ssh/id_ed25519}"
+JP4_KEY="${FUNDLY_JP4_SSH_KEY:-$HOME/.ssh/id_rsa}"  # fleet ops RSA (not railway)
 JP4_DATA="${FUNDLY_JP4_DATA_DIR:-/data/fundly/data}"
 SNAP="$REPO/data/fundly.snap.db"
 LIVE_URL="${FUNDLY_LIVE_URL:-https://fundly.hexly.ai/api/live}"
@@ -41,8 +41,8 @@ PROD=null
 log(){ echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 launchd_note(){ echo "[$(date '+%F %T %z')] $*" >>"$LAUNCHD_LOG"; }
 
-ssh_jp4(){ ssh -i "$JP4_KEY" -p "$JP4_PORT" -o BatchMode=yes -o ConnectTimeout=30 "${JP4_USER}@${JP4_HOST}" "$@"; }
-scp_jp4(){ scp -i "$JP4_KEY" -P "$JP4_PORT" -o BatchMode=yes -o ConnectTimeout=60 "$@"; }
+ssh_jp4(){ ssh -i "$JP4_KEY" -p "$JP4_PORT" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 "${JP4_USER}@${JP4_HOST}" "$@"; }
+scp_jp4(){ scp -i "$JP4_KEY" -P "$JP4_PORT" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=60 "$@"; }
 
 tree_pids(){ local c; echo "$1"; for c in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$c"; done; }
 kill_tree(){ local pids; pids=$(tree_pids "$1"); kill -TERM $pids 2>/dev/null; sleep 5; kill -KILL $pids 2>/dev/null; wait "$1" 2>/dev/null; }

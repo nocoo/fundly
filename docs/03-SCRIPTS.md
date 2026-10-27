@@ -43,7 +43,7 @@ fundly-daily-sync.sh --no-fetch
 fundly-daily-sync.sh --no-sync
 ```
 
-环境变量：`FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_ed25519`）、`FUNDLY_JP4_HOST`（默认 `jp4`）、`FUNDLY_JP4_USER`（`nocoo`）、`FUNDLY_JP4_PORT`（`52722`）。部署与主机路径见 [19-JP4-DEPLOY.md](./19-JP4-DEPLOY.md)。
+环境变量：`FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_rsa`）、`FUNDLY_JP4_HOST`（默认 `100.101.0.6`；MagicDNS 可用时也可设 `jp4`）、`FUNDLY_JP4_USER`（`nocoo`）、`FUNDLY_JP4_PORT`（`52722`）。部署与主机路径见 [19-JP4-DEPLOY.md](./19-JP4-DEPLOY.md)。
 
 ---
 
