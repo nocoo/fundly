@@ -7,7 +7,10 @@ import { createApi, defaultSqlitePath } from './app.ts';
 const PORT = Number(process.env.PORT ?? process.env.FUNDLY_API_PORT ?? 8080);
 const SQLITE_PATH = defaultSqlitePath();
 const STATIC_DIR = resolve(import.meta.dirname, '../static');
-const app = createApi(SQLITE_PATH, { staticDir: STATIC_DIR, component: 'railway' });
+const app = createApi(SQLITE_PATH, {
+  staticDir: STATIC_DIR,
+  component: process.env.FUNDLY_LIVE_COMPONENT ?? 'railway',
+});
 
 export default {
   port: PORT,
