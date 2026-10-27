@@ -99,8 +99,20 @@ jobs:
         status, headers, body = request('/')
         if status != 200 or 'text/html' not in headers.get('Content-Type', '') or not body:
             raise SystemExit('Private read-only homepage check failed')
-        if request('/api/me')[0] != 401:
-            raise SystemExit('Private unauthenticated /api/me denial check failed')
+        status, _headers, body = request('/api/me')
+        if status != 200:
+            raise SystemExit('Private unauthenticated /api/me contract check failed: expected HTTP 200')
+        try:
+            me = json.loads(body)
+        except json.JSONDecodeError:
+            raise SystemExit('Private unauthenticated /api/me contract check failed: invalid JSON')
+        if me.get('authenticated') is not False or me.get('authRequired') is not True:
+            raise SystemExit(
+                'Private unauthenticated /api/me contract check failed: '
+                'expected authenticated=false and authRequired=true'
+            )
+        if request('/api/source')[0] != 401:
+            raise SystemExit('Private unauthenticated protected route check failed')
         print(f"Private Fundly acceptance passed: revision {source}, {release['digest']}, version {live['version']}")
         PY
       verify-command: |
