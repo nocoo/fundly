@@ -120,9 +120,9 @@ jobs:
         import { verifyDeployment } from './scripts/verify-deployment.mjs';
         try {
           console.log(await verifyDeployment({
-            phase: ${{ toJSON(vars.DEPLOY_PHASE) }},
-            target: ${{ toJSON(vars.DEPLOY_URL) }},
-            originMarker: ${{ toJSON(vars.DEPLOY_ORIGIN_MARKER) }},
+            phase: ${{ toJSON(vars.DEPLOY_PHASE || 'precutover') }},
+            target: ${{ toJSON(vars.DEPLOY_URL || 'https://fundly.hexly.ai') }},
+            originMarker: ${{ toJSON(vars.DEPLOY_ORIGIN_MARKER || 'jp4') }},
             sourceSha: process.env.SOURCE_SHA,
             imageManifest: process.env.RELEASE_IMAGES,
           }));
