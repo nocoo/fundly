@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/nocoo/fundly:${IMAGE_SHA:?IMAGE_SHA is required}
+    image: ghcr.io/nocoo/fundly:${IMAGE_SHA:-deploy-required}
     container_name: fundly-app
     restart: unless-stopped
     init: true
