@@ -1,4 +1,4 @@
-name: Release
+name: Source Release
 
 on:
   push:
@@ -95,8 +95,8 @@ jobs:
           notes = (
               f'{entry[1].strip()}\n\n'
               f'Source: `{sha}`. Verified by [CI](https://github.com/{repo}/actions/runs/{run_id}).\n\n'
-              'This is a source release. Railway deploys main through its GitHub integration; '
-              'this workflow does not deploy or modify the SQLite volume.\n'
+              'This is a source release only. Production deploys through `.github/workflows/deploy.yml` '
+              '(jp4 Docker CD); this workflow does not deploy or modify the SQLite volume.\n'
           )
           (Path(os.environ['RUNNER_TEMP']) / 'fundly-release-notes.md').write_text(notes)
           PY
