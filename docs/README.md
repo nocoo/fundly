@@ -16,7 +16,8 @@
 | 06 | [UI 架构](./06-ARCH-UI.md) |
 | 07 | [仪表盘](./07-DASHBOARD.md) |
 | 08 | [Backy 备份](./08-BACKY.md) |
-| 09 | [Railway](./09-RAILWAY.md) |
+| 09 | [Railway（已弃用，回滚参考）](./09-RAILWAY.md) |
+| 19 | [jp4 Docker 部署](./19-JP4-DEPLOY.md) |
 | 10 | [Google 登录](./10-AUTH.md) |
 | 11 | [Phase 2 实测](./11-PHASE2-REPORT.md) |
 | 12 | [选基体系](./12-FUND-SCREENING.md) |

@@ -1,0 +1,40 @@
+services:
+  web:
+    image: ghcr.io/nocoo/fundly:${IMAGE_SHA:?IMAGE_SHA is required}
+    container_name: fundly-app
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env.runtime
+        required: true
+        format: raw
+    environment:
+      PORT: "8080"
+      HOSTNAME: 0.0.0.0
+      FUNDLY_SQLITE: /data/fundly.db
+    ports:
+      - 127.0.0.1:17040:8080
+    volumes:
+      - /data/fundly/data:/data
+    mem_limit: 8g
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - fetch('http://127.0.0.1:8080/api/live',{redirect:'error',headers:{Host:'fundly.hexly.ai','X-Forwarded-Proto':'https'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true

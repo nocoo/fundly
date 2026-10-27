@@ -28,7 +28,7 @@ export function uiVersionFromTsx(text: string): string | null {
   return match?.[1] ?? null;
 }
 
-/** Same sources checked by `.github/workflows/release.yml` plus UI version strings. */
+/** Same sources checked by `.github/workflows/source-release.yml` plus UI version strings. */
 export function assertRepoVersionsInSync(root: string): void {
   const read = (relative: string) => readFileSync(resolve(root, relative), 'utf8');
   const expected = packageVersionFromJson(read('package.json'));

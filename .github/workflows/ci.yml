@@ -21,7 +21,16 @@ jobs:
     uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
     with:
       yamllint: true
+      files: .github/workflows/source-release.yml
       required-reusable-workflow: nocoo/base-ci/.github/actions/release-source
+
+  release-smoke:
+    name: Deploy Workflow Smoke
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@af9a2b3f82c367d6eb6def5c3583ac717e0868ad # main 2026-10-26
+    with:
+      files: .github/workflows/deploy.yml
+      required-reusable-workflow: nocoo/base-ci/.github/workflows/deploy-docker.yml
+      yamllint: true
 
   quality:
     uses: nocoo/base-ci/.github/workflows/quality.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
@@ -42,7 +51,7 @@ jobs:
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [quality, workflow-lint]
+    needs: [quality, workflow-lint, release-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -50,9 +59,11 @@ jobs:
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
           WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
+          RELEASE_SMOKE_RESULT: ${{ needs.release-smoke.result }}
           TESTED_SHA: ${{ needs.quality.outputs.tested-sha }}
           EXPECTED_SHA: ${{ github.sha }}
         run: |
           test "$QUALITY_RESULT" = success
           test "$WORKFLOW_LINT_RESULT" = success
+          test "$RELEASE_SMOKE_RESULT" = success
           test "$TESTED_SHA" = "$EXPECTED_SHA"
