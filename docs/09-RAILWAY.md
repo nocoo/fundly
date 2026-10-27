@@ -1,4 +1,6 @@
-# 09 · Railway 部署
+# 09 · Railway 部署（已弃用）
+
+> **弃用说明（2026-10）**：生产 CD 目标已迁至 **jp4 Docker**（Tailscale WIF + GHCR + compose）。运维 runbook 见 [19-JP4-DEPLOY.md](./19-JP4-DEPLOY.md)。下文保留 Railway 实例 ID、域名与灌库步骤，供回滚与对照；勿再以此为主部署路径。
 
 > 浏览层跑在 Railway 一个服务里：Hono 提供 `/api/*`，同时托管 Vite 静态页。SQLite 放 Volume `/data`。
 >
@@ -128,7 +130,7 @@ Railway 服务已接 `nocoo/fundly`。要让它**等 CI 全绿再部署**：
 
 ## GitHub Release
 
-`.github/workflows/release.yml` 发布 GitHub 源码版本，继续由 Railway 的 GitHub 集成部署
+`.github/workflows/source-release.yml` 发布 GitHub 源码版本；生产部署见 [19-JP4-DEPLOY.md](./19-JP4-DEPLOY.md)。历史上 Railway 曾通过 GitHub 集成部署 main
 `main`。项目包均为 `private`，不发布 npm 包；这里也不运行 Wrangler、SSH / Compose 或
 SQLite 数据迁移。
 

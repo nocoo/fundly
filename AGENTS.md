@@ -1,7 +1,7 @@
 # Fundly
 
 Personal fund, ETF, stock and macro research using Bun collection, SQLite and a private web reader.
-Profile: ts-worker-web (Bun/Hono server on Railway, despite the `apps/worker` directory name).
+Profile: ts-worker-web (Bun/Hono server; production CD targets jp4 Docker, despite the `apps/worker` directory name).
 Direction: [architecture](docs/01-ARCHITECTURE.md), [UI architecture](docs/06-ARCH-UI.md).
 
 ## Scope and instruction sources
@@ -14,7 +14,7 @@ Direction: [architecture](docs/01-ARCHITECTURE.md), [UI architecture](docs/06-AR
 
 - Use Bun/ESM, `bun:sqlite`, built-in fetch, Bun test and Biome. Preserve this toolchain without adding Node SQLite adapters, Vitest/Jest or duplicate utility dependencies.
 - Separate collection (`src/`, `scripts/`, `tests/`) from browser/API changes (`apps/`) in atomic commits. Metric models stay pure and independent of I/O/Views.
-- Railway serves the app with a persistent SQLite volume. Market browsing is read-only; backup settings/restore use explicit write paths. Removed Cloudflare Worker/D1 deployments stay removed.
+- Production serves the app from jp4 Docker with a bind-mounted SQLite directory (`/data/fundly/data` → `/data`). Market browsing is read-only; backup settings/restore use explicit write paths. Railway config remains in-tree for rollback reference only—do not `railway up` or re-enable GitHub auto-deploy without owner approval. Removed Cloudflare Worker/D1 deployments stay removed.
 - Keep Google OAuth/PKCE and configured email access rules. `ALLOWED_EMAILS` empty currently allows all authenticated Google accounts; missing required auth configuration rejects protected APIs.
 - `HITHINK_FINANCE_API_KEY` is server-only. Do not commit databases, backups, raw credentials or fabricated data-scale claims.
 - Use Eastmoney `pingzhongdata.js`, not the category-ranking endpoint for whole-market NAV. Preserve the global 5 QPS limit and bounded deep collection; starts/watch loops remain explicit.
@@ -65,13 +65,13 @@ No repository pre-commit/pre-push hook is currently configured. Required target:
 | --- | --- | --- |
 | Dev | Caddy `https://fundly.dev.hexly.ai`, Vite 7044 / API 7045 | Intended local `FUNDLY_SQLITE` |
 | Unit/in-process API | Test-created SQLite | No production/daily-dev database fixtures |
-| Production | Railway volume, normally `/data` | Never use for automated test writes |
+| Production | jp4 `/data/fundly/data` (SQLite); Railway volume retained for rollback docs | Never use for automated test writes |
 
 Future HTTP/browser/CLI harnesses must own new temporary SQLite and ports, validate their test context before writes/restores, and clean only their own directory. No Cloudflare test resources belong to this runtime.
 
 ## Operations / release
 
-Authorized releases use `bun run release` and the [Railway runbook](docs/09-RAILWAY.md). Tags must refer to passing main CI and remain immutable. Backup/restore procedures are in [Backy](docs/08-BACKY.md); after replacing the production database, restart the app. Inspect public `/api/live` for the deployed version; code push alone does not verify database coverage.
+Authorized source releases use `bun run release` and [source-release.yml](.github/workflows/source-release.yml). Production deploys via [deploy.yml](.github/workflows/deploy.yml) after main CI (jp4 runbook: [docs/19-JP4-DEPLOY.md](docs/19-JP4-DEPLOY.md); deprecated Railway notes: [docs/09-RAILWAY.md](docs/09-RAILWAY.md)). Tags must refer to passing main CI and remain immutable. Backup/restore procedures are in [Backy](docs/08-BACKY.md); after replacing the production database, restart the app. Inspect public `/api/live` for the deployed version; code push alone does not verify database coverage.
 
 ## Retrospective
 
