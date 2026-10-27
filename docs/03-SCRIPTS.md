@@ -23,6 +23,27 @@ Fundly 提供了一组 CLI 脚本，覆盖**数据库初始化 → 首次全量�
 | `refresh-select.ts` | `bun run refresh:select` | 全市场 fetch → rank → risk → select，fail-fast | 视抓取 |
 | `dev-api.ts` | `bun run dev:api` | 本机只读 API `:7045`，读 sqlite | 常驻 |
 | `dev-all.ts` | `bun run dev:all` | 并行起 `dev:api` + `dev:web` | 常驻 |
+| `fundly-daily-sync.sh` | `~/.local/bin/fundly-daily-sync.sh` | **Studio 每日抓取 + 发布 jp4 生产库**（Tailscale SSH） | 视抓取 + 上传 |
+
+### Studio：`fundly-daily-sync.sh`
+
+在采集机（macOS Studio）上编排：本地 `fetch` / `refresh:select`（可选宏观与选股）→ `PRAGMA quick_check` → `VACUUM INTO` 快照 → gzip → **SSH 到 jp4** 替换 `fundly.db` 并 `docker compose restart web`。不调用 Railway CLI；不触碰远端 `auth.db`。
+
+```bash
+# 从仓库安装（launchd/cron 指向 ~/.local/bin）
+ln -sf ~/workspace/personal/fundly/scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh
+
+# 全量（默认周日还会跑 weekly 扩展抓取）
+fundly-daily-sync.sh
+
+# 只发布已有本地库（跳过抓取）
+fundly-daily-sync.sh --no-fetch
+
+# 只抓取，不推生产
+fundly-daily-sync.sh --no-sync
+```
+
+环境变量：`FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_ed25519`）、`FUNDLY_JP4_HOST`（默认 `jp4`）、`FUNDLY_JP4_USER`（`nocoo`）、`FUNDLY_JP4_PORT`（`52722`）。部署与主机路径见 [19-JP4-DEPLOY.md](./19-JP4-DEPLOY.md)。
 
 ---
 
