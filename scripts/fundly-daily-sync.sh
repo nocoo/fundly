@@ -270,17 +270,20 @@ else
   gzip -dc fundly.db.new.gz > fundly.db.new
   rm -f fundly.db.new.gz
 fi
-sql_ro() {
-  local sql=$1
-  if command -v sqlite3 >/dev/null 2>&1; then
-    sqlite3 -readonly "$JP4_DATA/fundly.db.new" "$sql"
-  else
-    docker exec fundly-app sqlite3 -readonly /data/fundly.db.new "$sql"
-  fi
-}
-qc=$(sql_ro 'PRAGMA quick_check;')
-c=$(sql_ro 'select count(*) from fund_nav;')
-m=$(sql_ro 'select max(nav_date) from fund_nav;')
+# jp4 host/container often have no sqlite3 CLI; use python3 or bun:sqlite.
+set +e
+out=$(python3 -c "import sqlite3,os
+p=os.environ['JP4_DATA']+'/fundly.db.new'
+d=sqlite3.connect('file:'+p+'?mode=ro', uri=True)
+print(d.execute('PRAGMA quick_check').fetchone()[0], d.execute('select count(*) from fund_nav').fetchone()[0], d.execute('select max(nav_date) from fund_nav').fetchone()[0])")
+rc=$?
+if [ $rc -ne 0 ]; then
+  out=$(docker exec fundly-app bun -e 'import { Database } from "bun:sqlite"; const d = new Database("/data/fundly.db.new", { readonly: true }); console.log(d.query("PRAGMA quick_check").get().quick_check, d.query("select count(*) as c from fund_nav").get().c, d.query("select max(nav_date) as m from fund_nav").get().m);')
+  rc=$?
+fi
+set -e
+[ $rc -eq 0 ]
+read -r qc c m <<<"$out"
 echo "CHECK $qc $c $m"
 [ "$qc" = ok ] && [ "$c" = "$LROWS" ] && [ "$m" = "$LNAV" ]
 REMOTE
@@ -302,12 +305,10 @@ REMOTE
 prodnav(){
   ssh_jp4 bash -s 2>/dev/null <<'REMOTE' | tail -1
 set -euo pipefail
-DATA=/data/fundly/data
-if command -v sqlite3 >/dev/null 2>&1; then
-  sqlite3 -readonly "$DATA/fundly.db" "select max(nav_date) from fund_nav;"
-else
-  docker exec fundly-app sqlite3 -readonly /data/fundly.db "select max(nav_date) from fund_nav;"
-fi
+python3 -c "import sqlite3
+d=sqlite3.connect('file:/data/fundly/data/fundly.db?mode=ro', uri=True)
+print(d.execute('select max(nav_date) from fund_nav').fetchone()[0])" \
+  || docker exec fundly-app bun -e 'import { Database } from "bun:sqlite"; const d = new Database("/data/fundly.db", { readonly: true }); console.log(d.query("select max(nav_date) as m from fund_nav").get().m);'
 REMOTE
 }
 rollback(){
