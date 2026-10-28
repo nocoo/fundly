@@ -27,7 +27,7 @@ export default function LoginPage() {
     <div className="research-login">
       <header className="flex items-center justify-between gap-4">
         <a href="/" className="flex items-center gap-2.5 text-base font-semibold">
-          <img src="/logo.svg" alt="" width={28} height={28} />
+          <img src="/logo-128.png" alt="" width={28} height={28} />
           Fundly
         </a>
         <div className="flex items-center gap-1">

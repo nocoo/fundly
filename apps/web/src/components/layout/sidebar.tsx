@@ -296,7 +296,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
       {isCollapsed ? (
         <>
           <div className="flex h-14 w-full items-center justify-start pr-3 pl-6">
-            <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
+            <img src="/logo-128.png" alt="Fundly" width={24} height={24} className="shrink-0" />
           </div>
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -356,7 +356,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
           <div className="flex h-14 items-center px-3">
             <div className="flex w-full items-center justify-between px-3">
               <div className="flex items-center gap-3">
-                <img src="/logo.svg" alt="Fundly" width={24} height={24} className="shrink-0" />
+                <img src="/logo-128.png" alt="Fundly" width={24} height={24} className="shrink-0" />
                 <span className="truncate text-lg font-bold tracking-tight text-basalt-foreground">
                   fundly
                 </span>

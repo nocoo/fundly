@@ -4,7 +4,7 @@ export default function LoadingScreen({ label = '正在加载' }: { label?: stri
   return (
     <BasaltLoadingScreen
       label={label}
-      mark={<img src="/logo.svg" alt="Fundly" width={40} height={40} className="h-10 w-10" />}
+      mark={<img src="/logo-128.png" alt="Fundly" width={40} height={40} className="h-10 w-10" />}
     />
   );
 }

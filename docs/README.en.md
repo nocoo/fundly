@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../apps/web/public/logo.svg" width="128" height="128" alt="Fundly" />
+  <img src="../apps/web/public/icon-rounded-512.png" width="128" height="128" alt="Fundly" />
 </p>
 
 <h1 align="center">Fundly</h1>
