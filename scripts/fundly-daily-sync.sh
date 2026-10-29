@@ -230,7 +230,7 @@ cd "$REPO" || { write_fail_report "repo_missing" "$REPO"; exit 2; }
 HAS_KEY=0; grep -q '^HITHINK_FINANCE_API_KEY=.\+' .env 2>/dev/null && HAS_KEY=1
 if [ $DO_FETCH = 1 ]; then
   step fetch_list 1 1800 bun run fetch:list
-  step refresh_select 1 14400 bun run refresh:select
+  step refresh_select 1 21600 bun run refresh:select
   if [ $HAS_KEY = 1 ]; then step fetch_macro 0 1800 bun run fetch:macro; step fetch_selection 0 0 fetch_selection_retry; fi
   if [ $WEEKLY = 1 ]; then
     for s in dividend fees manager portfolio; do step fetch_$s 0 14400 bun run fetch:$s; done
