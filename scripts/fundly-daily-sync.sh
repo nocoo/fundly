@@ -4,7 +4,7 @@
 #
 # jp4: SSH nocoo@jp4 (MagicDNS), port 52722; prod sqlite /data/fundly/data/fundly.db only.
 # Never upload or overwrite auth.db. Env: FUNDLY_JP4_SSH_KEY (default ~/.ssh/id_rsa),
-# FUNDLY_JP4_HOST (default 100.101.0.6), FUNDLY_JP4_USER (nocoo), FUNDLY_JP4_PORT (52722).
+# FUNDLY_JP4_HOST (default 100.101.0.4; was .6 before 2026-10-30 jp4 reboot), FUNDLY_JP4_USER (nocoo), FUNDLY_JP4_PORT (52722).
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.bun/bin"
 REPO="$HOME/workspace/personal/fundly"
@@ -13,7 +13,7 @@ LOGDIR="${FUNDLY_STATE_DIR:-$HOME/.local/state/fundly}"; mkdir -p "$LOGDIR"
 DAY=$(date +%F); LOG="$LOGDIR/$DAY.log"; REPORT="$LOGDIR/report.json"
 LAUNCHD_LOG="$LOGDIR/launchd.log"
 LOCK="/tmp/fundly-daily-sync.lock"
-JP4_HOST="${FUNDLY_JP4_HOST:-100.101.0.6}"  # Studio MagicDNS often fails for short name jp4
+JP4_HOST="${FUNDLY_JP4_HOST:-100.101.0.4}"  # Studio MagicDNS often fails for short name jp4
 JP4_USER="${FUNDLY_JP4_USER:-nocoo}"
 JP4_PORT="${FUNDLY_JP4_PORT:-52722}"
 JP4_KEY="${FUNDLY_JP4_SSH_KEY:-$HOME/.ssh/id_rsa}"  # fleet ops RSA (not railway)
@@ -41,8 +41,15 @@ PROD=null
 log(){ echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 launchd_note(){ echo "[$(date '+%F %T %z')] $*" >>"$LAUNCHD_LOG"; }
 
-ssh_jp4(){ ssh -i "$JP4_KEY" -p "$JP4_PORT" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 "${JP4_USER}@${JP4_HOST}" "$@"; }
-scp_jp4(){ scp -i "$JP4_KEY" -P "$JP4_PORT" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=60 "$@"; }
+# Keepalive: remote quick_check on the snapshot can run ~6+ min with no output; without
+# ServerAlive the idle session got dropped (rc=255). 30s x 20 = tolerate ~10 min of dead peer.
+JP4_SSH_OPTS=(-o IdentitiesOnly=yes -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o TCPKeepAlive=yes)
+ssh_jp4(){ ssh -i "$JP4_KEY" -p "$JP4_PORT" "${JP4_SSH_OPTS[@]}" -o ConnectTimeout=30 "${JP4_USER}@${JP4_HOST}" "$@"; }
+scp_jp4(){ scp -i "$JP4_KEY" -P "$JP4_PORT" "${JP4_SSH_OPTS[@]}" -o ConnectTimeout=60 "$@"; }
+
+# hours_since EPOCH_START EPOCH_END -> JSON-safe number with leading zero (e.g. 0.2, -0.5, 12.0).
+# (bc scale=1 prints ".2", which is invalid JSON.)
+hours_since(){ awk -v a="$1" -v b="$2" 'BEGIN{printf "%.1f", (b-a)/3600}'; }
 
 tree_pids(){ local c; echo "$1"; for c in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$c"; done; }
 kill_tree(){ local pids; pids=$(tree_pids "$1"); kill -TERM $pids 2>/dev/null; sleep 5; kill -KILL $pids 2>/dev/null; wait "$1" 2>/dev/null; }
@@ -90,7 +97,7 @@ write_fail_report(){
     if [ -n "$fin" ]; then
       epoch_fin=$(date -j -f '%Y-%m-%d %H:%M:%S %z' "$fin" +%s 2>/dev/null || true)
       epoch_now=$(date +%s)
-      if [ -n "${epoch_fin:-}" ]; then age_h=$(echo "scale=1; ($epoch_now - $epoch_fin) / 3600" | bc 2>/dev/null || echo ""); fi
+      if [ -n "${epoch_fin:-}" ]; then age_h=$(hours_since "$epoch_fin" "$epoch_now" 2>/dev/null || echo ""); fi
     fi
   fi
   local expect; expect=$(expected_nav)
@@ -164,7 +171,7 @@ check_prev_report_stale(){
   epoch_fin=$(date -j -f '%Y-%m-%d %H:%M:%S %z' "$fin" +%s 2>/dev/null || true)
   epoch_now=$(date +%s)
   [ -z "${epoch_fin:-}" ] && return 0
-  age_h=$(echo "scale=1; ($epoch_now - $epoch_fin) / 3600" | bc 2>/dev/null || echo "0")
+  age_h=$(hours_since "$epoch_fin" "$epoch_now" 2>/dev/null || echo "0")
   PREV_REPORT_AGE_HOURS=$age_h
   if echo "$age_h > $STALE_HOURS_WARN" | bc -l 2>/dev/null | grep -q '^1$'; then
     log "WARN prev report stale age_hours=$age_h status=$status_prev finished=$fin (threshold=${STALE_HOURS_WARN}h)"

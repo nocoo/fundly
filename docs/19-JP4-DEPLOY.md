@@ -77,7 +77,7 @@ docker network create edge  # 若尚未存在
 | `VPS_PORT` | 通常 `52722` |
 | `VPS_USER` | 通常 `nocoo` |
 | `VPS_SSH_KEY` | 部署 SSH 私钥 |
-| `VPS_KNOWN_HOSTS` | `[jp4]:52722` 与 `[100.101.0.6]:52722` 两行 ed25519（由运维签发，不进仓库） |
+| `VPS_KNOWN_HOSTS` | `[jp4]:52722` 与 `[100.101.0.4]:52722` 两行 ed25519（由运维签发，不进仓库） |
 | `GHCR_PULL_USER` / `GHCR_PULL_TOKEN` | 主机拉 GHCR |
 
 **Variables**（验收）：
@@ -115,8 +115,8 @@ docker network create edge  # 若尚未存在
 |---|---|
 | 脚本（仓库） | `scripts/fundly-daily-sync.sh` |
 | Studio 安装 | `cp scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` 或 `ln -sf <repo>/scripts/fundly-daily-sync.sh ~/.local/bin/fundly-daily-sync.sh` |
-| SSH | `nocoo@100.101.0.6`（或 MagicDNS `jp4`），端口 `52722`；私钥默认 `~/.ssh/id_rsa` |
-| 私钥 | `FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_rsa`）；`known_hosts` 需包含 `[jp4]:52722` 与 `[100.101.0.6]:52722` |
+| SSH | `nocoo@100.101.0.4`（或 MagicDNS `jp4`），端口 `52722`；私钥默认 `~/.ssh/id_rsa` |
+| 私钥 | `FUNDLY_JP4_SSH_KEY`（默认 `~/.ssh/id_rsa`）；`known_hosts` 需包含 `[jp4]:52722` 与 `[100.101.0.4]:52722` |
 | 远端流程 | `scp` → `fundly.db.new.gz` → 校验 md5 → `gunzip` → `sqlite3 quick_check` + 行数/最新净值 → 原子 swap → `docker restart fundly-app` |
 | 验收 | `https://fundly.hexly.ai/api/live`：`status=ok`、`component=jp4`、`database.connected=true`；主机环回 `http://127.0.0.1:17040/api/live` |
 
