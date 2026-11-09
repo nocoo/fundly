@@ -88,7 +88,7 @@ function BackToList({
   variant?: 'ghost' | 'outline';
 }) {
   return (
-    <Button variant={variant} size="icon" className="h-8 w-8 shrink-0" asChild>
+    <Button variant={variant} size="icon" className="shrink-0" asChild>
       <Link to={listHref(origin)} aria-label={listBackLabel(origin)}>
         <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
       </Link>

@@ -523,7 +523,6 @@ export default function MarketPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
                 aria-label="刷新行情"
                 title="每分钟同步已采集数据"
                 onClick={() => void Promise.allSettled([mutate(), mutateMainBars()])}
@@ -856,7 +855,6 @@ export default function MarketPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
                         aria-label="放大K线"
                         onClick={() => {
                           if (activeTarget) {
@@ -945,7 +943,7 @@ export default function MarketPage() {
                         </span>
                       </span>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                        <Button variant="outline" size="sm" className="text-xs" asChild>
                           <Link
                             to={`/select-stock/valuation?exchange=SH%2CSZ&industry=${encodeURIComponent(activeIndustry.name)}`}
                           >
@@ -957,7 +955,7 @@ export default function MarketPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs"
+                            className="text-xs"
                             onClick={() =>
                               openEtfs(activeIndustry.relatedEtfs.map((item) => item.id))
                             }
@@ -969,7 +967,7 @@ export default function MarketPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="text-xs"
                           onClick={() => setIndustryModalTarget(activeIndustry)}
                         >
                           全部成分
@@ -1016,7 +1014,7 @@ export default function MarketPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="text-xs"
                       onClick={() => {
                         if (activeTarget?.assetClass === 'etf') {
                           setEtfModalYears(years);

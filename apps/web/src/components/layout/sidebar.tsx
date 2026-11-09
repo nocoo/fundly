@@ -132,7 +132,7 @@ function UserCard({
   canSignOut: boolean;
 }) {
   const face = (
-    <Avatar className={cn('h-8 w-8', !collapsed && 'shrink-0')}>
+    <Avatar className={cn(!collapsed && 'shrink-0')}>
       {avatar ? <AvatarImage src={avatar} alt={name} /> : null}
       <AvatarFallback className={cn('text-xs text-white', getAvatarColor(name))}>
         {initial}
@@ -189,7 +189,7 @@ function UserCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+                  className="shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
                   onClick={() => void signOut()}
                   aria-label="退出登录"
                 >
@@ -368,7 +368,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
+                  className="shrink-0 text-basalt-muted-foreground hover:text-basalt-foreground"
                   onClick={toggle}
                   aria-label="收起侧边栏"
                 >

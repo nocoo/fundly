@@ -1,4 +1,5 @@
 import { Input } from '@nocoo/basalt';
+import type { InputSize } from '@nocoo/basalt/components/input';
 import { useEffect, useState } from 'react';
 
 export function NumericDraftInput({
@@ -9,6 +10,7 @@ export function NumericDraftInput({
   ariaLabel,
   min,
   max,
+  size = 'sm',
 }: {
   value: number;
   onChange: (val: number) => void;
@@ -18,6 +20,7 @@ export function NumericDraftInput({
   max?: number | string;
   className?: string;
   ariaLabel?: string;
+  size?: InputSize;
 }) {
   const [draft, setDraft] = useState<string>(String(value));
 
@@ -49,6 +52,7 @@ export function NumericDraftInput({
       inputMode="decimal"
       aria-label={ariaLabel}
       disabled={disabled}
+      size={size}
       className={className}
       value={draft}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) => {

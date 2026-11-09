@@ -399,7 +399,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 step="0.05"
                 min="0"
                 max="5"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.maxFeeEnabled}
                 value={state.maxFee}
                 onChange={(val) => updateFilter({ maxFee: val, page: 1 })}
@@ -417,7 +417,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 ariaLabel="资产净值规模下限"
                 step="1"
                 min="0"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.minScaleEnabled}
                 value={state.minScale}
                 onChange={(val) => updateFilter({ minScale: val, page: 1 })}
@@ -436,7 +436,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 step="5"
                 min="0"
                 max="100"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.maxDrawdownEnabled}
                 value={state.maxDrawdown}
                 onChange={(val) => updateFilter({ maxDrawdown: val, page: 1 })}
@@ -454,7 +454,7 @@ export function EtfsPage({ forcedLens }: { forcedLens?: EtfLens }) {
                 ariaLabel="20日日均成交额下限"
                 step="500"
                 min="0"
-                className="w-20 h-7 text-xs font-mono"
+                className="w-20 text-xs font-mono"
                 disabled={!state.minTurnoverEnabled}
                 value={Math.round(state.minTurnover / 10000)}
                 onChange={(val) => updateFilter({ minTurnover: val * 10000, page: 1 })}

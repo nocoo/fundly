@@ -94,13 +94,12 @@
 }
 
 .research-search input {
-  padding-left: 34px;
-  height: 36px;
+  padding-inline-start: var(--basalt-space-row-content);
 }
 
 
 .research-list-page {
-  height: calc(100dvh - 146px);
+  height: calc(100dvh - var(--basalt-space-14) - 5.625rem);
   min-height: 610px;
 }
 

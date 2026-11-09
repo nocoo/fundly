@@ -29,7 +29,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function BackLink() {
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
+    <Button variant="ghost" size="icon" className="shrink-0" asChild>
       <Link to="/daily" aria-label="返回日报列表">
         <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
       </Link>

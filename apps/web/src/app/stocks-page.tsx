@@ -471,7 +471,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 ariaLabel="市盈率 PE(TTM) 上限"
                 step="5"
                 min="0"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.maxPeEnabled}
                 value={state.maxPe}
                 onChange={(val) => updateFilter({ maxPe: val, page: 1 })}
@@ -488,7 +488,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
               <NumericDraftInput
                 ariaLabel="加权 ROE 下限"
                 step="1"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.minRoeEnabled}
                 value={state.minRoe}
                 onChange={(val) => updateFilter({ minRoe: val, page: 1 })}
@@ -505,7 +505,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
               <NumericDraftInput
                 ariaLabel="营收同比下限"
                 step="5"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.minRevenueYoyEnabled}
                 value={state.minRevenueYoy}
                 onChange={(val) => updateFilter({ minRevenueYoy: val, page: 1 })}
@@ -524,7 +524,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 step="5"
                 min="0"
                 max="100"
-                className="w-16 h-7 text-xs font-mono"
+                className="w-16 text-xs font-mono"
                 disabled={!state.maxDrawdownEnabled}
                 value={state.maxDrawdown}
                 onChange={(val) => updateFilter({ maxDrawdown: val, page: 1 })}
@@ -542,7 +542,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
                 ariaLabel="当日成交额下限"
                 step="1000"
                 min="0"
-                className="w-20 h-7 text-xs font-mono"
+                className="w-20 text-xs font-mono"
                 disabled={!state.minTurnoverEnabled}
                 value={Math.round(state.minTurnover / 10000)}
                 onChange={(val) => updateFilter({ minTurnover: val * 10000, page: 1 })}
