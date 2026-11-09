@@ -85,7 +85,7 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
                         variant="ghost"
                         size="icon"
                         aria-label="打开导航菜单"
-                        className="h-8 w-8 text-basalt-muted-foreground hover:text-basalt-foreground"
+                        className="text-basalt-muted-foreground hover:text-basalt-foreground"
                       >
                         <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
                       </Button>
@@ -98,15 +98,21 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
               actions={
                 <div className="flex items-center gap-1">
                   <HeaderTooltip label="GitHub repository">
-                    <a
-                      href="https://github.com/nocoo/fundly"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="GitHub repository"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-basalt-muted-foreground transition-colors hover:bg-basalt-accent hover:text-basalt-foreground"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-basalt-muted-foreground hover:text-basalt-foreground"
+                      asChild
                     >
-                      <Github className="h-[18px] w-[18px]" aria-hidden="true" strokeWidth={1.5} />
-                    </a>
+                      <a
+                        href="https://github.com/nocoo/fundly"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="GitHub repository"
+                      >
+                        <Github className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
+                      </a>
+                    </Button>
                   </HeaderTooltip>
                   <HexlyLink />
                   <ThemeToggle aria-label="切换主题" />

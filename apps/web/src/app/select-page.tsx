@@ -199,18 +199,13 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
             title="筛选条件"
             action={
               <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={resetFilters}
-                >
+                <Button variant="ghost" size="sm" className="text-xs" onClick={resetFilters}>
                   重置
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 md:hidden"
+                  className="md:hidden"
                   aria-label={filtersOpen ? '收起筛选' : '展开筛选'}
                   aria-expanded={filtersOpen}
                   onClick={() => setFiltersOpen(!filtersOpen)}

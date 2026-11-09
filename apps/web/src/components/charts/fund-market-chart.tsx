@@ -117,7 +117,7 @@ export function FundMarketChart({
       )}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-basalt-border/55 pt-3">
         <span className="text-[11px] text-basalt-muted-foreground">场内交易价格 · 含成交量</span>
-        <Button variant="ghost" size="sm" asChild className="h-7 text-xs">
+        <Button variant="ghost" size="sm" asChild className="text-xs">
           <Link to={`/market?${marketParams}`}>
             放入宏观视野 <ArrowUpRight className="size-3.5" strokeWidth={1.5} />
           </Link>

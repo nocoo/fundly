@@ -1,13 +1,13 @@
 .market-dashboard {
   display: flex;
-  height: calc(100dvh - 146px);
+  height: calc(100dvh - var(--basalt-space-14) - 5.625rem);
   min-height: 760px;
   flex-direction: column;
   gap: 12px;
 }
 
 .market-dashboard--wall {
-  height: calc(100dvh - 34px);
+  height: calc(100dvh - var(--basalt-size-control));
   min-height: 720px;
 }
 
