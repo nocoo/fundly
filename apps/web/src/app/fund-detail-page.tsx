@@ -1,4 +1,5 @@
 import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
 import { ArrowLeft, CircleOff } from 'lucide-react';
@@ -19,7 +20,7 @@ import { ScoreRadar } from '@/components/charts/radar-chart';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { SharePie } from '@/components/charts/share-pie';
 import { usePageChrome } from '@/components/layout';
-import { PanelHeading, ResearchHeader, StatTile } from '@/components/layout/research-layout';
+import { PanelHeading, StatTile } from '@/components/layout/research-layout';
 import { CopyField } from '@/components/ui/copy-field';
 import { Metric } from '@/components/ui/metric';
 import { FundTypeBadges } from '@/components/ui/type-badge';
@@ -294,7 +295,7 @@ export default function FundDetailPage() {
 
   return (
     <div className="research-page">
-      <ResearchHeader
+      <PageHeader
         title={
           <span className="flex min-w-0 items-center gap-2">
             <BackToList origin={listOrigin} />
