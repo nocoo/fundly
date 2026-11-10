@@ -103,6 +103,7 @@ export function fuyaoHistoryWindows(from: string, to: string, isEtf: boolean) {
   const end = shiftMarketDate(to, 1);
   for (let start = from; start < end; ) {
     const next = shiftMarketDate(start, isEtf ? 1460 : 3650);
+    // biome-ignore lint/complexity/useMathMinMax: market dates are YYYY-MM-DD strings, not numbers
     const stop = next < end ? next : end;
     windows.push({ from: start, to: stop });
     start = stop;
