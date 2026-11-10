@@ -1,4 +1,5 @@
 import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   ArrowUpRight,
   Globe2,
@@ -14,12 +15,7 @@ import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { SeriesChart } from '@/components/charts/series-chart';
 import { usePageChrome } from '@/components/layout';
-import {
-  PanelHeading,
-  ResearchEmpty,
-  ResearchHeader,
-  StatTile,
-} from '@/components/layout/research-layout';
+import { PanelHeading, ResearchEmpty, StatTile } from '@/components/layout/research-layout';
 import { cleanNamedPoints, formatCompact } from '@/lib/chart-data';
 import type { DataStats } from '@/lib/data-stats-vm';
 import { formatCount } from '@/lib/format-number';
@@ -52,9 +48,13 @@ export default function Dashboard() {
 
   return (
     <div className="research-page">
-      <ResearchHeader
-        title="仪表盘"
-        icon={LayoutDashboard}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <LayoutDashboard className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            仪表盘
+          </span>
+        }
         description={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>从市场全景，到基金研究</span>

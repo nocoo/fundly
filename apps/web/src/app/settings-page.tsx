@@ -1,10 +1,11 @@
 import { Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
 import { Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { usePageChrome } from '@/components/layout';
-import { PanelHeading, ResearchHeader } from '@/components/layout/research-layout';
+import { PanelHeading } from '@/components/layout/research-layout';
 import { ApiTokens } from '@/components/settings/api-tokens';
 import { BenchmarkBrowser } from '@/components/settings/benchmark-browser';
 import { DataOverview } from '@/components/settings/data-overview';
@@ -28,9 +29,13 @@ export default function SettingsPage() {
 
   return (
     <div className="research-page">
-      <ResearchHeader
-        title="设置"
-        icon={Settings2}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Settings2 className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            设置
+          </span>
+        }
         description="调整行情显示与研究基准。偏好会自动保存在当前浏览器。"
       />
       <Tabs defaultValue="display">

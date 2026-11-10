@@ -1,4 +1,5 @@
 import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -9,7 +10,7 @@ import {
 } from '@nocoo/basalt/components/table';
 import { Cloud, CloudUpload, Loader2, RefreshCw } from 'lucide-react';
 import { usePageChrome } from '@/components/layout';
-import { PanelHeading, ResearchHeader, StatTile } from '@/components/layout/research-layout';
+import { PanelHeading, StatTile } from '@/components/layout/research-layout';
 import { useBacky } from '@/hooks/use-backy';
 import { envBadgeClass, formatFileSize, formatTimeAgo } from '@/lib/backy-format';
 import { canEditBackyForm, canMutateBackups } from '@/lib/backy-vm';
@@ -40,9 +41,13 @@ export default function BackupPage() {
   const latest = rows[0];
   return (
     <div className="research-page">
-      <ResearchHeader
-        title="备份"
-        icon={Cloud}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Cloud className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            备份
+          </span>
+        }
         description={
           status && !status.available
             ? '当前环境未启用备份服务。'
