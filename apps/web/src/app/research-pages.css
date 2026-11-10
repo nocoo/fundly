@@ -5,20 +5,6 @@
   gap: 14px;
 }
 
-.research-heading {
-  flex-shrink: 0;
-}
-
-.research-heading h1 {
-  font-size: 22px;
-  line-height: 1.4;
-}
-
-.research-heading header > div > div > p {
-  font-size: 12px;
-  line-height: 1.7;
-}
-
 .research-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -498,10 +484,6 @@
 @media (max-width: 767px) {
   .research-page {
     gap: 12px;
-  }
-
-  .research-heading h1 {
-    font-size: 20px;
   }
 
   .research-stats {

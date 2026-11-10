@@ -69,7 +69,7 @@ async function checkNavigation() {
       () =>
         location.pathname === path &&
         title() === expected &&
-        document.querySelector('.research-heading h1')?.textContent?.includes(heading),
+        document.querySelector('header[aria-labelledby] h1')?.textContent?.includes(heading),
       `navigation to ${path}`,
     );
     retained();

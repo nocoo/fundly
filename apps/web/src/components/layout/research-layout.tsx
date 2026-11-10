@@ -1,50 +1,8 @@
 import { Button, LayerCard } from '@nocoo/basalt';
-import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowLeft, ArrowRight, Inbox, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatCount } from '@/lib/format-number';
 import { cn } from '@/lib/utils';
-
-export function ResearchHeader({
-  title,
-  description,
-  icon: Icon,
-  leading,
-  actions,
-}: {
-  title: ReactNode;
-  description?: ReactNode;
-  icon?: LucideIcon;
-  /** Focusable control rendered outside PageHeader's h1 (e.g. back link). */
-  leading?: ReactNode;
-  actions?: ReactNode;
-}) {
-  const header = (
-    <PageHeader
-      title={
-        <span className="flex min-w-0 items-center gap-2.5">
-          {Icon ? <Icon className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} /> : null}
-          {title}
-        </span>
-      }
-      description={description}
-      actions={actions}
-    />
-  );
-
-  return (
-    <div className="research-heading">
-      {leading ? (
-        <div className="flex min-w-0 items-start gap-2">
-          <div className="mt-1 shrink-0">{leading}</div>
-          <div className="min-w-0 flex-1">{header}</div>
-        </div>
-      ) : (
-        header
-      )}
-    </div>
-  );
-}
 
 export function StatTile({
   label,
