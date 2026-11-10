@@ -1,6 +1,6 @@
 {
   "name": "fundly",
-  "version": "0.6.11",
+  "version": "0.6.12",
   "module": "src/index.ts",
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
