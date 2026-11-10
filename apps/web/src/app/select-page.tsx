@@ -1,4 +1,5 @@
 import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -14,12 +15,7 @@ import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { usePageChrome } from '@/components/layout';
-import {
-  ListPagination,
-  PanelHeading,
-  ResearchEmpty,
-  ResearchHeader,
-} from '@/components/layout/research-layout';
+import { ListPagination, PanelHeading, ResearchEmpty } from '@/components/layout/research-layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
@@ -173,9 +169,13 @@ function SelectLensPage({ lens }: { lens: SelectLens }) {
 
   return (
     <div className="research-page research-list-page">
-      <ResearchHeader
-        title={`选基 · ${LENS_LABEL[lens]}`}
-        icon={SlidersHorizontal}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <SlidersHorizontal className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            {`选基 · ${LENS_LABEL[lens]}`}
+          </span>
+        }
         description={descriptions[lens]}
       />
       <nav className="flex flex-wrap items-center gap-1" aria-label="选基视角">

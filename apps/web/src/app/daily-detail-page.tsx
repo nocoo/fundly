@@ -1,4 +1,5 @@
 import { Button } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import useSWR from 'swr';
@@ -7,7 +8,7 @@ import { DataInfo } from '@/components/charts/market-chart-controls';
 import { DailyReportView } from '@/components/daily/daily-report-view';
 import { DailyWidthToggle } from '@/components/daily/daily-width-toggle';
 import { usePageChrome } from '@/components/layout';
-import { ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { ResearchEmpty } from '@/components/layout/research-layout';
 import { useDailyWidthMode } from '@/hooks/use-daily-width-mode';
 import { dailyPageWidthClass } from '@/lib/daily-width-mode';
 import { cn } from '@/lib/utils';
@@ -54,36 +55,44 @@ export default function DailyDetailPage() {
 
   return (
     <div className={cn('research-page', dailyPageWidthClass(widthMode))}>
-      <ResearchHeader
-        leading={<BackLink />}
-        title={title}
-        description={
-          data ? (
-            <span className="daily-header-desc">
-              {data.summary ? <span>{data.summary}</span> : null}
-              <span className="daily-header-meta">
-                {data.weekday ? <span>{data.weekday}</span> : null}
-                {data.session ? <span className="daily-header-session">{data.session}</span> : null}
-                <DataInfo name="数据说明" source={sourceLabel} date={data.date}>
-                  {data.sources && data.sources.length > 0 ? (
-                    <p>来源列表：{data.sources.join('、')}</p>
-                  ) : (
-                    <p>来源未在 frontmatter 中声明。</p>
-                  )}
-                  {data.session ? <p>会话口径：{data.session}</p> : null}
-                  {data.methodology ? <p>数据口径：{data.methodology}</p> : null}
-                  <p>文件：content/macro-daily/{data.date}.md</p>
-                </DataInfo>
-              </span>
-            </span>
-          ) : valid ? (
-            date
-          ) : (
-            '日期格式无效'
-          )
-        }
-        actions={<DailyWidthToggle />}
-      />
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="mt-1 shrink-0">
+          <BackLink />
+        </div>
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={title}
+            description={
+              data ? (
+                <span className="daily-header-desc">
+                  {data.summary ? <span>{data.summary}</span> : null}
+                  <span className="daily-header-meta">
+                    {data.weekday ? <span>{data.weekday}</span> : null}
+                    {data.session ? (
+                      <span className="daily-header-session">{data.session}</span>
+                    ) : null}
+                    <DataInfo name="数据说明" source={sourceLabel} date={data.date}>
+                      {data.sources && data.sources.length > 0 ? (
+                        <p>来源列表：{data.sources.join('、')}</p>
+                      ) : (
+                        <p>来源未在 frontmatter 中声明。</p>
+                      )}
+                      {data.session ? <p>会话口径：{data.session}</p> : null}
+                      {data.methodology ? <p>数据口径：{data.methodology}</p> : null}
+                      <p>文件：content/macro-daily/{data.date}.md</p>
+                    </DataInfo>
+                  </span>
+                </span>
+              ) : valid ? (
+                date
+              ) : (
+                '日期格式无效'
+              )
+            }
+            actions={<DailyWidthToggle />}
+          />
+        </div>
+      </div>
 
       {!valid ? (
         <ResearchEmpty

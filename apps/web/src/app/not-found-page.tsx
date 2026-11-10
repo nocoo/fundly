@@ -1,16 +1,20 @@
 import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft, ArrowUpRight, FileQuestion } from 'lucide-react';
 import { Link } from 'react-router';
 import { usePageChrome } from '@/components/layout';
-import { ResearchHeader } from '@/components/layout/research-layout';
 
 export default function NotFoundPage() {
   usePageChrome({ title: '未找到' });
   return (
     <div className="research-page">
-      <ResearchHeader
-        title="页面未找到"
-        icon={FileQuestion}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <FileQuestion className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            页面未找到
+          </span>
+        }
         description="这个路径没有对应的研究页面。"
       />
       <LayerCard className="flex min-h-[420px] flex-col items-center justify-center gap-5 p-8 text-center">

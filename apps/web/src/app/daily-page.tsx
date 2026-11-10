@@ -1,11 +1,12 @@
 import { LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ChevronRight, Newspaper } from 'lucide-react';
 import { Link } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DailyWidthToggle } from '@/components/daily/daily-width-toggle';
 import { usePageChrome } from '@/components/layout';
-import { PanelHeading, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { PanelHeading, ResearchEmpty } from '@/components/layout/research-layout';
 import { useDailyWidthMode } from '@/hooks/use-daily-width-mode';
 import { dailyPageWidthClass } from '@/lib/daily-width-mode';
 import { formatCount } from '@/lib/format-number';
@@ -31,9 +32,13 @@ export default function DailyPage() {
 
   return (
     <div className={cn('research-page', dailyPageWidthClass(widthMode))}>
-      <ResearchHeader
-        title="财经日报"
-        icon={Newspaper}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Newspaper className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            财经日报
+          </span>
+        }
         description="跨资产研究摘要：全球宏观、贵金属、科技龙头与中国资产（指数 + ETF），并以好消息 / 坏消息双列表呈现当日张力。正文来自仓库 Markdown，部署后即可阅读。"
         actions={<DailyWidthToggle />}
       />

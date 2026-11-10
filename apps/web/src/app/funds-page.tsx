@@ -1,4 +1,5 @@
 import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -14,12 +15,7 @@ import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { usePageChrome } from '@/components/layout';
-import {
-  ListPagination,
-  PanelHeading,
-  ResearchEmpty,
-  ResearchHeader,
-} from '@/components/layout/research-layout';
+import { ListPagination, PanelHeading, ResearchEmpty } from '@/components/layout/research-layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
 import { Metric } from '@/components/ui/metric';
@@ -166,9 +162,13 @@ export default function FundsPage() {
 
   return (
     <div className="research-page research-list-page">
-      <ResearchHeader
-        title="基金浏览"
-        icon={Search}
+      <PageHeader
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Search className="size-5 shrink-0 text-basalt-primary" strokeWidth={1.5} />
+            基金浏览
+          </span>
+        }
         description="从全市场找到研究标的，按分类与阶段收益逐层筛选。"
         actions={
           <Button variant="outline" size="sm" asChild>

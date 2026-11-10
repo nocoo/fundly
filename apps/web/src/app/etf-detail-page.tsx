@@ -1,5 +1,6 @@
 import './selection-details.css';
 import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -22,12 +23,7 @@ import {
   defaultInterval,
 } from '@/components/charts/market-chart-controls';
 import { usePageChrome } from '@/components/layout';
-import {
-  PanelHeading,
-  ResearchEmpty,
-  ResearchHeader,
-  StatTile,
-} from '@/components/layout/research-layout';
+import { PanelHeading, ResearchEmpty, StatTile } from '@/components/layout/research-layout';
 import { formatMetric, formatPercent } from '@/lib/format-number';
 import {
   fundDetailLink,
@@ -171,7 +167,7 @@ export function EtfDetailPage() {
         />
       ) : (
         <>
-          <ResearchHeader
+          <PageHeader
             title={detail.catalog.name}
             description={`${detail.catalog.symbol} · ${detail.catalog.assetClass} · ${detail.catalog.directionTag ?? '未分类'} · 交易所 ${detail.catalog.exchange}`}
             actions={

@@ -1,5 +1,6 @@
 import './selection-details.css';
 import { Button, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -23,12 +24,7 @@ import {
 } from '@/components/charts/market-chart-controls';
 import { StockFinancialChart } from '@/components/charts/stock-financial-chart';
 import { usePageChrome } from '@/components/layout';
-import {
-  PanelHeading,
-  ResearchEmpty,
-  ResearchHeader,
-  StatTile,
-} from '@/components/layout/research-layout';
+import { PanelHeading, ResearchEmpty, StatTile } from '@/components/layout/research-layout';
 import { Metric } from '@/components/ui/metric';
 import { formatMetric, formatPercent } from '@/lib/format-number';
 import { listBackLabel, listHref, readReturnEtf, resolveListOrigin } from '@/lib/list-origin';
@@ -174,7 +170,7 @@ export function StockDetailPage() {
         />
       ) : (
         <>
-          <ResearchHeader
+          <PageHeader
             title={detail.catalog.name}
             description={`${detail.catalog.symbol} · ${detail.catalog.industryName ?? '行业未分类'} · 交易所 ${detail.catalog.exchange}`}
             actions={
