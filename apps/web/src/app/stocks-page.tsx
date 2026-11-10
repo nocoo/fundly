@@ -1,4 +1,5 @@
 import { Button, Input, LayerCard } from '@nocoo/basalt';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
 import { MiniTrend } from '@/components/charts/mini-trend';
 import { usePageChrome } from '@/components/layout';
-import { ListPagination, ResearchEmpty, ResearchHeader } from '@/components/layout/research-layout';
+import { ListPagination, ResearchEmpty } from '@/components/layout/research-layout';
 import { FilterCheck } from '@/components/ui/filter-check';
 import { FilterChips } from '@/components/ui/filter-chips';
 import { FilterDropdown } from '@/components/ui/filter-dropdown';
@@ -267,7 +268,7 @@ export function StocksPage({ forcedLens }: { forcedLens?: StockLens }) {
 
   return (
     <>
-      <ResearchHeader
+      <PageHeader
         title={title}
         description={subtitle}
         actions={
