@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   workflow-lint:
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
     with:
       yamllint: true
       files: .github/workflows/source-release.yml
@@ -26,14 +26,14 @@ jobs:
 
   release-smoke:
     name: Deploy Workflow Smoke
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@af9a2b3f82c367d6eb6def5c3583ac717e0868ad # main 2026-10-26
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
     with:
       files: .github/workflows/deploy.yml
       required-reusable-workflow: nocoo/base-ci/.github/workflows/deploy-docker.yml
       yamllint: true
 
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
+    uses: nocoo/base-ci/.github/workflows/quality.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
     with:
       package-manager: bun
       runtime-version: "1.4.4"
