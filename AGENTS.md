@@ -45,7 +45,7 @@ Initialize an intended empty local database with `bun run db:init`; do not run c
 
 ## Testing and quality contract
 
-6DQ keeps its name with unified L1, L2/L3, G2 and D1; the owner merged former G1 into L1 on 2026-09-21. Statuses: `enforced`, `planned`, `manual`, `N/A`. Required unified L1: statements/branches/functions/lines each ≥95%, no skipped/focused tests, strict types and check-only lint with zero warnings/errors, installed hooks and failure rejection.
+Quality contract follows System1 slots (unified L1, L2/L3, G2 and D1). Statuses: `enforced`, `planned`, `manual`, `N/A`. Required unified L1: statements/branches/functions/lines each ≥95%, no skipped/focused tests, strict types and check-only lint with zero warnings/errors, installed hooks and failure rejection.
 
 | Piece | Requirement and current reality | Status | Evidence |
 | --- | --- | --- | --- |

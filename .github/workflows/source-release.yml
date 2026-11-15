@@ -39,12 +39,13 @@ jobs:
     steps:
       - name: Prove the tag passed main CI
         id: source
-        uses: nocoo/base-ci/.github/actions/release-source@1ea10ecab22b72512399485391603fe03a161016 # v2026.12
+        uses: nocoo/base-ci/.github/actions/release-source@777bbe4f9bacab8a91d8c01974480a6ee23d28e0 # v2026.15
         with:
           github-token: ${{ github.token }}
           expected-workflow-path: .github/workflows/ci.yml
           expected-workflow-name: CI
           expected-branch: main
+          required-quality-check: "quality / Z1: Gate"
           allowed-source-events: push
           source-run-id: ${{ inputs.source-run-id || '' }}
           tag: ${{ env.RELEASE_TAG }}
