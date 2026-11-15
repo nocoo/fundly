@@ -8,7 +8,7 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "hono": "4.13.12",
+    "hono": "4.13.16",
     "jose": "6.2.12"
   },
   "devDependencies": {
