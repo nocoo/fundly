@@ -17,6 +17,8 @@ interface AppShellProps {
   wallMode?: boolean;
 }
 
+const MOBILE_NAV_ID = 'fundly-mobile-nav';
+
 function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShellProps) {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
@@ -47,6 +49,7 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
           <SidebarDrawer
             open={mobileOpen}
             onOpenChange={setMobileOpen}
+            id={MOBILE_NAV_ID}
             returnFocusRef={menuButtonRef}
             title="导航菜单"
           >
@@ -62,6 +65,9 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
                   <AppHeaderMenuButton
                     ref={menuButtonRef}
                     label="打开导航菜单"
+                    aria-haspopup="dialog"
+                    aria-expanded={mobileOpen}
+                    aria-controls={mobileOpen ? MOBILE_NAV_ID : undefined}
                     onClick={() => setMobileOpen(true)}
                   />
                 ) : null

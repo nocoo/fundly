@@ -168,16 +168,31 @@ async function checkMobile() {
   };
   const button = () => document.querySelector<HTMLButtonElement>('[aria-label="打开导航菜单"]');
   await wait(button, 'menu trigger');
+  if (button()?.getAttribute('aria-haspopup') !== 'dialog')
+    throw new Error('menu trigger missing aria-haspopup="dialog"');
+  if (button()?.getAttribute('aria-expanded') !== 'false')
+    throw new Error('menu trigger is expanded before opening');
+  if (button()?.getAttribute('aria-controls'))
+    throw new Error('menu trigger references a drawer while it is closed');
   const main = document.querySelector('#main-content');
   const header = document.querySelector('#main-content > header');
   button()?.click();
   await wait(() => document.querySelector('[role="dialog"] a[href="/daily"]'), 'drawer opens');
+  if (button()?.getAttribute('aria-expanded') !== 'true')
+    throw new Error('menu trigger did not expand with the drawer');
+  const controls = button()?.getAttribute('aria-controls');
+  if (!controls) throw new Error('drawer is open without aria-controls');
+  const controlled = document.getElementById(controls ?? '');
+  if (controlled?.getAttribute('role') !== 'dialog')
+    throw new Error('aria-controls does not reference the drawer dialog');
   document.querySelector<HTMLAnchorElement>('[role="dialog"] a[href="/daily"]')?.click();
   await wait(
     () => location.pathname === '/daily' && !document.querySelector('[role="dialog"]'),
     'drawer closes',
   );
   await wait(() => document.activeElement === button(), 'focus returns to trigger');
+  if (button()?.getAttribute('aria-expanded') !== 'false')
+    throw new Error('menu trigger did not collapse after the drawer closed');
   if (document.querySelector('#main-content') !== main) throw new Error('Mobile main remounted');
   if (document.querySelector('#main-content > header') !== header)
     throw new Error('Mobile header remounted');
