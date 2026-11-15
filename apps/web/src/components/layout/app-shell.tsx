@@ -1,27 +1,15 @@
-import {
-  Button,
-  ContentIsland,
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from '@nocoo/basalt';
-import { AppHeader } from '@nocoo/basalt/components/app-header';
+import { ContentIsland, SidebarDrawer, SidebarProvider, ThemeToggle } from '@nocoo/basalt';
+import { AppHeader, AppHeaderMenuButton, ProjectLinks } from '@nocoo/basalt/components/app-header';
 import {
   AppMain,
   AppSkipLink,
   AppShell as BasaltAppShell,
 } from '@nocoo/basalt/components/app-shell';
-import { Menu } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
-import { Github } from '@/components/icons/github';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { HeaderTooltip, HexlyLink } from './header-links';
 import { Sidebar } from './sidebar';
-import { SidebarProvider, useSidebar } from './sidebar-context';
-import { ThemeToggle } from './theme-toggle';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -31,24 +19,15 @@ interface AppShellProps {
 
 function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShellProps) {
   const isMobile = useIsMobile();
-  const { mobileOpen, setMobileOpen } = useSidebar();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const { pathname } = useLocation();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname triggers close on route change
   useEffect(() => {
     setMobileOpen(false);
-  }, [pathname, setMobileOpen]);
-
-  useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [mobileOpen]);
+  }, [pathname]);
 
   // The last crumb is the current page title in AppHeader
   const fullCrumbs = [{ label: '首页', href: '/' }, ...breadcrumbs];
@@ -59,19 +38,20 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
       : [];
 
   return (
-    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+    <SidebarProvider collapsed={collapsed} onCollapsedChange={setCollapsed}>
       <BasaltAppShell>
         <AppSkipLink>跳至主内容</AppSkipLink>
         {!isMobile && !wallMode ? <Sidebar /> : null}
 
-        {isMobile ? (
-          <SheetContent
-            side="left"
-            className="w-[260px] max-w-[260px] border-0 bg-basalt-background p-0"
+        {isMobile && !wallMode ? (
+          <SidebarDrawer
+            open={mobileOpen}
+            onOpenChange={setMobileOpen}
+            returnFocusRef={menuButtonRef}
+            title="导航菜单"
           >
-            <SheetTitle className="sr-only">导航菜单</SheetTitle>
-            <Sidebar mobile />
-          </SheetContent>
+            <Sidebar mobile onNavigate={() => setMobileOpen(false)} />
+          </SidebarDrawer>
         ) : null}
 
         <AppMain>
@@ -79,43 +59,26 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
             <AppHeader
               leading={
                 isMobile ? (
-                  <HeaderTooltip label="打开导航菜单">
-                    <SheetTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="打开导航菜单"
-                        className="text-basalt-muted-foreground hover:text-basalt-foreground"
-                      >
-                        <Menu className="h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
-                      </Button>
-                    </SheetTrigger>
-                  </HeaderTooltip>
+                  <AppHeaderMenuButton
+                    ref={menuButtonRef}
+                    label="打开导航菜单"
+                    onClick={() => setMobileOpen(true)}
+                  />
                 ) : null
               }
               breadcrumbs={isMobile ? [] : ancestorCrumbs}
               title={currentTitle}
               actions={
                 <div className="flex items-center gap-1">
-                  <HeaderTooltip label="GitHub repository">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-basalt-muted-foreground hover:text-basalt-foreground"
-                      asChild
-                    >
-                      <a
-                        href="https://github.com/nocoo/fundly"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="GitHub repository"
-                      >
-                        <Github className="h-4 w-4" aria-hidden="true" strokeWidth={1.5} />
-                      </a>
-                    </Button>
-                  </HeaderTooltip>
-                  <HexlyLink />
-                  <ThemeToggle aria-label="切换主题" />
+                  <ProjectLinks github="nocoo/fundly" hexly="fundly" name="Fundly" />
+                  <ThemeToggle
+                    aria-label="切换主题"
+                    labels={{
+                      light: '切换为浅色主题',
+                      dark: '切换为深色主题',
+                      system: '跟随系统主题',
+                    }}
+                  />
                 </div>
               }
             />
@@ -135,16 +98,14 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
           </div>
         </AppMain>
       </BasaltAppShell>
-    </Sheet>
+    </SidebarProvider>
   );
 }
 
 export function AppShell({ children, breadcrumbs = [], wallMode = false }: AppShellProps) {
   return (
-    <SidebarProvider>
-      <AppShellInner breadcrumbs={breadcrumbs} wallMode={wallMode}>
-        {children}
-      </AppShellInner>
-    </SidebarProvider>
+    <AppShellInner breadcrumbs={breadcrumbs} wallMode={wallMode}>
+      {children}
+    </AppShellInner>
   );
 }

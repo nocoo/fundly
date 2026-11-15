@@ -1,7 +1,6 @@
 @source "../node_modules/@nocoo/basalt/dist/**/*.{js,jsx,ts,tsx}";
 @import "@nocoo/basalt/styles/tailwind";
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "./app/research-pages.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -121,28 +120,6 @@
 	--radius-lg: var(--basalt-radius);
 	--radius-md: calc(var(--basalt-radius) - 2px);
 	--radius-sm: calc(var(--basalt-radius) - 4px);
-
-	/* Animations */
-	--animate-accordion-down: accordion-down 0.2s ease-out;
-	--animate-accordion-up: accordion-up 0.2s ease-out;
-}
-
-@keyframes accordion-down {
-	from {
-		height: 0;
-	}
-	to {
-		height: var(--radix-accordion-content-height);
-	}
-}
-
-@keyframes accordion-up {
-	from {
-		height: var(--radix-accordion-content-height);
-	}
-	to {
-		height: 0;
-	}
 }
 
 /*
