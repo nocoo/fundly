@@ -1,3 +1,469 @@
+## 0.6.13 — 2026-11-18
+
+- Merge pull request #110 from nocoo/chore/basalt-3.5.1
+- chore(web): adopt basalt 3.5.1
+- ci: migrate to system1 base-ci v2026.15 native mode
+- chore(worker): bump hono to 4.13.16 for OSV findings
+- fix(web): expose drawer semantics on mobile menu button
+- chore(web): upgrade @nocoo/basalt to 3.3.6
+- Merge pull request #108 from nocoo/cursor/base-ci-v2026.12-slots-fa1c
+- ci: pin release-source action to base-ci v2026.12
+- ci: pin deploy-docker.yml to base-ci v2026.12
+- ci: migrate to base-ci v2026.12 quality.yml strict slot-status
+- Merge pull request #107 from nocoo/cursor/page-header-cleanup-8729
+- ci: pin base-ci to v2026.10 (#106)
+- refactor(web): 基金/股票/ETF 详情页改用 basalt PageHeader
+- refactor(web): 财经日报列表与详情改用 basalt PageHeader
+- refactor(web): 股票与 ETF 列表页改用 basalt PageHeader
+- refactor(web): 基金浏览与选基页改用 basalt PageHeader
+- refactor(web): 仪表盘/设置/备份/404 改用 basalt PageHeader
+- refactor(web): 移除 ResearchHeader 包装与页头字号覆盖
+- ci: pin base-ci to v2026.10
+- Merge pull request #105 from nocoo/cursor/deps-biome-2-6-6-ea48
+- chore: bump version 0.6.11 → 0.6.12
+- chore(deps): bump @biomejs/biome 2.6.4 → 2.6.6
+- Merge pull request #104 from nocoo/cursor/upgrade-basalt-3-4a42
+- chore(web): upgrade @nocoo/basalt from 2.1.8 to 3.2.1
+- macro-daily: 2026-11-07
+- macro-daily: 2026-11-06
+- content(macro-daily): 2026-11-05
+- content(macro-daily): 2026-11-04
+- content: macro-daily 2026-11-03
+- content: macro-daily 2026-11-02
+- Merge pull request #102 from nocoo/cursor/biome-2-6-4-6c17
+- chore: bump version 0.6.10 → 0.6.11
+- chore(deps): bump @biomejs/biome 2.6.2 → 2.6.4
+- fix(daily-sync): jp4 host 100.101.0.4, ssh keepalive, JSON-safe age hours
+- content: macro-daily 2026-10-31
+- content: macro-daily 2026-10-30
+- content(macro-daily): add 2026-10-29 brief (catch-up run)
+- chore(sync): bump refresh_select timeout 4h→6h (14400→21600s)
+- feat: adopt the new penguin identity
+- content(macro-daily): add 2026-10-28 brief
+- Merge pull request #101 from nocoo/cursor/docker-restart-fundly-app-b8fc
+- fix(deploy): allow compose restart without IMAGE_SHA in host env (#100)
+- fix(daily-sync): restart fundly-app via docker instead of compose
+- fix(scripts): jp4 remote_verify 用 python3（无 sqlite3 CLI）
+- fix(scripts): daily-sync 默认用机群 id_rsa 与 jp4 Tailscale IP
+- feat(scripts): Studio daily-sync 发布 jp4 生产库（替代 Railway） (#99)
+- fix(deploy): default verify phase when environment vars unset (#98)
+- fix(deploy): align remote /api/me verify with session contract (#97)
+- Merge pull request #95 from nocoo/cursor/jp4-docker-deploy-bc48
+- ci: lint deploy workflow and split release
+- docs: add jp4 deploy runbook
+- feat: add jp4 docker deploy assets
+- content: macro-daily 2026-10-27
+- content: macro-daily 2026-10-26
+- fix(release): sync runtime/UI versions and guard in CI tests (#93)
+- chore: release v0.6.10
+- deps: bump @types/bun to 1.4.4
+- fix(security): bump Bun to 1.4.4 for CVE-2026-111497 (#92)
+- content(macro-daily): 2026-10-24
+- content(macro-daily): 2026-10-23
+- Merge pull request #90 from nocoo/cursor/repin-base-ci-node-security-46f0
+- docs: sync base-ci pin to main 2026-10-22
+- chore(ci): re-pin base-ci to ac635753
+- Merge pull request #89 from nocoo/cursor/deps-biome-a6fe
+- chore: bump version to 0.6.9
+- chore(deps): upgrade @biomejs/biome to 2.6.2
+- content(macro-daily): add 2026-10-22 daily
+- chore: release 0.6.8
+- chore: merge origin main
+- fix: retain app shell during navigation
+- Merge pull request #87 from nocoo/cursor/bump-vite-8.3.3-3c85
+- fix(web): bump vite to 8.3.3 for OSV advisories
+- content(macro-daily): add 2026-10-21 daily
+- content(macro-daily): add 2026-10-20 daily
+- content(macro-daily): refine 2026-10-19 gold tension wording
+- content(macro-daily): add 2026-10-19 Monday brief
+- content(macro-daily): add 2026-10-17 Saturday brief
+- fix(macro): tolerate partial Fuyao quotes and mid-session SHFE reports
+- feat(api): origin/CSRF policy for session state-changing requests
+- feat(web): Settings API Tokens management UI
+- feat(api): scoped read-only API tokens in separate auth.db + full /api/read coverage and docs/api.md
+- content: add macro-daily 2026-10-16
+- content: macro-daily 2026-10-15 (hot CPI 3.7%; SOX six-day slide, ASML/CoreWeave; BAC fine; 10Y ~5.19% after 5.30% spike; Brent 106.06; A-shares -0.88%)
+- ci: upgrade base-ci to v2026.9
+- content: macro-daily 2026-10-14 (bank beats sold, CXMT memory shock; 10Y 5.217%; Brent 105.69; A-shares reclaim 3800)
+- Merge pull request #85 from nocoo/chore/deps-20261013-102000
+- chore(deps): upgrade source-map-js to 1.2.2 (g2)
+- chore(deps): upgrade @types/bun to 1.4.3 (#84)
+- content: macro-daily 2026-10-13 (indices flat near highs, tech rotates out; Brent 106.65 on Saudi/Hormuz attacks; A-share growth slides, banks record)
+- content: macro-daily 2026-10-12
+- content: add macro-daily 2026-10-10 (Fri rebound after OpenAI jitters, weekly gains; A-shares soft post-reopen, HK/ADR surge; Brent ~105)
+- content: add macro-daily 2026-10-08 (10Y hits 24-yr high then eases on strong auction, Fed minutes eye year-end hike, A-share reopens today)
+- content: add macro-daily 2026-10-07 (S&P/Nasdaq records, yields ease, A-share reopens 10-08)
+- content: add macro-daily 2026-10-06 (Nasdaq record, oil dips on G7 release, A-share reopens 10-08)
+- content: add macro-daily 2026-10-05 (weekend Hormuz/OPEC+, A-share reopens 10-08)
+- Merge pull request #17 from nocoo/co/20260921-fundly-cleanup
+- docs: allow direct main pushes
+- Merge pull request #49 from nocoo/content/macro-daily-2026-10-03
+- content: add macro-daily 2026-10-03 (NFP soft, US Fri rebound)
+- Merge pull request #47 from nocoo/content/macro-daily-2026-10-02
+- content: add macro-daily 2026-10-02
+- Merge pull request #46 from nocoo/user/nocoli/release-0.6.7
+- chore: release 0.6.7
+- chore: upgrade vite and react plugin
+- chore: upgrade tailwind-merge to 3.7.0
+- chore: upgrade react-router to 8.4.0
+- chore: upgrade lucide-react to 1.49.0
+- chore: upgrade react and its types to 19.3
+- chore: upgrade jose to 6.2.12
+- chore: upgrade hono to 4.13.12
+- chore: upgrade bun types to 1.4.2
+- chore: upgrade biome to 2.5.15
+- test: validate the drawdown outlier fixture
+- chore: remove obsolete cloudflare runtime
+- Merge pull request #45 from nocoo/daily/2026-10-01
+- content: add macro-daily 2026-10-01 (Thu)
+- Merge pull request #28 from nocoo/daily/2026-09-30
+- content: add macro-daily 2026-09-30 (Wed)
+- Merge pull request #27 from nocoo/daily/2026-09-29
+- fix(worker): override undici to 7.29.1 for OSV GHSA-3wwx-pv8p-q78v
+- content: add macro-daily 2026-09-29 (Tue)
+- Merge pull request #26 from nocoo/daily/2026-09-28
+- content: add macro-daily 2026-09-28 (Mon)
+- Merge pull request #25 from nocoo/daily/2026-09-26
+- content: add macro-daily 2026-09-26 (Sat)
+- Merge pull request #24 from nocoo/daily/2026-09-25
+- content: add macro-daily 2026-09-25 (Fri)
+- Merge pull request #23 from nocoo/content/macro-daily-2026-09-24
+- content: add macro-daily 2026-09-24
+- Merge pull request #22 from nocoo/docs/remove-agent-alias
+- docs: remove obsolete agent alias
+- Merge pull request #21 from nocoo/docs/agents-md-rollout
+- docs: migrate handbook to agents
+- Merge pull request #20 from nocoo/content/macro-daily-2026-09-23
+- content(macro-daily): 2026-09-23 财经日报（油松延续/美股分化/A股放量窄幅）
+- Merge pull request #19 from nocoo/content/macro-daily-2026-09-22
+- content(macro-daily): 2026-09-22 财经日报（FOMC周后首个交易日）
+- content: macro-daily 2026-09-21
+- Remove cut the unused toSqlBindings converter, forwarding module, and duplicate
+- Merge pull request #16 from nocoo/content/macro-daily-2026-09-18
+- content(macro-daily): 2026-09-18 财经日报（FOMC 次日跟进）
+- Merge pull request #15 from nocoo/docs/claude-standard-20260917
+- docs: standardize agent handbook and retrospective
+- Merge pull request #14 from nocoo/chore/basalt-2.1.8
+- fix: upgrade basalt and align runtime version
+- Merge pull request #13 from nocoo/feat/hexly-header-links-20260917
+- fix(web): satisfy header accessibility and formatting rules
+- feat(web): add Hexly project link and header tooltips
+- Merge pull request #12 from nocoo/docs/macro-daily-intro-column
+- chore: bump to 0.6.6 for daily 简介 column UI
+- docs(daily): add optional 简介 column to macro-daily quote tables
+- Merge pull request #11 from nocoo/content/macro-daily-2026-09-17
+- content(macro-daily): 2026-09-17 财经日报（FOMC 决议落地）
+- Merge pull request #10 from nocoo/content/macro-daily-2026-09-16
+- content(macro-daily): 2026-09-16 财经日报（FOMC 议息第二日）
+- Merge pull request #9 from nocoo/ci/harden-20260915-191147
+- ci: enforce quality gate and verify source releases
+- content(macro-daily): 2026-09-15 财经日报（FOMC 议息首日）
+- content(macro-daily): 2026-09-14 财经日报（FOMC 周开局）
+- fix: patch worker scan dependencies
+- fix: distinguish public metrics from secrets
+- fix: preserve verified base-ci integration
+- fix: remove coverage-path from fundly since unit test commands do not emit coverage
+- chore: preserve coverage-path report artifact in quality workflow
+- chore: migrate ci to base-ci quality workflow
+- content(macro-daily): 2026-09-12 财经日报（周六追更美东周五）
+- chore: release 0.6.5
+- fix: check database health without caching
+- content(macro-daily): 2026-09-11 财经日报
+- chore: upgrade basalt to 2.1.7
+- Merge pull request #7 from nocoo/polish/daily-detail-back-arrow
+- fix(daily): left back arrow on detail, ResearchHeader leading (v0.6.4)
+- Merge pull request #6 from nocoo/polish/daily-ux-prose-width
+- feat(daily): widen limited layout, note popovers, content bullets (v0.6.3)
+- Merge pull request #5 from nocoo/polish/daily-ux-width-layout
+- feat(daily): width mode, 2×2 prose layout, metric info popovers
+- content(daily): add 2026-09-10 macro brief
+- Merge pull request #4 from nocoo/polish/daily-ui-quote-emphasis
+- feat(daily): polish quote UI and dual-list news contract
+- content(daily): restructure 2026-09-09 with China ETFs and good/bad news
+- content(daily): real 2026-09-09 macro daily from Yahoo/FRED/Cboe
+- Merge pull request #3 from nocoo/feat/macro-daily
+- fix(daily): biome-format US 10Y matcher in daily-md
+- fix(daily): narrow StatTile aliases; keep quoted source commas
+- fix(daily): key routes by filename; keep escaped table pipes
+- feat(web): hybrid research UI for macro daily
+- feat(worker): parse weekday/session/sources on daily API
+- docs(daily): professional macro-daily content contract
+- docs(daily): align macro-daily to potato-style content contract
+- feat(web): add /daily list and markdown detail pages
+- feat(worker): serve macro daily reports from content/macro-daily
+- docs: add macro daily content contract and sample report
+- chore: release 0.6.1
+- chore: bump basalt to 2.1.2
+- Merge pull request #2 from nocoo/co/20260905-fundly-cleanup
+- docs: standardize bilingual project README
+- chore: release 0.6.0
+- docs: align deployment notes for 0.6.0
+- docs: record selection coverage and final acceptance
+- feat(web): deepen research details and preserve drilldown origins
+- fix(web): bound selection inputs and preserve explicit filter states
+- test(api): cover selection filters and disclosure contracts
+- fix(selection): validate collection and preserve research snapshots
+- fix(selection): refine stock currency alignment, financial slice tri-state, and filter controls
+- feat(web): add interactive sorting, filters, and pick thresholds for ETF and stock lists
+- feat(web): implement ETF and stock research screens, details, and navigation
+- fix(api): align selection DTOs, negative valuation order, and query sanitization
+- feat(api): implement selection readonly endpoints for etfs and stocks
+- feat(selection): implement selection schema, repo, calc and cli
+- docs: plan ETF and stock research workspaces
+- chore: release 0.5.0
+- fix: synchronize package release versions
+- docs: document macro research features
+- feat: unify fund research page design
+- feat: add macro market dashboard
+- feat: expose market research api
+- feat: collect macro market data
+- chore: release 0.4.0
+- fix(scripts): match APP_VERSION string constant in sidebar when cutting release
+- fix(web): align sidebar logo position and eliminate toggle jitter
+- fix(web): remove low-contrast hover link color and use hover underline
+- fix(web): resolve codex review issues on table wrap, contrast, dom nesting and unstyled collapsible
+- fix(web): refine chart card overflow, safe danger tokens and collapsible trigger
+- fix(web): address review findings on table scroll, tooltip clipping and link semantics
+- feat(web): migrate pages and base components to basalt controls
+- feat(web): migrate app shell, login card and sidebar to basalt
+- chore: remove unused fundsFiltersEqual helper
+- chore: release 0.3.0
+- fix: detect share after product tags
+- fix: parse share letters after normalize
+- fix: add other share class score
+- fix: score stored share class only
+- fix: parse share letters in js first
+- fix: trim share base after suffix
+- fix: block currency etf share tails
+- fix: shrink share-letter sql under limit
+- fix: glob currency share suffixes too
+- fix: match share letters case-sensitively
+- fix: exclude unknown sales from fee peer
+- fix: align share sql and cost fee docs
+- fix: prefer select fee and flatten aliases
+- fix: join select table for cost sort
+- fix: sort costs from fees without select table
+- fix: sort unknown fees after known costs
+- fix: compute worst month from prior close
+- fix: restore money dim from stored filters
+- fix: empty sql when sort column missing
+- fix: keep first grand total fund series
+- feat: switch money yield and keep select q
+- fix: project missing select columns as null
+- test: cover select filters and siblings
+- test: cover hold dca and structure metrics
+- feat: show grand total chart and siblings
+- fix: compute select from readonly snapshot
+- fix: assert v2 and select metric columns
+- feat: parse picks filters in select pages
+- fix: bind search score after where
+- fix: complete select query capabilities
+- fix: empty select sql when satellite tables missing
+- fix: picks sql dca months and hs300 align
+- docs: sync schema scripts and ui for select
+- feat: add select pages and restore nav group
+- feat: expose select sort keys and picks filters
+- feat: add select metrics and migrate v2 restore
+- fix: compute risk and long ranks on tr nav
+- fix: compare schema version with max row
+- docs: align grandtotal wording and i fixture
+- docs: exclude etf lof fof from share f
+- docs: close search signal and chart axes
+- docs: close structure search review holes
+- docs: name real-time-fund license
+- docs: fix excess bench and search recall
+- docs: credit real-time-fund reference
+- docs: learn search and structure from jigubao
+- docs: include F/G share classes
+- docs: close sixth select design review
+- docs: close fifth select design review
+- docs: close fourth select design review
+- docs: fix select design third review
+- docs: close remaining select design review
+- docs: fix select design after review
+- docs: add fund screening system design
+- feat: move data stats into settings
+- fix: put detail back beside title
+- feat: add back button on fund detail
+- feat: restore list origin and persist filters
+- fix: typecheck process.env as auth env
+- fix: accept schema v2 in empty snapshot test
+- chore: merge origin/main for 0.2.0 release
+- chore: release 0.2.0
+- fix: bump login page version on release
+- ci: gate railway deploys on github actions
+- fix: require google login on local api
+- feat: add google oauth login page
+- docs: record railway deploy walkthrough
+- docs: record live railway volume seed
+- docs: add railway volume deploy
+- feat: add railway serve and volume image
+- docs: drop cloudflare worker and d1
+- refactor: drop d1 from api and ui
+- chore: remove d1 import scripts
+- docs: note async backup job
+- fix: run backup as background job
+- fix: align backup action column
+- fix: align backup table cell padding
+- fix: accept post for backy config save
+- fix: keep backup form fields enabled
+- docs: document stored backy credentials
+- feat: add dedicated backup page
+- feat: store backy credentials in sqlite
+- docs: mention backy on settings
+- feat: add backy panel on settings
+- test: cover remaining backy http helpers
+- docs: document backup restore commands
+- feat: add backup and restore cli
+- feat: add sqlite gzip snapshot
+- feat: add backy http client
+- docs: fix backy wal and rename races
+- docs: tighten backy restore safety
+- docs: add backy backup design
+- docs: record money-pool fetch timings
+- feat: chart money-fund yield when nav empty
+- feat: persist money-fund yield series
+- fix: probe risk caps with exists
+- fix: ranking url cleanup and row clicks
+- fix: join risk metrics only for risk sorts
+- fix: keep scale axis ticks compact
+- feat: add fund ranking page
+- feat: extend fund list query for ranking
+- feat: add bun run dev:all
+- fix: align growth dual axes and chart padding
+- fix: read manager and fees from satellites
+- fix: drop denormalized basic-info columns
+- fix: invert rank axis and restack info
+- fix: show nav with three decimal places
+- feat: show rank triples and taller nav chart
+- feat: store rank as place, peers, percent
+- refactor: drive detail returns from metrics
+- refactor: extract fund metrics calc package
+- docs: record rank refresh runtime
+- fix: share return math and require acc
+- fix: ignore crawled long-window returns
+- feat: live-fill empty detail return windows
+- feat: add manual peer rank refresh tool
+- feat: dual-axis nav vs comparison growth
+- feat: color growth bench and ref lines
+- feat: add copyable detail field control
+- fix: keep chart origin ticks from overlapping
+- feat: move basic info above detail grid
+- feat: put basic info first in detail
+- fix: center chart legends below plots
+- feat: add detail legends and holder pie
+- feat: backfill since-inception from nav
+- fix: wrap detail field values below labels
+- fix: left-align detail field metrics
+- fix: right-align numbers only in tables
+- fix: drop net assets from allocation %
+- feat: chart latest allocation snapshots
+- feat: widen detail time-series column
+- feat: lay out fund detail in 3 cols
+- feat: add time-scale and radar charts
+- feat: fetch nav by date window
+- feat: lead palette with logo orange
+- feat: mask empty fund growth charts
+- feat: add header github repo link
+- feat: show extras on fund detail
+- fix: omit pinyin from fund detail
+- feat: parse fund extras in detail api
+- feat: browse benchmarks in columns
+- feat: make fund table rows clickable
+- fix: drop emphasized table link color
+- fix: stabilize chart prefs snapshot
+- feat: adopt pew chart badge colors
+- feat: overlay growth reference lines
+- feat: filter funds by type levels
+- feat: split fund types into badges
+- feat: show detail fields in four cols
+- feat: prefix plus on up returns
+- feat: apply unified number display
+- feat: add quote color setting
+- feat: add number format helpers
+- fix: keep fund search ime-safe
+- docs: note four-layer shell tokens
+- fix: restore four-layer luminance
+- feat: restyle source toggle
+- feat: standardize filter controls
+- feat: extract recharts chart helpers
+- docs(phase2): full coverage report + sync 02-SCHEMA/03-SCRIPTS
+- feat(satellites): fees + manager + portfolio fetchers + scripts
+- feat(dividend): fund_dividend fetcher via fhsp HTML
+- feat(analytics): local risk metrics (vol/mdd/sharpe/sortino/calmar)
+- feat(schema): add 6 satellite tables for Phase 2
+- fix: refuse implicit seed snapshot reuse
+- fix: reuse existing seed snapshot file
+- fix: seed from immutable sqlite snapshot
+- fix: pin seed resume to sqlite snapshot
+- fix: skip seed files by packed output
+- fix: retry and resume d1 seed files
+- feat: allow seeding a single d1 table
+- fix: keep sql bindings json-safe
+- fix: type query params as sql bindings
+- fix: flush oversized seed rows immediately
+- docs: list script typecheck and local worker
+- fix: parse wrangler token from json
+- fix: type sqlite bindings without never
+- fix: reject fractional pages below one
+- fix: pack seed sql under d1 size limit
+- docs: document seed migrate and local d1
+- fix: surface secondary dashboard nav errors
+- fix: read wrangler token via auth command
+- fix: clamp fund page and mark sort state
+- fix: require access token for live probe
+- fix: typecheck import and local api scripts
+- feat: seed empty d1 from sql files
+- chore: release 0.1.2
+- docs: document d1 browse and import
+- fix: probe live against schema version
+- fix: show matching app version in sidebar
+- fix: report worker data source as d1
+- fix: show dashboard load and error states
+- fix: clamp non-finite fund list pages
+- fix: return newest nav window for charts
+- fix: apply migrations and accept access probe
+- fix: read changelog from previous tag
+- fix: import nav after date watermark
+- fix: upsert mutable fund tables on import
+- fix: run local api from worker package
+- fix: typecheck worker bindings without d1 types
+- fix: keep d1 insert batches under bind limit
+- chore: release 0.1.1
+- ci: add github quality and release workflows
+- feat: add fund browse detail and source toggle
+- feat: add fund query apis and local sqlite server
+- feat: add fundly-db and incremental d1 import
+- merge: integrate remote docs 01-05 with ui 06-07
+- docs: renumber docs (01-05), add 03-SCRIPTS.md manual, add CLAUDE.md
+- feat: add fetch:daily script for incremental refresh
+- test: assert cloned asset response identity
+- fix: pin wrangler local upstream host
+- fix: nav prefix match and aria-current
+- fix: fail-closed local auth host matching
+- fix: clone asset responses for headers
+- docs: clarify live probe and dashboard
+- chore: commit wrangler generated types
+- feat: add not-found route
+- fix: apply security headers to spa
+- fix: sidebar identity and nav a11y
+- docs: document multi-package web install
+- fix: restore local api auth bypass
+- fix: disable workers.dev preview entry
+- docs: document lizheng.blog profile lookup
+- feat: lookup sidebar profile from lizheng.blog
+- docs: record confirmed cf access aud
+- chore: keep worker static dir in git
+- feat: scaffold web ui and cf worker
+- docs: add ui architecture and dashboard docs
+- feat: resumable fetch — skip funds already in performance table
+- docs(readme): update MVP data size estimate based on 100-fund sample
+- test: unit tests reaching 95.41% func / 99.75% line coverage
+- feat: implement db schema, http/pool utils, eastmoney fetcher, cli scripts
+- docs: add README, architecture, data sources, schema, credits
+- chore: scaffold project (bun + ts 7.0.2 + biome + sqlite)
+- Initial commit
+
 ## 0.6.10 — 2026-10-24
 
 - Upgrade `@types/bun` to 1.4.4.

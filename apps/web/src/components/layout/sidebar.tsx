@@ -52,7 +52,7 @@ import {
 import { sidebarUserState } from '@/lib/user';
 import { cn, getAvatarColor } from '@/lib/utils';
 
-const APP_VERSION = '0.6.12';
+const APP_VERSION = '0.6.13';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Award,
