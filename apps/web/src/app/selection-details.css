@@ -33,7 +33,7 @@
 
 .selection-source {
   font-size: 11px;
-  color: var(--color-muted-foreground);
+  color: hsl(var(--basalt-muted-foreground));
   white-space: nowrap;
 }
 

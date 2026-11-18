@@ -1,11 +1,11 @@
 import { Button, Input } from '@nocoo/basalt';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@nocoo/basalt/icons';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { SeriesChart } from '@/components/charts/series-chart';
+import { TypeBadge } from '@/components/funds/type-badge';
 import { ResearchEmpty } from '@/components/layout/research-layout';
-import { TypeBadge } from '@/components/ui/type-badge';
 import { DEFAULT_BENCHMARKS } from '@/lib/benchmark-defaults';
 import { formatMetric } from '@/lib/format-number';
 import { buildTypeTree } from '@/lib/fund-type';

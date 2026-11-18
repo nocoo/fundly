@@ -1,5 +1,5 @@
 import { Button } from '@nocoo/basalt';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy } from '@nocoo/basalt/icons';
 import { type ReactNode, useEffect, useState } from 'react';
 import { writeClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';

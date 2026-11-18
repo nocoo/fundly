@@ -1,10 +1,10 @@
 import { Button, LayerCard } from '@nocoo/basalt';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from '@nocoo/basalt/icons';
 import { Link } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { ResearchEmpty } from '@/components/layout/research-layout';
-import { Metric } from '@/components/ui/metric';
+import { Metric } from '@/components/market/metric';
 import { formatMetric } from '@/lib/format-number';
 import { CandlestickChart } from './candlestick-chart';
 import {

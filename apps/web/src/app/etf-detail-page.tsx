@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { ArrowLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight } from '@nocoo/basalt/icons';
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import useSWR from 'swr';

@@ -1,5 +1,5 @@
 import { Button, LayerCard } from '@nocoo/basalt';
-import { ArrowLeft, ArrowRight, Inbox } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Inbox } from '@nocoo/basalt/icons';
 import type { ReactNode } from 'react';
 import { formatCount } from '@/lib/format-number';
 import { cn } from '@/lib/utils';

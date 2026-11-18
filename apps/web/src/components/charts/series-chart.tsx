@@ -61,7 +61,7 @@ function TimeXTick({
       dy={12}
       textAnchor={anchor}
       fontSize={CHART_TYPE.axisFontSize}
-      fill="hsl(var(--chart-axis))"
+      fill="hsl(var(--basalt-chart-axis))"
     >
       {formatMonthTick(payload.value)}
     </text>

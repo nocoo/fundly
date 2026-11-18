@@ -17,7 +17,7 @@ export function ChartEmptyMask({
         aria-hidden="true"
         viewBox="0 0 400 160"
         preserveAspectRatio="none"
-        className="h-full w-full text-chart-1"
+        className="h-full w-full text-basalt-chart-1"
       >
         <path
           d="M0 110 C40 108 55 92 90 88 C130 84 150 102 190 70 C230 38 250 48 290 42 C330 36 350 58 400 30"
@@ -32,8 +32,8 @@ export function ChartEmptyMask({
           opacity="0.08"
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center bg-secondary/55 backdrop-blur-md">
-        <p className="text-sm text-muted-foreground">{label}</p>
+      <div className="absolute inset-0 flex items-center justify-center bg-basalt-secondary/55 backdrop-blur-md">
+        <p className="text-sm text-basalt-muted-foreground">{label}</p>
       </div>
     </div>
   );

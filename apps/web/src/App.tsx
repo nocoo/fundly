@@ -1,4 +1,5 @@
 import { LinkProvider, ThemeProvider, TooltipProvider } from '@nocoo/basalt';
+import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import { lazy, Suspense } from 'react';
 import { Route, Link as RouterLink, Routes } from 'react-router';
 import { AppLayout } from '@/components/layout';
@@ -24,6 +25,10 @@ const RankingRedirect = lazy(() =>
 const NotFound = lazy(() => import('@/app/not-found-page'));
 const Login = lazy(() => import('@/app/login-page'));
 
+const FUNDLY_PALETTE = {
+  primary: { light: '16 81% 54%', dark: '16 75% 56%' },
+} as const;
+
 function AppLink({
   href,
   children,
@@ -46,47 +51,49 @@ function AppLink({
 export function App() {
   return (
     <ThemeProvider>
-      <LinkProvider render={AppLink}>
-        <TooltipProvider>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <Suspense fallback={<LoadingScreen />}>
-                  <Login />
-                </Suspense>
-              }
-            />
-            <Route
-              element={
-                <RequireAuth>
-                  <AppLayout />
-                </RequireAuth>
-              }
-            >
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/market" element={<Market />} />
-              <Route path="/daily" element={<Daily />} />
-              <Route path="/daily/:date" element={<DailyDetail />} />
-              <Route path="/funds" element={<Funds />} />
-              <Route path="/funds/:code" element={<FundDetail />} />
-              {/* 选 ETF 系列路由 */}
-              <Route path="/etfs" element={<Etfs forcedLens="browse" />} />
-              <Route path="/etfs/:symbol" element={<EtfDetail />} />
-              <Route path="/select-etf/:lens" element={<Etfs />} />
-              {/* 选股系列路由 */}
-              <Route path="/stocks" element={<Stocks forcedLens="browse" />} />
-              <Route path="/stocks/:symbol" element={<StockDetail />} />
-              <Route path="/select-stock/:lens" element={<Stocks />} />
-              <Route path="/select/:lens" element={<Select />} />
-              <Route path="/ranking" element={<RankingRedirect />} />
-              <Route path="/backup" element={<Backup />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </TooltipProvider>
-      </LinkProvider>
+      <AccentProvider defaultAccent="primary" persist={false} paletteOverrides={FUNDLY_PALETTE}>
+        <LinkProvider render={AppLink}>
+          <TooltipProvider>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <Suspense fallback={<LoadingScreen />}>
+                    <Login />
+                  </Suspense>
+                }
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <AppLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/market" element={<Market />} />
+                <Route path="/daily" element={<Daily />} />
+                <Route path="/daily/:date" element={<DailyDetail />} />
+                <Route path="/funds" element={<Funds />} />
+                <Route path="/funds/:code" element={<FundDetail />} />
+                {/* 选 ETF 系列路由 */}
+                <Route path="/etfs" element={<Etfs forcedLens="browse" />} />
+                <Route path="/etfs/:symbol" element={<EtfDetail />} />
+                <Route path="/select-etf/:lens" element={<Etfs />} />
+                {/* 选股系列路由 */}
+                <Route path="/stocks" element={<Stocks forcedLens="browse" />} />
+                <Route path="/stocks/:symbol" element={<StockDetail />} />
+                <Route path="/select-stock/:lens" element={<Stocks />} />
+                <Route path="/select/:lens" element={<Select />} />
+                <Route path="/ranking" element={<RankingRedirect />} />
+                <Route path="/backup" element={<Backup />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </TooltipProvider>
+        </LinkProvider>
+      </AccentProvider>
     </ThemeProvider>
   );
 }

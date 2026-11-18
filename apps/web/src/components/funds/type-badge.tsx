@@ -1,5 +1,6 @@
+import { Badge } from '@nocoo/basalt';
 import { splitFundType } from '@/lib/fund-type';
-import { typeBadgeClass } from '@/lib/type-badge';
+import { typeBadgeVariant } from '@/lib/type-badge';
 import { cn } from '@/lib/utils';
 
 export function TypeBadge({
@@ -13,16 +14,16 @@ export function TypeBadge({
 }) {
   if (!label) return null;
   return (
-    <span
+    <Badge
+      variant={typeBadgeVariant(label)}
       className={cn(
-        'inline-flex max-w-full items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+        'max-w-full text-[11px]',
         truncate ? 'truncate' : 'whitespace-normal break-all',
-        typeBadgeClass(label),
         className,
       )}
     >
       {label}
-    </span>
+    </Badge>
   );
 }
 

@@ -1,6 +1,6 @@
 import { Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowLeft, ArrowUpRight, FileQuestion } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, FileQuestion } from '@nocoo/basalt/icons';
 import { Link } from 'react-router';
 import { usePageChrome } from '@/components/layout';
 

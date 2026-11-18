@@ -29,7 +29,7 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import useSWR from 'swr';
@@ -534,7 +534,7 @@ export default function MarketPage() {
         />
         {error ? (
           <LayerCard className="flex shrink-0 items-center justify-between gap-3 p-3">
-            <p role="alert" className="text-xs text-destructive-text">
+            <p role="alert" className="text-xs text-basalt-destructive">
               市场数据加载失败{overview?.ready ? '，当前保留上次数据。' : '。'}
             </p>
             <Button variant="outline" size="sm" onClick={() => void mutate()}>
@@ -669,19 +669,19 @@ export default function MarketPage() {
                             count: breadth.upCount,
                             color:
                               quoteColor === 'red-up'
-                                ? 'var(--color-destructive-text)'
-                                : 'var(--color-success-text)',
+                                ? 'hsl(var(--basalt-destructive))'
+                                : 'var(--basalt-success)',
                           },
                           {
                             count: breadth.flatCount,
-                            color: 'var(--color-basalt-muted-foreground)',
+                            color: 'hsl(var(--basalt-muted-foreground))',
                           },
                           {
                             count: breadth.downCount,
                             color:
                               quoteColor === 'red-up'
-                                ? 'var(--color-success-text)'
-                                : 'var(--color-destructive-text)',
+                                ? 'var(--basalt-success)'
+                                : 'hsl(var(--basalt-destructive))',
                           },
                         ].map((part, i) => (
                           <span
@@ -912,7 +912,7 @@ export default function MarketPage() {
                     <LayerCard.Loading label="正在加载K线" />
                   ) : mainBarsError ? (
                     <div className="flex h-full flex-col items-center justify-center gap-3">
-                      <p role="alert" className="text-sm text-destructive-text">
+                      <p role="alert" className="text-sm text-basalt-destructive">
                         K 线数据加载失败
                       </p>
                       <Button variant="outline" size="sm" onClick={() => void mutateMainBars()}>
@@ -1265,10 +1265,10 @@ export default function MarketPage() {
                         <span
                           className={cn(
                             s.lastStatusCode === 200
-                              ? 'text-success-text'
+                              ? 'text-basalt-success'
                               : s.lastStatusCode === 206
-                                ? 'text-warning-text'
-                                : 'text-destructive-text',
+                                ? 'text-basalt-warning'
+                                : 'text-basalt-destructive',
                           )}
                         >
                           {s.lastStatusCode === 200

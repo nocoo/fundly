@@ -76,9 +76,9 @@ export function CandlestickChart({
   }, []);
 
   const upColor =
-    quoteColor === 'red-up' ? 'var(--color-destructive-text)' : 'var(--color-success-text)';
+    quoteColor === 'red-up' ? 'hsl(var(--basalt-destructive))' : 'var(--basalt-success)';
   const downColor =
-    quoteColor === 'red-up' ? 'var(--color-success-text)' : 'var(--color-destructive-text)';
+    quoteColor === 'red-up' ? 'var(--basalt-success)' : 'hsl(var(--basalt-destructive))';
 
   const hasVolume = useMemo(() => {
     return bars.some(
@@ -408,7 +408,7 @@ export function CandlestickChart({
                 <text
                   x={containerWidth - margin.right + 4}
                   y={margin.top + priceHeight + 14}
-                  fontSize={CHART_TYPE.axisFontSize - 2}
+                  fontSize="var(--basalt-text-xs)"
                   fill={chartTickStyle('axis').fill}
                   className="font-mono tabular-nums"
                 >
@@ -472,7 +472,7 @@ export function CandlestickChart({
                   cy={activePoint.yClose}
                   r={2.5}
                   fill={activePoint.isUp ? upColor : downColor}
-                  stroke="var(--color-background, currentColor)"
+                  stroke="hsl(var(--basalt-background))"
                   strokeWidth={1}
                 />
               </g>

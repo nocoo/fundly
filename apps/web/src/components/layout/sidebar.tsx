@@ -37,8 +37,8 @@ import {
   TrendingUp,
   Trophy,
   Wallet,
-} from 'lucide-react';
-import { useLocation } from 'react-router';
+} from '@nocoo/basalt/icons';
+import { Link, useLocation } from 'react-router';
 import { useMe } from '@/hooks/use-me';
 import { resolveNavigationOrigin } from '@/lib/list-origin';
 import {
@@ -146,7 +146,11 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
     <BasaltSidebar resizable={!mobile} aria-label={mobile ? '主导航抽屉' : '主导航'}>
       <SidebarHeader>
         <SidebarBrand
-          logo={<img src="/logo-128.png" alt="" />}
+          logo={
+            <Link to="/" aria-label="Fundly 首页" onClick={onNavigate}>
+              <img src="/logo-128.png" alt="" />
+            </Link>
+          }
           name="fundly"
           version={`v${APP_VERSION}`}
           action={
@@ -176,6 +180,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
                     onClick={onNavigate}
                   >
                     <item.icon className="h-4 w-4" strokeWidth={1.5} />
+                    <span className="sr-only">{item.label}</span>
                   </SidebarIconItem>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={8}>

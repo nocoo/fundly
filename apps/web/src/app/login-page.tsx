@@ -1,6 +1,6 @@
 import { Button, LayerCard, ThemeToggle } from '@nocoo/basalt';
 import { ProjectLinks } from '@nocoo/basalt/components/app-header';
-import { ChartCandlestick, Globe2, LockKeyhole, Search } from 'lucide-react';
+import { ChartCandlestick, Globe2, LockKeyhole, Search } from '@nocoo/basalt/icons';
 import { Navigate, useSearchParams } from 'react-router';
 import LoadingScreen from '@/components/loading-screen';
 import { useMe } from '@/hooks/use-me';

@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { Cloud, CloudUpload, Loader2, RefreshCw } from 'lucide-react';
+import { Cloud, CloudUpload, Loader2, RefreshCw } from '@nocoo/basalt/icons';
 import { usePageChrome } from '@/components/layout';
 import { PanelHeading, StatTile } from '@/components/layout/research-layout';
 import { useBacky } from '@/hooks/use-backy';

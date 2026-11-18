@@ -1,52 +1,40 @@
+import {
+  ANIMATION_PROPS,
+  AXIS_CONFIG,
+  BAR_RADIUS,
+  getChartColor as basaltChartColor,
+  withAlpha as basaltWithAlpha,
+  CHART_COLORS,
+  CHART_TOOLTIP_CURSOR_BAR,
+  CHART_TOOLTIP_CURSOR_LINE,
+  CHART_TYPE,
+  type ChartTypeFace,
+  chartAxis,
+  chartFontSize,
+  chartMuted,
+  chartTextStyle,
+  chartTickStyle,
+  GRID_PROPS,
+  RESPONSIVE_CONTAINER_PROPS,
+} from '@nocoo/basalt/components/chart';
 import type { CSSProperties } from 'react';
 
-const PALETTE_SIZE = 14;
+const CHART_TOKENS = ['chart-1', 'chart-11', 'chart-5', 'chart-7', 'chart-24'] as const;
+
+function paletteIndex(index: number): number {
+  return ((index % CHART_COLORS.length) + CHART_COLORS.length) % CHART_COLORS.length;
+}
 
 export function getChartColor(index: number): string {
-  const safe = ((index % PALETTE_SIZE) + PALETTE_SIZE) % PALETTE_SIZE;
-  return `hsl(var(--chart-${safe + 1}))`;
+  return basaltChartColor(paletteIndex(index));
 }
 
 export function getChartToken(index: number): string {
-  const safe = ((index % PALETTE_SIZE) + PALETTE_SIZE) % PALETTE_SIZE;
-  return `chart-${safe + 1}`;
+  return CHART_TOKENS[paletteIndex(index)] ?? CHART_TOKENS[0];
 }
 
 export function withAlpha(token: string, alpha: number): string {
-  const pct = Math.min(1, Math.max(0, alpha));
-  return `hsl(var(--${token}) / ${pct})`;
-}
-
-export const CHART_TYPE = {
-  axisFontSize: 11,
-  legendFontSize: 12,
-  tooltipTitleSize: 12,
-  tooltipBodySize: 12,
-  tooltipDot: 8,
-  strokeWidth: 2,
-  gridDash: '3 3',
-  gridOpacity: 0.15,
-  areaFillAlpha: 0.18,
-} as const;
-
-export type ChartTypeFace = 'axis' | 'legend' | 'tooltipTitle' | 'tooltipBody';
-
-export function chartFontSize(face: ChartTypeFace): number {
-  if (face === 'legend') return CHART_TYPE.legendFontSize;
-  if (face === 'tooltipTitle') return CHART_TYPE.tooltipTitleSize;
-  if (face === 'tooltipBody') return CHART_TYPE.tooltipBodySize;
-  return CHART_TYPE.axisFontSize;
-}
-
-export function chartTextStyle(face: ChartTypeFace): { fontSize: number } {
-  return { fontSize: chartFontSize(face) };
-}
-
-export function chartTickStyle(face: ChartTypeFace = 'axis'): {
-  fontSize: number;
-  fill: string;
-} {
-  return { fontSize: chartFontSize(face), fill: 'hsl(var(--chart-axis))' };
+  return basaltWithAlpha(token, Math.min(1, Math.max(0, alpha)));
 }
 
 export const CHART_PLOT_MARGIN = {
@@ -55,28 +43,7 @@ export const CHART_PLOT_MARGIN = {
   bars: { top: 16, right: 12, left: 4, bottom: 0 },
 } as const;
 
-export const AXIS_CONFIG = {
-  get tick() {
-    return chartTickStyle('axis');
-  },
-  axisLine: false as const,
-  tickLine: false as const,
-};
-
-export const GRID_PROPS = {
-  vertical: false as const,
-  stroke: 'hsl(var(--chart-axis))',
-  strokeOpacity: CHART_TYPE.gridOpacity,
-  strokeDasharray: CHART_TYPE.gridDash,
-};
-
 export type BarCornerRadius = [number, number, number, number];
-
-export const BAR_RADIUS = {
-  none: [0, 0, 0, 0] as BarCornerRadius,
-  horizontal: [0, 4, 4, 0] as BarCornerRadius,
-  vertical: [4, 4, 0, 0] as BarCornerRadius,
-};
 
 export function barCornerRadius(
   orientation: 'vertical' | 'horizontal' = 'vertical',
@@ -88,21 +55,6 @@ export const CHART_HEIGHTS = {
   hero: 340,
   standard: 320,
   compact: 220,
-} as const;
-
-export const ANIMATION_PROPS = {
-  isAnimationActive: false,
-};
-
-export const CHART_TOOLTIP_CURSOR_LINE = {
-  stroke: 'hsl(var(--chart-axis))',
-  strokeOpacity: 0.35,
-  strokeWidth: 1,
-} as const;
-
-export const CHART_TOOLTIP_CURSOR_BAR = {
-  fill: 'hsl(var(--foreground) / 0.06)',
-  stroke: 'none',
 } as const;
 
 export const CHART_TOOLTIP_PROPS = {
@@ -122,11 +74,11 @@ export const CHART_TOOLTIP_PROPS = {
 
 export const TOOLTIP_STYLES = {
   container:
-    'max-w-xs rounded-[var(--radius-widget)] border border-border/60 bg-popover px-3 py-2 shadow-lg',
-  title: 'mb-1.5 font-semibold leading-none text-popover-foreground',
+    'max-w-xs rounded-basalt-widget border border-basalt-border/60 bg-basalt-popover px-3 py-2 shadow-basalt-card',
+  title: 'mb-1.5 font-semibold leading-none text-basalt-popover-foreground',
   row: 'flex min-w-0 items-center gap-2 leading-5',
-  label: 'min-w-0 flex-1 truncate text-muted-foreground',
-  value: 'shrink-0 font-medium tabular-nums text-popover-foreground',
+  label: 'min-w-0 flex-1 truncate text-basalt-muted-foreground',
+  value: 'shrink-0 font-medium tabular-nums text-basalt-popover-foreground',
   titleFace: 'tooltipTitle' as const satisfies ChartTypeFace,
   bodyFace: 'tooltipBody' as const satisfies ChartTypeFace,
   dotSize: CHART_TYPE.tooltipDot,
@@ -148,26 +100,34 @@ export function seriesStroke(index: number): string {
 }
 
 export const GROWTH_STROKE = {
-  fund: 'hsl(var(--chart-1))',
-  bench: 'hsl(var(--chart-8))',
+  fund: getChartColor(0),
+  bench: getChartColor(2),
 } as const;
 
 export function refStroke(index: number): string {
-  return index % 2 === 0 ? 'hsl(var(--chart-ref-1))' : 'hsl(var(--chart-ref-2))';
+  return index % 2 === 0 ? chartAxis : chartMuted;
 }
 
 export function seriesFill(index: number, alpha = CHART_TYPE.areaFillAlpha): string {
   return withAlpha(getChartToken(index), alpha);
 }
 
-export const RESPONSIVE_CONTAINER_PROPS = {
-  width: '100%' as const,
-  height: '100%' as const,
-  minWidth: 0,
-  minHeight: 0,
-  debounce: 150,
-};
-
 export function chartWrapperStyle(height: number): CSSProperties {
   return { height };
 }
+
+export {
+  ANIMATION_PROPS,
+  AXIS_CONFIG,
+  BAR_RADIUS,
+  CHART_COLORS,
+  CHART_TOOLTIP_CURSOR_BAR,
+  CHART_TOOLTIP_CURSOR_LINE,
+  CHART_TYPE,
+  type ChartTypeFace,
+  chartFontSize,
+  chartTextStyle,
+  chartTickStyle,
+  GRID_PROPS,
+  RESPONSIVE_CONTAINER_PROPS,
+};
