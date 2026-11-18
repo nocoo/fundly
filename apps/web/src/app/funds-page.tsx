@@ -8,18 +8,18 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { ArrowDown, ArrowUp, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Search } from '@nocoo/basalt/icons';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
 import { DataInfo } from '@/components/charts/market-chart-controls';
+import { FilterCheck } from '@/components/filters/filter-check';
+import { FilterDropdown } from '@/components/filters/filter-dropdown';
+import { FundTypeBadges } from '@/components/funds/type-badge';
 import { usePageChrome } from '@/components/layout';
 import { ListPagination, PanelHeading, ResearchEmpty } from '@/components/layout/research-layout';
-import { FilterCheck } from '@/components/ui/filter-check';
-import { FilterDropdown } from '@/components/ui/filter-dropdown';
-import { Metric } from '@/components/ui/metric';
-import { FundTypeBadges } from '@/components/ui/type-badge';
+import { Metric } from '@/components/market/metric';
 import { useImeSearch } from '@/hooks/use-ime-search';
 import { formatCount } from '@/lib/format-number';
 import { listTypeL1, listTypeL2 } from '@/lib/fund-type';

@@ -6,7 +6,7 @@ import {
   PopoverTrigger,
 } from '@nocoo/basalt/components/popover';
 import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
-import { Info } from 'lucide-react';
+import { Info } from '@nocoo/basalt/icons';
 import type { ReactNode } from 'react';
 import type { CandlestickBar } from './candlestick-chart';
 

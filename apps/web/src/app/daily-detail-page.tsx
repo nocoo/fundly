@@ -1,6 +1,6 @@
 import { Button } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@nocoo/basalt/icons';
 import { Link, useParams } from 'react-router';
 import useSWR from 'swr';
 import { ApiError, fetchAPI } from '@/api';

@@ -1,6 +1,6 @@
 import { Button, LayerCard } from '@nocoo/basalt';
 import { Popover, PopoverContent, PopoverTrigger } from '@nocoo/basalt/components/popover';
-import { Info } from 'lucide-react';
+import { Info } from '@nocoo/basalt/icons';
 import type { ReactNode } from 'react';
 import { PanelHeading, StatTile } from '@/components/layout/research-layout';
 import { useQuoteColor } from '@/hooks/use-quote-color';

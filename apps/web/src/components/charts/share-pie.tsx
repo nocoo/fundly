@@ -32,7 +32,11 @@ export function SharePie({
             {...ANIMATION_PROPS}
           >
             {items.map((item, index) => (
-              <Cell key={item.name} fill={getChartColor(index)} stroke="hsl(var(--secondary))" />
+              <Cell
+                key={item.name}
+                fill={getChartColor(index)}
+                stroke="hsl(var(--basalt-secondary))"
+              />
             ))}
           </Pie>
           <Tooltip

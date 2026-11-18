@@ -92,12 +92,14 @@ function AppShellInner({ children, breadcrumbs = [], wallMode = false }: AppShel
 
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col',
-              wallMode ? 'p-1' : 'px-2 pb-2 md:px-3 md:pb-3',
+              'flex min-h-0 min-w-0 flex-1 flex-col',
+              !wallMode &&
+                'px-basalt-space-lg pb-basalt-space-lg md:px-basalt-layout-sm md:pb-basalt-layout-sm',
             )}
           >
             <ContentIsland
-              className={cn('overflow-y-auto', wallMode ? 'p-2 md:p-3' : 'p-3 md:p-5')}
+              className="overflow-y-auto"
+              mobileSurface={wallMode ? 'edge-to-edge' : 'inset'}
             >
               {children}
             </ContentIsland>

@@ -2,6 +2,10 @@
 
 Accident narratives and original lessons. Historical instructions below describe their time; the current handbook and its local-isolation contract take precedence.
 
+## 2026-11-18 — Bun mirror URL stripping
+
+During the Basalt registry migration, mirror tarball URLs were stripped from `apps/web/bun.lock` together with Bun's required second array field. The malformed lockfile failed frozen install immediately; it was restored and regenerated, then each mirror URL was replaced with `""` without changing lock structure. Strip a Bun lock URL value, not its field position, and always prove the result with `--frozen-lockfile`.
+
 ## 2026-10-16 — Selection database isolation failure
 
 During macro collector validation, `FUNDLY_SQLITE=data/dev.db bun run fetch:selection` unexpectedly wrote selection tables in the live local database because the selection CLI default ignored `FUNDLY_SQLITE`. The agent trusted the environment contract without inspecting that CLI's database resolution first. The mistake was reported immediately; no rollback or live database replacement was attempted. The parser now honors the environment with explicit `--sqlite` precedence, with a regression test. The isolated rerun explicitly targeted `data/dev.db`. Before any collector runs beside a live writer, inspect the actual database-path parser, not only repository documentation or another CLI's behavior.

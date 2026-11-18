@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2026-12-18
+reason = "picomatch ReDoS has no fixed release through 4.0.7 and is reached only through Web build tooling; remove after the dependency chain adopts a fixed version."

@@ -1,6 +1,6 @@
 import { LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ChevronRight, Newspaper } from 'lucide-react';
+import { ChevronRight, Newspaper } from '@nocoo/basalt/icons';
 import { Link } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';

@@ -26,10 +26,10 @@ export function writeStoredQuoteColor(color: QuoteColor): void {
 }
 
 export function quoteToneClass(tone: 'up' | 'down' | 'flat', scheme: QuoteColor): string {
-  if (tone === 'flat') return 'text-muted-foreground';
+  if (tone === 'flat') return 'text-basalt-muted-foreground';
   const upIsRed = scheme === 'red-up';
-  if (tone === 'up') return upIsRed ? 'text-destructive-text' : 'text-success-text';
-  return upIsRed ? 'text-success-text' : 'text-destructive-text';
+  if (tone === 'up') return upIsRed ? 'text-basalt-destructive' : 'text-basalt-success';
+  return upIsRed ? 'text-basalt-success' : 'text-basalt-destructive';
 }
 
 export function quoteChangeClass(value: number | null | undefined, scheme: QuoteColor): string {

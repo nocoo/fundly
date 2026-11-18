@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@nocoo/basalt/components/table';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@nocoo/basalt/icons';
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import useSWR from 'swr';
@@ -25,7 +25,7 @@ import {
 import { StockFinancialChart } from '@/components/charts/stock-financial-chart';
 import { usePageChrome } from '@/components/layout';
 import { PanelHeading, ResearchEmpty, StatTile } from '@/components/layout/research-layout';
-import { Metric } from '@/components/ui/metric';
+import { Metric } from '@/components/market/metric';
 import { formatMetric, formatPercent } from '@/lib/format-number';
 import { listBackLabel, listHref, readReturnEtf, resolveListOrigin } from '@/lib/list-origin';
 

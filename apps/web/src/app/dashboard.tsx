@@ -8,7 +8,7 @@ import {
   Search,
   Shield,
   TrendingUp,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
 import { Link } from 'react-router';
 import useSWR from 'swr';
 import { fetchAPI } from '@/api';
