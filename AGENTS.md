@@ -1,81 +1,61 @@
 # Fundly
 
-Personal fund, ETF, stock and macro research using Bun collection, SQLite and a private web reader.
-Profile: ts-worker-web (Bun/Hono server; production CD targets jp4 Docker, despite the `apps/worker` directory name).
-Direction: [architecture](docs/01-ARCHITECTURE.md), [UI architecture](docs/06-ARCH-UI.md).
+Personal fund, ETF, stock, and macro research: Bun collectors (`src/fetchers/`, `src/db/`, `src/metrics/`), SQLite (`data/fundly.db`, prod `FUNDLY_SQLITE`), Vite/React/Basalt reader (`apps/web/`, pure ViewModels), and Hono on Bun API (`apps/worker/scripts/app.ts`; prod CD targets jp4 Docker despite dir name).
+Docs: [README](README.md) · [Index](docs/README.md) · [Arch](docs/01-ARCHITECTURE.md) · [UI](docs/06-ARCH-UI.md) · [Auth](docs/10-AUTH.md) · [Collab](docs/18-COLLABORATION.md) · [jp4 Deploy](docs/19-JP4-DEPLOY.md) · [Retrospective](Retrospective.md)
 
-## Scope and instruction sources
+## Commands
 
-- This file is the only project handbook; nested files do not compete with it. Do not create a `CLAUDE.md` alias or copy.
-- This handbook is the contract. Hooks, CI and config enforce it; raise enforcement to meet requirements, never reduce the contract. Frameworks must not rewrite this file.
-- Human docs: [README.md](README.md) and [docs/README.md](docs/README.md). Version: root `package.json`; synchronize app versions during release. Enforcement: `.github/workflows/ci.yml` and three package manifests. Environment: ignored `.env`, tracked `.env.example`, ignored `data/`. Accidents: [Retrospective.md](Retrospective.md).
-
-## Project invariants
-
-- Use Bun/ESM, `bun:sqlite`, built-in fetch, Bun test and Biome. Preserve this toolchain without adding Node SQLite adapters, Vitest/Jest or duplicate utility dependencies.
-- Separate collection (`src/`, `scripts/`, `tests/`) from browser/API changes (`apps/`) in atomic commits. Metric models stay pure and independent of I/O/Views.
-- Production serves the app from jp4 Docker with a bind-mounted SQLite directory (`/data/fundly/data` → `/data`). Market browsing is read-only; backup settings/restore use explicit write paths. Railway config remains in-tree for rollback reference only—do not `railway up` or re-enable GitHub auto-deploy without owner approval. Removed Cloudflare Worker/D1 deployments stay removed.
-- Keep Google OAuth/PKCE and configured email access rules. `ALLOWED_EMAILS` empty currently allows all authenticated Google accounts; missing required auth configuration rejects protected APIs.
-- `HITHINK_FINANCE_API_KEY` is server-only. Do not commit databases, backups, raw credentials or fabricated data-scale claims.
-- Use Eastmoney `pingzhongdata.js`, not the category-ranking endpoint for whole-market NAV. Preserve the global 5 QPS limit and bounded deep collection; starts/watch loops remain explicit.
-- A code release does not populate the production volume. Preserve source coverage/missing states, mutable upserts and historical data; no trading or invented collection results.
-
-## Setup and commands
-
-Collection: Bun + TypeScript 7.0.2 with `src/fetchers/`, `src/db/`, `src/metrics/`. Web: Vite/React/Basalt in `apps/web/` with pure ViewModels. API: Hono on Bun at `apps/worker/scripts/app.ts` over read-only market SQLite. Data: `data/fundly.db`; production path selected by `FUNDLY_SQLITE`. Detailed document numbering, collection constraints and historical status are in the [collaboration guide](docs/18-COLLABORATION.md). Number new Chinese docs sequentially with uppercase hyphenated names; update the index on splits/mergers.
-
-Run from root with Bun 1.3+ (CI 1.3.14). Each of the three packages owns a lockfile.
+Run from root with Bun 1.3+ (CI: Bun `1.4.4`, Node `26.12.1`, TS `7.0.2`). Root, `apps/web`, and `apps/worker` each own a `bun.lock`. Env template: `.env.example` (ignored `.env`, `data/`); dev login requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `ALLOWED_EMAILS`.
 
 ```sh
 bun install --frozen-lockfile
 bun install --cwd apps/web --frozen-lockfile
 bun install --cwd apps/worker --frozen-lockfile
-bun run dev:all
-bun run typecheck
-bun run typecheck:scripts
-bun run typecheck:web
-bun run lint
-bun run build:web
-bun run test
-bun run test:web
-bun run test:coverage
+bun run db:init # empty local DB; never run collectors/restores just to test code
+bun run dev:all # https://fundly.dev.hexly.ai -> Vite :7044 + API :7045
+bun run typecheck && bun run typecheck:scripts && bun run typecheck:web # S1
+bun run lint # S2 Biome check-only
+bun run test && bun run test:web # L1 unit & web suites
+bun run test:coverage # L1 CI coverage
+bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts apps/worker/scripts/daily-api.test.ts apps/worker/scripts/read-api.test.ts # L2 API
+bun run build:web # B1 -> apps/worker/static/
+bun run start # serve built UI + API
+bun run release # authorized version bump + tag
 ```
 
-Initialize an intended empty local database with `bun run db:init`; do not run collectors or restores merely to test code. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `ALLOWED_EMAILS` for normal dev login. `build:web` writes `apps/worker/static/`; `bun run start` serves the built UI and API.
+## Invariants
 
-## Testing and quality contract
+- **Toolchain**: Bun/ESM, `bun:sqlite`, built-in `fetch`, Bun test, Biome only—no Node SQLite adapters, Vitest/Jest, or duplicate utility deps. Frameworks must not rewrite this file.
+- **Separation**: Split collection (`src/`, `scripts/`, `tests/`) from web/API (`apps/`) in atomic commits; keep metric models and web ViewModels pure and decoupled from I/O and Views.
+- **Runtime**: Production serves from jp4 Docker (`/data/fundly/data` -> `/data`); market browsing is read-only, while backup settings/restore use explicit write paths.
+- **Deprecated targets**: Keep `railway.toml` / [09-RAILWAY.md](docs/09-RAILWAY.md) for rollback only—never run `railway up`, re-enable Railway auto-deploy, or revive Worker/D1 (`deploy:web`, `import:d1`).
+- **Auth & tokens**: Keep Google OAuth/PKCE, allowlist (`ALLOWED_EMAILS` empty allows all Google accounts), fail-closed missing-auth checks, and separate `AUTH_DB_PATH` ([10-AUTH.md](docs/10-AUTH.md)).
+- **Secrets**: `HITHINK_FINANCE_API_KEY` is server-only. Never commit databases, backups, raw credentials, or unmeasured/fabricated data-scale claims.
+- **Collection**: Use Eastmoney `pingzhongdata.js` (not category-ranking endpoints) for whole-market NAV; keep 5 QPS limit, bounded deep collection, and explicit-only collector/watch starts.
+- **Data integrity**: Upsert mutable source tables (`INSERT OR IGNORE` alone freezes rows). Code releases never populate prod SQLite; keep coverage/missing states—no trading or invented data.
+- **Release**: `bun run release` (syncs root/app/runtime versions) + [source-release.yml](.github/workflows/source-release.yml); authorized only, immutable tags on green `main` CI.
+- **Production ops**: CD runs via [deploy.yml](.github/workflows/deploy.yml) ([jp4](docs/19-JP4-DEPLOY.md), [Backy](docs/08-BACKY.md)); restart after DB swap and check `/api/live` (code push != DB coverage).
+- **Docs**: Number new Chinese docs sequentially (uppercase hyphenated) and update the index on splits/mergers ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
 
-Quality contract follows System1 slots (unified L1, L2/L3, G2 and D1). Statuses: `enforced`, `planned`, `manual`, `N/A`. Required unified L1: statements/branches/functions/lines each ≥95%, no skipped/focused tests, strict types and check-only lint with zero warnings/errors, installed hooks and failure rejection.
+## Quality & Local Gates
 
-| Piece | Requirement and current reality | Status | Evidence |
-| --- | --- | --- | --- |
-| L1 | ≥95% each across collectors, scripts and app logic plus strict types and zero-warning check-only lint | planned | CI runs Bun coverage; no four-metric 95% gate. Historical 2026-09-06 lines/functions were 89.62%/87.13%. CI runs types and Biome; `lint` lacks an explicit warning-failure option |
-| L2 | Real HTTP for every endpoint/method plus real SQLite | planned | `bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts` uses Hono in-process requests with temporary SQLite |
-| L3 | Browser research/login and process-level collection workflows | planned | No independent system runner |
-| G2 | Required OSV and gitleaks, all three lockfiles | enforced | Shared quality CI lists root, Web and API Bun locks |
-| D1 | Per-run temporary data with target guards before fixture writes/cleanup | planned | Temporary SQLite tests exist; full HTTP/CLI/browser isolation is missing |
-| Build | Vite output | enforced | CI `build:web` |
-| Docs | Chinese numbered docs, measured claims and current commands | manual | Review and [document rules](docs/18-COLLABORATION.md) |
+Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in [quality-slots.yml](.github/workflows/quality-slots.yml) (via [ci.yml](.github/workflows/ci.yml); `quality / Z1: Gate` required on `main` before release/deploy). Raise enforcement rather than weakening the contract. Statuses: `enforced`, `planned`, `manual`, `N/A`.
 
-No repository pre-commit/pre-push hook is currently configured. Required target: check-only index-snapshot unified L1 <30s; stdin pushed-ref L2/G2 in parallel <3min. Never bypass commit or branch-push checks. Direct pushes to `main` are allowed; CI Gate runs after every push and must be green before release tagging.
+- **Enforced in CI**: `S1 Types`, `S2 Lint`, `S3 Workflow`, `G1 Secrets`, `G2 Dependencies` (3 `bun.lock` files), `B1 Build`, `L1 Unit`, `L2 Runtime` (in-process Hono + temp SQLite), `Z1 Gate`.
+- **CI gaps**: `S2` lacks `--error-on-warnings` (`planned`); `L1` lacks a 4-metric >=95% gate (`planned`); standalone HTTP/CLI `L3` and browser `L4 E2E` are `planned`.
+- **N/A & manual**: `L3 Integration` is `N/A` in CI (covered by `L1`/`L2`); `P1 Package` is `N/A` (private app); docs/claims review is `manual` ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
+- **Local hooks**: None configured (`planned`: staged-index `pre-commit` <30s for `S1/S2/G1/L1`; pushed-ref `pre-push` <3min for `B1/L2/G2`). Never bypass checks; direct `main` pushes rely on CI Gate.
 
-## Resources and isolation
+## Resources & Isolation
 
-| Purpose | Resource | Isolation |
+| Lane | Endpoint / State | Boundary |
 | --- | --- | --- |
-| Dev | Caddy `https://fundly.dev.hexly.ai`, Vite 7044 / API 7045 | Intended local `FUNDLY_SQLITE` |
-| Unit/in-process API | Test-created SQLite | No production/daily-dev database fixtures |
-| Production | jp4 `/data/fundly/data` (SQLite); Railway volume retained for rollback docs | Never use for automated test writes |
+| Dev | `https://fundly.dev.hexly.ai`, Vite `:7044` / API `:7045` | Local `FUNDLY_SQLITE` (`data/fundly.db`) + `AUTH_DB_PATH` (`data/auth.db`) |
+| Tests | Per-run temp SQLite (unit + in-process API suites) | Isolated fixtures only; never touch daily-dev or prod DBs |
+| Prod | `https://fundly.hexly.ai`, jp4 `/data/fundly/data` (`127.0.0.1:17040`) | Read-only checks unless authorized; Railway volume for rollback ref only |
 
-Future HTTP/browser/CLI harnesses must own new temporary SQLite and ports, validate their test context before writes/restores, and clean only their own directory. No Cloudflare test resources belong to this runtime.
-
-## Operations / release
-
-Authorized source releases use `bun run release` and [source-release.yml](.github/workflows/source-release.yml). Production deploys via [deploy.yml](.github/workflows/deploy.yml) after main CI (jp4 runbook: [docs/19-JP4-DEPLOY.md](docs/19-JP4-DEPLOY.md); deprecated Railway notes: [docs/09-RAILWAY.md](docs/09-RAILWAY.md)). Tags must refer to passing main CI and remain immutable. Backup/restore procedures are in [Backy](docs/08-BACKY.md); after replacing the production database, restart the app. Inspect public `/api/live` for the deployed version; code push alone does not verify database coverage.
+Future HTTP/browser/CLI harnesses must allocate per-run temp SQLite and ports, validate test context before writes/restores, and clean only their own temp dir. No Cloudflare test resources belong here.
 
 ## Retrospective
 
-Narratives and migration lessons live in [Retrospective.md](Retrospective.md). Keep recurring project rules short; cross-project lessons go to global rules/nmem and deterministic checks to tests/hooks.
-
-- Mutable source tables require updating existing rows; `INSERT OR IGNORE` alone freezes them.
-- Never move published tags or revive removed `deploy:web` / `import:d1` commands.
+Record incident narratives and migration lessons in [Retrospective.md](Retrospective.md); promote recurring project constraints to `Invariants` above and deterministic checks to tests/hooks.
