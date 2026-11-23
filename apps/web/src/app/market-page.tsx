@@ -1252,11 +1252,11 @@ export default function MarketPage() {
                       </TableCell>
                       <TableCell>
                         {isEvidence ? (
-                          <Badge variant="warning" className="text-[11px] px-1 py-0">
+                          <Badge tone="warning" className="text-[11px] px-1 py-0">
                             历史证据导入
                           </Badge>
                         ) : (
-                          <Badge variant="success" className="text-[11px] px-1 py-0">
+                          <Badge tone="success" className="text-[11px] px-1 py-0">
                             联网采集
                           </Badge>
                         )}
@@ -1394,7 +1394,7 @@ export default function MarketPage() {
         open={Boolean(seriesModalTarget)}
         onOpenChange={(open) => !open && setSeriesModalTarget(null)}
       >
-        <DialogContent size="base" className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent size="md" className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{seriesModalTarget?.name} · 历史观测数据</DialogTitle>
             <DialogDescription>

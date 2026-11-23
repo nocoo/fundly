@@ -1,8 +1,16 @@
+import type { TagColor } from '@nocoo/basalt/components/tag-badge';
 import { hashString } from './utils';
 
-const BADGE_VARIANTS = ['blue', 'orange', 'red', 'teal', 'purple', 'success'] as const;
+const TAG_COLOR_POOL = [
+  'blue',
+  'amber',
+  'rose',
+  'teal',
+  'violet',
+  'success',
+] as const satisfies readonly TagColor[];
 
-export function typeBadgeVariant(label: string): (typeof BADGE_VARIANTS)[number] {
-  const index = hashString(label) % BADGE_VARIANTS.length;
-  return BADGE_VARIANTS[index] ?? BADGE_VARIANTS[0];
+export function typeBadgeColor(label: string): TagColor {
+  const index = hashString(label) % TAG_COLOR_POOL.length;
+  return TAG_COLOR_POOL[index] ?? TAG_COLOR_POOL[0];
 }

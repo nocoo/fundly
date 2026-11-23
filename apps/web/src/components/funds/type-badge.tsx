@@ -1,6 +1,6 @@
-import { Badge } from '@nocoo/basalt';
+import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { splitFundType } from '@/lib/fund-type';
-import { typeBadgeVariant } from '@/lib/type-badge';
+import { typeBadgeColor } from '@/lib/type-badge';
 import { cn } from '@/lib/utils';
 
 export function TypeBadge({
@@ -14,16 +14,16 @@ export function TypeBadge({
 }) {
   if (!label) return null;
   return (
-    <Badge
-      variant={typeBadgeVariant(label)}
+    <TagBadge
+      name={label}
+      color={typeBadgeColor(label)}
+      size="sm"
       className={cn(
         'max-w-full text-[11px]',
         truncate ? 'truncate' : 'whitespace-normal break-all',
         className,
       )}
-    >
-      {label}
-    </Badge>
+    />
   );
 }
 
