@@ -101,6 +101,13 @@ jobs:
 
   l2-runtime:
     name: "L2: Runtime"
+    if: ${{ vars.ENABLE_L2_RUNTIME == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "N/A - Covered by L1 and L3"
+
+  l3-integration:
+    name: "L3: Integration"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -112,13 +119,6 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts apps/worker/scripts/daily-api.test.ts apps/worker/scripts/read-api.test.ts
-
-  l3-integration:
-    name: "L3: Integration"
-    if: ${{ vars.ENABLE_L3_INTEGRATION == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "N/A - Covered by L1 and L2"
 
   l4-e2e:
     name: "L4: E2E"
@@ -163,14 +163,14 @@ jobs:
             "${{ needs.g2-dependencies.result }}" \
             "${{ needs.b1-build.result }}" \
             "${{ needs.l1-unit.result }}" \
-            "${{ needs.l2-runtime.result }}"; do
+            "${{ needs.l3-integration.result }}"; do
             if [ "$r" != "success" ]; then
               echo "Required slot failed or was skipped: $r"
               exit 1
             fi
           done
           for r in \
-            "${{ needs.l3-integration.result }}" \
+            "${{ needs.l2-runtime.result }}" \
             "${{ needs.l4-e2e.result }}" \
             "${{ needs.p1-package.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
