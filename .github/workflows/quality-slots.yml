@@ -16,9 +16,14 @@ jobs:
   s1-types:
     name: "S1: Types"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -26,13 +31,22 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun run typecheck && bun run typecheck:scripts && bun run typecheck:web
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   s2-lint:
     name: "S2: Lint"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -40,43 +54,73 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun run lint
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   s3-workflow:
     name: "S3: Workflow"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: nocoo/base-ci/.github/actions/lint-workflows@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+      - uses: nocoo/base-ci/.github/actions/lint-workflows@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   g1-secrets:
     name: "G1: Secrets"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 1
-      - uses: nocoo/base-ci/.github/actions/scan-secrets@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+      - uses: nocoo/base-ci/.github/actions/scan-secrets@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   g2-dependencies:
     name: "G2: Dependencies"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: nocoo/base-ci/.github/actions/scan-dependencies@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+      - uses: nocoo/base-ci/.github/actions/scan-dependencies@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           lockfiles: bun.lock,apps/web/bun.lock,apps/worker/bun.lock
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   b1-build:
     name: "B1: Build"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -84,13 +128,29 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun run build:web
+      - name: Upload built web bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-dist-${{ github.sha }}
+          path: apps/worker/static/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   l1-unit:
     name: "L1: Unit"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -98,20 +158,41 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun run test:coverage
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   l2-runtime:
     name: "L2: Runtime"
     if: ${{ vars.ENABLE_L2_RUNTIME == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
-      - run: echo "N/A - Covered by L1 and L3"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: |
+          echo "::error::L2 Runtime is declared N/A - Covered by L1 and L3"
+          exit 1
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   l3-integration:
     name: "L3: Integration"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           package-manager: bun
           runtime-version: ${{ env.BUN_VERSION }}
@@ -119,20 +200,106 @@ jobs:
           install-policy: project
           extra-install-dirs: apps/web,apps/worker
       - run: bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts apps/worker/scripts/daily-api.test.ts apps/worker/scripts/read-api.test.ts
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   l4-e2e:
     name: "L4: E2E"
-    if: ${{ vars.ENABLE_L4_E2E == 'true' }}
+    needs: [b1-build]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
-      - run: echo "N/A - Browser E2E pending"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: nocoo/base-ci/.github/actions/setup-js@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
+        with:
+          package-manager: bun
+          runtime-version: ${{ env.BUN_VERSION }}
+          node-version: ${{ env.NODE_VERSION }}
+          install-policy: project
+          extra-install-dirs: apps/web,apps/worker
+      - name: Download built web bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-dist-${{ github.sha }}
+          path: apps/worker/static
+      - uses: nocoo/base-ci/.github/actions/setup-playwright@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
+        with:
+          working-directory: apps/web
+          package-manager: bun
+          browsers: chromium
+      - name: Run standalone Playwright smoke tests
+        run: bun run test:e2e
+      - name: Upload Playwright results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: l4-e2e-results-${{ github.sha }}
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   p1-package:
     name: "P1: Package"
-    if: ${{ vars.ENABLE_P1_PACKAGE == 'true' }}
+    needs: [b1-build]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
-      - run: echo "N/A - Private package"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build Docker image
+        run: docker build --tag "fundly-ci:${GITHUB_SHA}" .
+      - name: Smoke test container startup and health
+        run: |
+          set -euo pipefail
+          volume="fundly-ci-data-${GITHUB_SHA}"
+          container="fundly-ci-smoke-${GITHUB_SHA}"
+          docker volume create "$volume"
+          cleanup() {
+            docker logs "$container" || true
+            docker rm --force "$container" || true
+            docker volume rm --force "$volume" || true
+          }
+          trap cleanup EXIT
+          docker run --rm \
+            --volume "${volume}:/data" \
+            "fundly-ci:${GITHUB_SHA}" \
+            bun run scripts/init-db.ts /data/fundly.db
+          docker run --detach \
+            --name "$container" \
+            --publish 17040:8080 \
+            --volume "${volume}:/data" \
+            --env AUTH_DB_PATH=/tmp/auth.db \
+            "fundly-ci:${GITHUB_SHA}"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:17040/api/live | grep -q '"status":"ok"'; then
+              curl --fail --silent --show-error http://127.0.0.1:17040/ | grep -q '<div id="root">'
+              curl --fail --silent --show-error http://127.0.0.1:17040/api/me | grep -q '"authRequired":true'
+              echo "Container /api/live, /, and /api/me smoke checks passed"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Container did not become healthy"
+          exit 1
+      - name: Record tested SHA
+        id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   z1-gate:
     name: "Z1: Gate"
@@ -150,31 +317,25 @@ jobs:
       - l4-e2e
       - p1-package
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
-      tested-sha: ${{ github.sha }}
+      tested-sha: ${{ steps.z1.outputs.tested-sha }}
     steps:
-      - name: Verify required slots passed
-        run: |
-          for r in \
-            "${{ needs.s1-types.result }}" \
-            "${{ needs.s2-lint.result }}" \
-            "${{ needs.s3-workflow.result }}" \
-            "${{ needs.g1-secrets.result }}" \
-            "${{ needs.g2-dependencies.result }}" \
-            "${{ needs.b1-build.result }}" \
-            "${{ needs.l1-unit.result }}" \
-            "${{ needs.l3-integration.result }}"; do
-            if [ "$r" != "success" ]; then
-              echo "Required slot failed or was skipped: $r"
-              exit 1
-            fi
-          done
-          for r in \
-            "${{ needs.l2-runtime.result }}" \
-            "${{ needs.l4-e2e.result }}" \
-            "${{ needs.p1-package.result }}"; do
-            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
-              echo "Optional slot failed: $r"
-              exit 1
-            fi
-          done
+      - id: z1
+        uses: nocoo/base-ci/.github/actions/z1-gate@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
+        with:
+          needs-json: ${{ toJSON(needs) }}
+          expected-sha: ${{ github.sha }}
+          required-jobs: |
+            s1-types=S1: Types
+            s2-lint=S2: Lint
+            s3-workflow=S3: Workflow
+            g1-secrets=G1: Secrets
+            g2-dependencies=G2: Dependencies
+            b1-build=B1: Build
+            l1-unit=L1: Unit
+            l3-integration=L3: Integration
+            l4-e2e=L4: E2E
+            p1-package=P1: Package
+          skipped-jobs: |
+            l2-runtime=L2: Runtime

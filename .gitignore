@@ -49,3 +49,7 @@ Thumbs.db
 # Coverage
 coverage/
 .nyc_output/
+
+# Playwright
+playwright-report/
+test-results/

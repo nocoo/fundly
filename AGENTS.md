@@ -19,6 +19,7 @@ bun run test && bun run test:web # L1 unit & web suites
 bun run test:coverage # L1 CI coverage
 bun test apps/worker/scripts/market-api.test.ts apps/worker/scripts/selection-api.test.ts apps/worker/scripts/daily-api.test.ts apps/worker/scripts/read-api.test.ts # L3 API
 bun run build:web # B1 -> apps/worker/static/
+bun run test:e2e # L4 Playwright Chromium smoke (requires build:web)
 bun run start # serve built UI + API
 bun run release # authorized version bump + tag
 ```
@@ -41,9 +42,9 @@ bun run release # authorized version bump + tag
 
 Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in [quality-slots.yml](.github/workflows/quality-slots.yml) (via [ci.yml](.github/workflows/ci.yml); `quality / Z1: Gate` required on `main` before release/deploy). Raise enforcement rather than weakening the contract. Statuses: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Enforced in CI**: `S1 Types`, `S2 Lint`, `S3 Workflow`, `G1 Secrets`, `G2 Dependencies` (3 `bun.lock` files), `B1 Build`, `L1 Unit`, `L3 Integration` (in-process Hono + temp SQLite), `Z1 Gate`.
-- **CI gaps**: `L1` lacks a 4-metric >=80% gate (`planned`); standalone HTTP/CLI and browser `L4 E2E` are `planned`.
-- **N/A & manual**: `L2 Runtime` is `N/A` in CI (covered by `L1`/`L3`); `P1 Package` is `N/A` (private app); docs/claims review is `manual` ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
+- **Enforced in CI**: `S1 Types`, `S2 Lint`, `S3 Workflow`, `G1 Secrets`, `G2 Dependencies` (3 `bun.lock` files), `B1 Build`, `L1 Unit`, `L3 Integration` (in-process Hono + temp SQLite), `L4 E2E` (Playwright Chromium against `apps/worker/static/` + `AUTH_DISABLED=1` temp SQLite), `P1 Package` (Docker image build + `/api/live`, `/`, `/api/me` container smoke), `Z1 Gate` (`nocoo/base-ci` `v2026.18`).
+- **CI gaps**: `L1` lacks a 4-metric >=80% gate (`planned`).
+- **N/A & manual**: `L2 Runtime` is `N/A` in CI (covered by `L1`/`L3`); docs/claims review is `manual` ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
 - **Local hooks**: None configured (`planned`: staged-index `pre-commit` <30s for `S1/S2/G1/L1`; pushed-ref `pre-push` <3min for `B1/L2/G2`). Never bypass checks; direct `main` pushes rely on CI Gate.
 
 ## Resources & Isolation

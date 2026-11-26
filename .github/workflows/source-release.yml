@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Prove the tag passed main CI
         id: source
-        uses: nocoo/base-ci/.github/actions/release-source@dc858360aa7812db61fd9d825943e4efd4dcd0e7 # v2026.17
+        uses: nocoo/base-ci/.github/actions/release-source@bfaac83b5a4d5c7ed26320bb5b09f3ca0a01932c # v2026.18
         with:
           github-token: ${{ github.token }}
           expected-workflow-path: .github/workflows/ci.yml

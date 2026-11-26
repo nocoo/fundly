@@ -38,6 +38,7 @@
     "format": "biome format --write src scripts tests apps",
     "test": "bun test tests src",
     "test:web": "bun test apps",
+    "test:e2e": "bun run --cwd apps/web test:e2e",
     "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
     "typecheck": "tsc --noEmit",
     "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
