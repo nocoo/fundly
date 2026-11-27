@@ -25,3 +25,10 @@ data/
 **/*.db-wal
 **/*.sqlite
 **/backups/
+apps/web/e2e/
+apps/web/scripts/run-e2e.ts
+apps/worker/static/
+**/dist
+**/*.tsbuildinfo
+**/*.test.*
+**/*.spec.*
