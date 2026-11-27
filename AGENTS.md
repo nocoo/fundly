@@ -34,15 +34,15 @@ bun run release # authorized version bump + tag
 - **Secrets**: `HITHINK_FINANCE_API_KEY` is server-only. Never commit databases, backups, raw credentials, or unmeasured/fabricated data-scale claims.
 - **Collection**: Use Eastmoney `pingzhongdata.js` (not category-ranking endpoints) for whole-market NAV; keep 5 QPS limit, bounded deep collection, and explicit-only collector/watch starts.
 - **Data integrity**: Upsert mutable source tables (`INSERT OR IGNORE` alone freezes rows). Code releases never populate prod SQLite; keep coverage/missing states—no trading or invented data.
-- **Release**: `bun run release` (syncs root/app/runtime versions) + [source-release.yml](.github/workflows/source-release.yml); authorized only, immutable tags on green `main` CI.
-- **Production ops**: CD runs via [deploy.yml](.github/workflows/deploy.yml) ([jp4](docs/19-JP4-DEPLOY.md), [Backy](docs/08-BACKY.md)); restart after DB swap and check `/api/live` (code push != DB coverage).
+- **Release**: `bun run release` (syncs root/app/runtime versions + changelog/tag); authorized only.
+- **Production ops**: CD runs via [pipeline.yml](.github/workflows/pipeline.yml) (D1–D5 Docker CD to jp4 `/data/fundly` on `main` push or `workflow_dispatch` with `deploy=true`; [jp4](docs/19-JP4-DEPLOY.md), [Backy](docs/08-BACKY.md)); restart after DB swap and check `/api/live` (code push != DB coverage).
 - **Docs**: Number new Chinese docs sequentially (uppercase hyphenated) and update the index on splits/mergers ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
 
 ## Quality & Local Gates
 
-Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in [quality-slots.yml](.github/workflows/quality-slots.yml) (via [ci.yml](.github/workflows/ci.yml); `quality / Z1: Gate` required on `main` before release/deploy). Raise enforcement rather than weakening the contract. Statuses: `enforced`, `planned`, `manual`, `N/A`.
+Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in [quality-slots.yml](.github/workflows/quality-slots.yml) (via [pipeline.yml](.github/workflows/pipeline.yml); `quality / Z1: Gate` required on `main` before deploy). Raise enforcement rather than weakening the contract. Statuses: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Enforced in CI**: `S1 Types`, `S2 Lint`, `S3 Workflow`, `G1 Secrets`, `G2 Dependencies` (3 `bun.lock` files), `B1 Build`, `L1 Unit`, `L3 Integration` (in-process Hono + temp SQLite), `L4 E2E` (Playwright Chromium against `apps/worker/static/` + `AUTH_DISABLED=1` temp SQLite), `P1 Package` (Docker image build + `/api/live`, `/`, `/api/me` container smoke), `Z1 Gate` (`nocoo/base-ci` `v2026.20`).
+- **Enforced in CI**: `S1 Types`, `S2 Lint`, `S3 Workflow`, `G1 Secrets`, `G2 Dependencies` (3 `bun.lock` files), `B1 Build`, `L1 Unit`, `L3 Integration` (in-process Hono + temp SQLite), `L4 E2E` (Playwright Chromium against `apps/worker/static/` + `AUTH_DISABLED=1` temp SQLite), `P1 Package` (Docker image build + `/api/live`, `/`, `/api/me` container smoke), `Z1 Gate` (`nocoo/base-ci` `v2026.24`).
 - **CI gaps**: `L1` lacks a 4-metric >=80% gate (`planned`).
 - **N/A & manual**: `L2 Runtime` is `N/A` in CI (covered by `L1`/`L3`); docs/claims review is `manual` ([18-COLLABORATION.md](docs/18-COLLABORATION.md)).
 - **Local hooks**: None configured (`planned`: staged-index `pre-commit` <30s for `S1/S2/G1/L1`; pushed-ref `pre-push` <3min for `B1/L2/G2`). Never bypass checks; direct `main` pushes rely on CI Gate.
