@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  etfDetailTo,
   fundDetailLink,
+  fundDetailTo,
   isDomesticStockHolding,
   isFundDetailPath,
   listBackLabel,
@@ -8,9 +10,12 @@ import {
   originFromList,
   parseListHref,
   parseListOrigin,
+  readListOrigin,
   readReturnEtf,
   resolveListOrigin,
   resolveNavigationOrigin,
+  stockDetailTo,
+  writeListOrigin,
 } from './list-origin';
 
 describe('list origin', () => {
@@ -101,5 +106,40 @@ describe('list origin', () => {
       path: '/select-stock/valuation',
       search: '?exchange=SH',
     });
+  });
+
+  it('persists list origin and generates detail navigation descriptors', () => {
+    const store = new Map<string, string>();
+    const prev = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (k: string) => store.get(k) ?? null,
+          setItem: (k: string, v: string) => store.set(k, v),
+        },
+      },
+    });
+    try {
+      const origin = { path: '/select/risk' as const, search: '?dim=sharpe_1y' };
+      writeListOrigin(origin);
+      expect(readListOrigin()).toEqual(origin);
+      expect(resolveListOrigin(null)).toEqual(origin);
+      expect(fundDetailTo('000001', origin)).toEqual({
+        to: '/funds/000001',
+        state: { list: '/select/risk?dim=sharpe_1y' },
+      });
+      expect(etfDetailTo('510300.SH', { path: '/etfs', search: '?q=300' })).toEqual({
+        to: '/etfs/510300.SH',
+        state: { list: '/etfs?q=300' },
+      });
+      expect(stockDetailTo('600519.SH', { path: '/stocks', search: '' })).toEqual({
+        to: '/stocks/600519.SH',
+        state: { list: '/stocks' },
+      });
+    } finally {
+      if (prev) Object.defineProperty(globalThis, 'window', prev);
+      else Reflect.deleteProperty(globalThis, 'window');
+    }
   });
 });

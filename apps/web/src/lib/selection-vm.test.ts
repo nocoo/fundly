@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { etfUrlSearch, parseEtfSearch } from './etf-vm';
-import { parseStockSearch, stockUrlSearch } from './stock-vm';
+import { etfUrlSearch, parseEtfSearch, readStoredEtfFilters, storeEtfFilters } from './etf-vm';
+import {
+  parseStockSearch,
+  readStoredStockFilters,
+  stockUrlSearch,
+  storeStockFilters,
+} from './stock-vm';
 
 describe('ETF search and URL round-trip serialization', () => {
   it('preserves disabled pick filter thresholds and non-default values without resetting to defaults', () => {
@@ -145,5 +150,31 @@ describe('Stock search and URL round-trip serialization', () => {
     expect(parseStockSearch('?page=4.2', 'browse').page).toBe(4);
     expect(parseStockSearch('?page=0.5', 'browse').page).toBe(1);
     expect(parseStockSearch('?page=1e20', 'browse').page).toBe(10000);
+  });
+
+  it('stores and reads ETF and stock filter states', () => {
+    const store = new Map<string, string>();
+    const prev = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (k: string) => store.get(k) ?? null,
+          setItem: (k: string, v: string) => store.set(k, v),
+        },
+      },
+    });
+    try {
+      const etf = parseEtfSearch('?q=300', 'browse');
+      storeEtfFilters('browse', etf);
+      expect(readStoredEtfFilters('browse')?.q).toBe('300');
+
+      const stock = parseStockSearch('?q=茅台', 'browse');
+      storeStockFilters('browse', stock);
+      expect(readStoredStockFilters('browse')?.q).toBe('茅台');
+    } finally {
+      if (prev) Object.defineProperty(globalThis, 'window', prev);
+      else Reflect.deleteProperty(globalThis, 'window');
+    }
   });
 });

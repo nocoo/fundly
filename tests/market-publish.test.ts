@@ -156,4 +156,118 @@ describe('atomic market publication', () => {
     });
     expect(db.query('SELECT price FROM market_quote_latest').get()).toEqual({ price: 10 });
   });
+
+  test('publishes aliases, relations, members, ETF profiles, holdings, and replacement flags atomically', () => {
+    const db = database();
+    const first = collection('batch-1');
+    first.instruments = [
+      chinaInstrument('etf', '510300.SH', '沪深300ETF'),
+      chinaInstrument('index', '000300.SH', '沪深300'),
+    ];
+    first.quotes = [
+      {
+        instrumentId: 'etf:510300.SH',
+        source: 'fuyao',
+        tradeDate: '2026-09-04',
+        price: 4.1,
+        collectedAt: 200,
+      },
+    ];
+    first.aliases = [
+      { instrumentId: 'etf:510300.SH', symbol: '510300.SH', fundCode: '510300', notes: 'verified' },
+    ];
+    first.relations = [
+      {
+        sourceId: 'industry:881121.TI',
+        targetId: 'etf:510300.SH',
+        relationType: 'theme_associated',
+        confidence: 'verified',
+      },
+    ];
+    first.members = [
+      {
+        indexId: 'index:000300.SH',
+        items: [
+          {
+            indexId: 'index:000300.SH',
+            stockCode: '600519.SH',
+            stockName: '贵州茅台',
+            weight: 5,
+            rankOrder: 1,
+          },
+        ],
+      },
+    ];
+    first.profiles = [
+      {
+        instrumentId: 'etf:510300.SH',
+        establishedDate: '2012-05-04',
+        fundScale: 1000,
+        fundManager: '柳军',
+        managementCompany: '华泰柏瑞',
+        source: 'fuyao',
+        collectedAt: 200,
+        rawJson: '{}',
+      },
+    ];
+    first.holdings = [
+      {
+        instrumentId: 'etf:510300.SH',
+        reportDate: '2026-06-30',
+        stockCode: '600519.SH',
+        stockName: '贵州茅台',
+        assetType: 'stock',
+        holdPct: 5,
+        holdShares: 10,
+        holdValueWan: 100,
+        publishedAt: '2026-07-20',
+        source: 'fuyao',
+        collectedAt: 200,
+      },
+    ];
+    first.replaceWatchlist = true;
+    first.replaceShfeContracts = true;
+    publishMarketCollection(db, first);
+
+    expect(db.query('SELECT COUNT(*) AS n FROM market_etf_profile').get()).toEqual({ n: 1 });
+    expect(db.query('SELECT COUNT(*) AS n FROM market_etf_holding').get()).toEqual({ n: 1 });
+    expect(db.query('SELECT COUNT(*) AS n FROM market_index_member').get()).toEqual({ n: 1 });
+
+    // Re-publishing holdings for the same period replaces previous rows rather than appending duplicates.
+    const second = collection('batch-2');
+    second.instruments = [chinaInstrument('etf', '510300.SH', '沪深300ETF')];
+    second.quotes = [
+      {
+        instrumentId: 'etf:510300.SH',
+        source: 'fuyao',
+        tradeDate: '2026-09-04',
+        price: 4.2,
+        collectedAt: 300,
+      },
+    ];
+    second.holdings = [
+      {
+        instrumentId: 'etf:510300.SH',
+        reportDate: '2026-06-30',
+        stockCode: '300750.SZ',
+        stockName: '宁德时代',
+        assetType: 'stock',
+        holdPct: 4,
+        holdShares: 8,
+        holdValueWan: 80,
+        publishedAt: '2026-07-20',
+        source: 'fuyao',
+        collectedAt: 300,
+      },
+    ];
+    second.replaceWatchlist = true;
+    publishMarketCollection(db, second);
+
+    expect(db.query('SELECT stock_code FROM market_etf_holding').all()).toEqual([
+      { stock_code: '300750.SZ' },
+    ]);
+    expect(db.query('SELECT COUNT(*) AS n FROM market_instrument_relation').get()).toEqual({
+      n: 0,
+    });
+  });
 });

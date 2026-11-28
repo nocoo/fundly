@@ -5,10 +5,12 @@ import {
   parseSelectSearch,
   parseStoredSelect,
   rankingRedirectPath,
+  readStoredSelect,
   selectApiPath,
   selectSearchDirty,
   selectSearchEmpty,
   selectUrlState,
+  writeStoredSelect,
 } from './select-vm';
 
 describe('rankingRedirectPath', () => {
@@ -160,5 +162,37 @@ describe('select url and stored state', () => {
     expect(stored.ddPeer).toBe(40);
     expect(stored.mvpOnly).toBe(true);
     expect(defaultDim('cost').key).toBe('all_in_fee_pct');
+  });
+
+  it('migrates legacy ranking filters and round-trips stored select state', () => {
+    const store = new Map<string, string>();
+    store.set('fundly_ranking_filters', JSON.stringify({ dim: 'sharpe_1y', pass4433: '1' }));
+    const prevWin = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const prevLs = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const ls = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => store.set(k, v),
+      removeItem: (k: string) => store.delete(k),
+    };
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { localStorage: ls },
+    });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: ls });
+    try {
+      const migrated = readStoredSelect('risk');
+      expect(migrated.dim?.key).toBe('sharpe_1y');
+      expect(migrated.pass4433).toBe(true);
+      expect(store.has('fundly_ranking_filters')).toBe(false);
+
+      const state = parseSelectSearch(new URLSearchParams('typeL1=股票型&page=2'), 'picks');
+      writeStoredSelect('picks', state);
+      expect(readStoredSelect('picks').page).toBe(2);
+    } finally {
+      if (prevWin) Object.defineProperty(globalThis, 'window', prevWin);
+      else Reflect.deleteProperty(globalThis, 'window');
+      if (prevLs) Object.defineProperty(globalThis, 'localStorage', prevLs);
+      else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
   });
 });

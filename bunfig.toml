@@ -1,0 +1,35 @@
+[test]
+coverageSkipTestFiles = true
+coverageReporter = ["text", "lcov"]
+coverageThreshold = { lines = 0.85, functions = 0.80 }
+coveragePathIgnorePatterns = [
+  "**/node_modules/**",
+  "**/*.d.ts",
+  "**/types.ts",
+  "**/market-types.ts",
+  "**/selection-types.ts",
+  "**/executor.ts",
+  "**/index.ts",
+  "**/*.test.ts",
+  "**/*.test.tsx",
+  "tests/**",
+  "apps/web/e2e/**",
+  "apps/web/scripts/**",
+  "apps/web/src/components/**",
+  "apps/web/src/app/**",
+  "apps/web/src/hooks/**",
+  "apps/web/src/App.tsx",
+  "apps/web/src/main.tsx",
+  "apps/web/src/api.ts",
+  "**/*.tsx",
+  "apps/worker/scripts/serve.ts",
+  "apps/worker/scripts/dev-api.ts",
+  "scripts/backup.ts",
+  "scripts/compute-*.ts",
+  "scripts/dev-all.ts",
+  "scripts/fetch-*.ts",
+  "scripts/init-db.ts",
+  "scripts/refresh-*.ts",
+  "scripts/release.ts",
+  "scripts/restore.ts",
+]

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import {
   barCornerRadius,
+  chartWrapperStyle,
   GROWTH_STROKE,
   getChartColor,
   getChartToken,
   refStroke,
+  seriesFill,
+  seriesStroke,
+  seriesStrokeDash,
   withAlpha,
 } from './chart-config';
 
@@ -30,5 +34,10 @@ describe('chart palette', () => {
     expect(GROWTH_STROKE.bench).toBe('hsl(var(--basalt-chart-5))');
     expect(refStroke(0)).toBe('hsl(var(--basalt-chart-axis))');
     expect(refStroke(1)).toBe('hsl(var(--basalt-chart-muted))');
+    expect(seriesStroke(0)).toBe('hsl(var(--basalt-chart-1))');
+    expect(seriesStrokeDash(0)).toBeUndefined();
+    expect(seriesStrokeDash(1)).toBe('6 4');
+    expect(seriesFill(0, 0.2)).toBe('hsl(var(--basalt-chart-1) / 0.2)');
+    expect(chartWrapperStyle(240)).toEqual({ height: 240 });
   });
 });

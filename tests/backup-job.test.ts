@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveBackupJob, writeBackupJob } from '../src/backup/job.ts';
+import { isBackupRunning, resolveBackupJob, writeBackupJob } from '../src/backup/job.ts';
 
 function tmpSqlite(): string {
   const dir = join(tmpdir(), `fundly-job-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -31,5 +31,6 @@ describe('backup job file', () => {
       startedAt: '2026-08-22T00:00:00.000Z',
     });
     expect(resolveBackupJob(sqlite)?.status).toBe('running');
+    expect(isBackupRunning(sqlite)).toBe(true);
   });
 });

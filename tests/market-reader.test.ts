@@ -185,4 +185,132 @@ describe('market source provenance and completeness', () => {
       }
     });
   }
+
+  test('collectFuyao completes full watchlist, stocks, limit pools, history, constituents, and ETF disclosures', async () => {
+    const db = new Database(':memory:');
+    initSchema(db);
+    initMarketSchema(db);
+    db.exec(
+      "INSERT INTO fund_basic_info (fund_code, fund_name, fund_type, created_at, updated_at) VALUES ('510300', '沪深300ETF华泰柏瑞', '指数型-股票', 1, 1)",
+    );
+    const stocks = [
+      { thscode: '600519.SH', name: '贵州茅台', asset_type: 'a-share', exchange: 'SH' },
+      { thscode: '000001.SZ', name: '平安银行', asset_type: 'a-share', exchange: 'SZ' },
+    ];
+    const tradeDate = '2026-09-04';
+    const dayMs = Date.parse('2026-09-04T00:00:00+08:00');
+    const reader = new MarketReader({ mode: 'evidence' });
+    reader.fuyao = async (path, params = {}): Promise<FuyaoData> => {
+      const collectedAt = Date.parse('2026-09-04T15:30:00+08:00');
+      if (path === '/api/a-share/calendar/trading-days') {
+        return { item: [{ date: '20260903' }, { date: '20260904' }], collectedAt };
+      }
+      if (path === '/api/meta/tickers/list') {
+        return {
+          item:
+            params.asset_type === 'a-share'
+              ? stocks
+              : ETF_WATCHLIST.map(([thscode, name]) => ({ thscode, name, asset_type: 'fund-etf' })),
+          collectedAt,
+        };
+      }
+      if (path === '/api/a-share-index/catalog/ths-index-list') {
+        return {
+          item: INDUSTRY_WATCHLIST.map((i) => ({ thscode: i.symbol, name: i.name })),
+          collectedAt,
+        };
+      }
+      if (path === '/api/a-share-index/prices/snapshot' || path === '/api/fund/market/snapshot') {
+        const symbols = String(params.thscodes ?? params.thscode).split(',');
+        return {
+          item: symbols.map((thscode) => ({
+            thscode,
+            last_price: 10,
+            prev_price: 9.5,
+            volume: 100,
+            turnover: 1000,
+          })),
+          collectedAt,
+        };
+      }
+      if (path === '/api/a-share/prices/snapshot') {
+        return {
+          total: stocks.length,
+          item: stocks.map((s) => ({
+            thscode: s.thscode,
+            last_price: 10,
+            prev_price: 10,
+            volume: 100,
+            turnover: 1000,
+          })),
+          collectedAt,
+        };
+      }
+      if (path.includes('/special-data/limit-')) {
+        const isUp = path.includes('limit-up');
+        return {
+          pagination: { total: isUp ? 1 : 0, pages: 1, page: 1, size: 200 },
+          item: isUp ? [{ thscode: '600519.SH' }] : [],
+          collectedAt,
+        };
+      }
+      if (path.endsWith('/historical')) {
+        return {
+          thscode: String(params.thscode),
+          item: [
+            { date_ms: dayMs, open_price: 10, high_price: 11, low_price: 9, close_price: 10.5 },
+          ],
+          collectedAt,
+        };
+      }
+      if (path.endsWith('/constituents/ths-stock-list')) {
+        return {
+          item: [{ stock_code: '600519.SH', stock_name: '贵州茅台', weight: 5 }],
+          collectedAt,
+        };
+      }
+      if (path === '/api/fund/profile/detail') {
+        return {
+          item: [
+            {
+              thscode: params.thscode,
+              fund_name: '沪深300ETF华泰柏瑞',
+              estab_date: Date.parse('2012-05-04T00:00:00+08:00'),
+              fund_scale: 100,
+            },
+          ],
+          collectedAt,
+        };
+      }
+      if (path === '/api/fund/performance/nav') {
+        return { item: [{ nav_date: dayMs, unit_nav: 4.1 }], collectedAt };
+      }
+      if (path === '/api/fund/portfolio/holdings') {
+        return {
+          item: [
+            {
+              end_date_ms: Date.parse('2026-06-30T00:00:00+08:00'),
+              thscode: '600519.SH',
+              stock_name: '贵州茅台',
+              hold_ratio: 5,
+            },
+          ],
+          collectedAt,
+        };
+      }
+      throw new Error(`unexpected: ${path}`);
+    };
+
+    try {
+      const batch = await collectFuyao(db, reader, 10);
+      expect(batch.tradeDate).toBe(tradeDate);
+      expect(batch.actualItems).toBe(stocks.length + CN_WATCHLIST.length);
+      expect(batch.breadth?.limitUpCount).toBe(1);
+      expect(batch.members?.length).toBeGreaterThan(0);
+      expect(batch.profiles?.length).toBe(ETF_WATCHLIST.length);
+      expect(batch.aliases?.find((a) => a.symbol === '510300.SH')?.fundCode).toBe('510300');
+    } finally {
+      db.close();
+    }
+  });
 });

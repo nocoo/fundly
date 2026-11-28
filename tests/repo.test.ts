@@ -3,19 +3,33 @@ import { unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  countDividends,
+  countFees,
   countFunds,
+  countManagerLinks,
+  countManagers,
   countMoneyYield,
   countNavPoints,
+  countPortfolio,
   dropBasicInfoDuplicateColumns,
   initSchema,
   latestNavDate,
+  listAllFundCodes,
+  listFundCodesWithNav,
+  listMoneyFundCodes,
   listMvpFundCodes,
   listMvpFundCodesMissingPerformance,
   openDb,
+  readDividends,
+  upsertDividends,
+  upsertFees,
   upsertFundList,
+  upsertManagerLinks,
   upsertMoneyYield,
   upsertNavPoints,
   upsertPerformance,
+  upsertPortfolio,
+  upsertRiskMetrics,
   upsertTrendExtra,
   writeFetchLog,
 } from '../src/db/repo.ts';
@@ -432,5 +446,126 @@ describe('db repo', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.status).toBe('success');
     expect(rows[1]?.http_code).toBe(500);
+    db.close();
+    unlinkSync(path);
+  });
+
+  test('upserts and reads risk, dividends, fees, managers, portfolio, and fund code listings', () => {
+    const path = tmpDbPath();
+    const db = openDb(path);
+    initSchema(db);
+    upsertFundList(db, [
+      {
+        fundCode: '000001',
+        pinyinAbbr: 'HX',
+        fundName: '华夏成长',
+        fundType: '股票型',
+        pinyinFull: 'HUAXIA',
+      },
+      {
+        fundCode: '000198',
+        pinyinAbbr: 'TE',
+        fundName: '余额宝',
+        fundType: '货币型',
+        pinyinFull: 'YUEBAO',
+      },
+    ]);
+    upsertNavPoints(db, '000001', [
+      { navDate: '2026-01-02', unitNav: 1.1, accNav: 1.1, dailyReturn: 1 },
+    ]);
+    expect(listAllFundCodes(db)).toEqual(['000001', '000198']);
+    expect(listFundCodesWithNav(db)).toEqual(['000001']);
+    expect(listMoneyFundCodes(db)).toEqual(['000198']);
+    expect(countMoneyYield(db)).toBe(0);
+
+    upsertRiskMetrics(db, {
+      fundCode: '000001',
+      dataDate: '2026-01-02',
+      volatility1y: 12,
+      volatility3y: 14,
+      volatility5y: 15,
+      maxDrawdown1y: 8,
+      maxDrawdown3y: 10,
+      maxDrawdown5y: 15,
+      maxDrawdownAll: 20,
+      sharpe1y: 1.2,
+      sharpe3y: 1.1,
+      sharpe5y: 1.0,
+      sortino1y: 1.4,
+      sortino3y: 1.3,
+      calmar1y: 1.5,
+      calmar3y: 1.2,
+      annualReturn1y: 12,
+      annualReturn3y: 10,
+      annualReturn5y: 9,
+      navSamples1y: 250,
+      navSamples3y: 750,
+      navSamples5y: 1200,
+    });
+    expect(
+      db.query('SELECT sharpe_1y FROM fund_risk_metrics WHERE fund_code = ?').get('000001'),
+    ).toEqual({
+      sharpe_1y: 1.2,
+    });
+
+    expect(
+      upsertDividends(db, [
+        {
+          fundCode: '000001',
+          eventDate: '2026-01-02',
+          eventType: 'dividend',
+          dividendPerShare: 0.15,
+          splitRatio: null,
+          remark: '每10份派1.5元',
+        },
+      ]),
+    ).toBe(1);
+    expect(countDividends(db)).toBe(1);
+    expect(readDividends(db, '000001')).toHaveLength(1);
+
+    upsertFees(db, {
+      fundCode: '000001',
+      mgmtFeePct: 1.2,
+      custodianFeePct: 0.2,
+      salesServiceFeePct: 0,
+      subscriptionFeeMax: 1.5,
+      redemptionFeeMax: 1.5,
+      minSubscribeAmount: 10,
+      rawJson: '{}',
+    });
+    expect(countFees(db)).toBe(1);
+
+    expect(
+      upsertManagerLinks(db, [
+        {
+          fundCode: '000001',
+          managerName: '张三',
+          startDate: '2022-01-01',
+          endDate: null,
+          tenureDays: 1000,
+          returnDuring: 25,
+        },
+      ]),
+    ).toBe(1);
+    expect(countManagers(db)).toBe(1);
+    expect(countManagerLinks(db)).toBe(1);
+
+    expect(
+      upsertPortfolio(db, [
+        {
+          fundCode: '000001',
+          reportDate: '2026-06-30',
+          stockCode: '600519',
+          stockName: '贵州茅台',
+          holdPct: 8.5,
+          holdShares: 10,
+          holdValueWan: 1500,
+        },
+      ]),
+    ).toBe(1);
+    expect(countPortfolio(db)).toBe(1);
+
+    db.close();
+    unlinkSync(path);
   });
 });

@@ -3,6 +3,7 @@ import {
   coverageBars,
   fetchStatusSlices,
   glanceKpis,
+  satelliteBars,
   tableCountRows,
   typeL1Bars,
 } from './data-stats-vm';
@@ -50,5 +51,9 @@ describe('data stats vm', () => {
       { name: 'error', value: 10 },
     ]);
     expect(tableCountRows(stats)[0]?.key).toBe('fund_nav');
+    expect(satelliteBars(stats)).toEqual([
+      { name: '风险指标', n: 40 },
+      { name: '费率', n: 90 },
+    ]);
   });
 });

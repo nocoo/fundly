@@ -1,40 +1,14 @@
 import { useMemo } from 'react';
 import { getChartColor } from '@/lib/chart-config';
-import { type ChartPoint, toFiniteNumber } from '@/lib/chart-data';
 import { formatMetric } from '@/lib/format-number';
+import { type AnnualStatement, annualTrendPoints } from '@/lib/stock-financial-chart';
 import { SeriesChart } from './series-chart';
-
-export interface AnnualStatement {
-  fiscalYear: number;
-  currency: string;
-  income: Record<string, unknown> | null;
-  cashFlow: Record<string, unknown> | null;
-}
 
 const series = [
   { key: 'revenue', label: '营业收入' },
   { key: 'profit', label: '归母净利润' },
   { key: 'cashflow', label: '经营现金流' },
 ];
-
-/** Missing disclosures stay absent; a zero or negative reported amount remains a real point. */
-export function annualTrendPoints(statements: AnnualStatement[], currency: string): ChartPoint[] {
-  return [...statements]
-    .sort((a, b) => a.fiscalYear - b.fiscalYear)
-    .map((s) => {
-      const point: ChartPoint = { name: String(s.fiscalYear) };
-      if (s.currency !== currency) return point;
-      for (const [key, raw] of [
-        ['revenue', s.income?.operating_income],
-        ['profit', s.income?.parent_holder_net_profit],
-        ['cashflow', s.cashFlow?.act_cash_flow_net],
-      ] as const) {
-        const value = toFiniteNumber(raw);
-        if (value !== null) point[key] = value / 1e8;
-      }
-      return point;
-    });
-}
 
 export function StockFinancialChart({
   statements,

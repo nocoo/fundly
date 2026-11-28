@@ -5,6 +5,8 @@ import {
   fundsUrlState,
   parseFundsSearch,
   parseStoredFundsFilters,
+  readStoredFundsFilters,
+  writeStoredFundsFilters,
 } from './funds-vm';
 
 describe('funds filters', () => {
@@ -50,5 +52,24 @@ describe('funds filters', () => {
       dir: 'asc',
     });
     expect(parseStoredFundsFilters({})).toEqual(DEFAULT_FUNDS_FILTERS);
+
+    const store = new Map<string, string>();
+    const prev = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (k: string) => store.get(k) ?? null,
+          setItem: (k: string, v: string) => store.set(k, v),
+        },
+      },
+    });
+    try {
+      writeStoredFundsFilters({ ...DEFAULT_FUNDS_FILTERS, q: '易方达' });
+      expect(readStoredFundsFilters()?.q).toBe('易方达');
+    } finally {
+      if (prev) Object.defineProperty(globalThis, 'window', prev);
+      else Reflect.deleteProperty(globalThis, 'window');
+    }
   });
 });

@@ -10,6 +10,7 @@ import {
   getFundNav,
   listFundSiblings,
   listFunds,
+  listFundTypes,
   returnFromNavPair,
 } from './funds-service';
 
@@ -404,5 +405,66 @@ describe('getFundNav', () => {
     expect(rows[0]?.million_income).toBe(0.221);
     expect(rows[0]?.seven_day_yield).toBe(0.816);
     expect(rows[0]?.unit_nav).toBeNull();
+
+    const ranged = await getFundNav(exec(db), '000198', { from: '2026-08-01' });
+    expect(ranged).toHaveLength(1);
+    expect(ranged[0]?.nav_date).toBe('2026-08-18');
+  });
+
+  it('lists fund types and handles mixed share-letter queries + select caps', async () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE fund_basic_info (
+        fund_code TEXT PRIMARY KEY, fund_name TEXT NOT NULL, fund_type TEXT NOT NULL,
+        pinyin_abbr TEXT, pinyin_full TEXT,
+        in_mvp_pool INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_performance (
+        fund_code TEXT PRIMARY KEY, return_1m REAL, return_3m REAL, return_6m REAL, return_1y REAL,
+        pass_4433 INTEGER NOT NULL DEFAULT 0, rank_pct_1m REAL, rank_pct_3m REAL, rank_pct_6m REAL,
+        rank_pct_1y REAL, data_date TEXT, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE fund_fees (
+        fund_code TEXT PRIMARY KEY, mgmt_fee_pct REAL, custodian_fee_pct REAL,
+        sales_service_fee_pct REAL, updated_at INTEGER
+      );
+      CREATE TABLE fund_nav (fund_code TEXT, nav_date TEXT, unit_nav REAL);
+      CREATE TABLE fund_money_yield (
+        fund_code TEXT, nav_date TEXT, million_income REAL, seven_day_yield REAL
+      );
+      CREATE TABLE fund_select_metrics (
+        fund_code TEXT PRIMARY KEY, share_class TEXT, share_group_key TEXT,
+        recovery_days_1y REAL, recovery_status_1y TEXT, all_in_fee_pct REAL,
+        sales_fee_known INTEGER, select_score REAL
+      );
+    `);
+    db.exec(`
+      INSERT INTO fund_basic_info VALUES ('000001', '华夏成长A', '混合型-灵活', 'HXCZ', 'HUAXIA', 1, 1, 1);
+      INSERT INTO fund_basic_info VALUES ('000002', '华夏成长C', '混合型-灵活', 'HXCZ', 'HUAXIA', 1, 1, 1);
+      INSERT INTO fund_performance (fund_code, return_1y, pass_4433, updated_at) VALUES ('000001', 10, 0, 1);
+      INSERT INTO fund_performance (fund_code, return_1y, pass_4433, updated_at) VALUES ('000002', 9, 0, 1);
+      INSERT INTO fund_fees VALUES ('000001', 1.2, 0.2, 0, 1);
+      INSERT INTO fund_money_yield VALUES ('000099', '2026-08-18', 0.2, 1.5);
+      INSERT INTO fund_select_metrics VALUES ('000001', 'A', '华夏成长', 10, 'recovered', NULL, 1, 80);
+      INSERT INTO fund_select_metrics VALUES ('000002', 'C', '华夏成长', NULL, 'open', NULL, 1, 70);
+    `);
+
+    expect(await listFundTypes(exec(db))).toEqual([{ fund_type: '混合型-灵活', n: 2 }]);
+    const mixedWithSelect = await listFunds(
+      exec(db),
+      parseFundListQuery({ q: '华夏 A', includeCaps: '1' }),
+    );
+    expect(mixedWithSelect.items[0]?.fund_code).toBe('000001');
+    expect(mixedWithSelect.capabilities.selectDims.recovery_days_1y).toBe(true);
+    expect(mixedWithSelect.capabilities.selectDims.seven_day_yield).toBe(true);
+    expect(mixedWithSelect.capabilities.selectDims.all_in_fee_pct).toBe(true);
+
+    // Fallback to fund_basic_info share-class parsing when fund_select_metrics is absent
+    db.exec('DROP TABLE fund_select_metrics');
+    const mixedFallback = await listFunds(exec(db), parseFundListQuery({ q: '华夏 C' }));
+    expect(mixedFallback.items[0]?.fund_code).toBe('000002');
+    const bareStats = await getDataStats(exec(db));
+    expect(bareStats.counts.fund_basic_info).toBe(2);
+    expect(bareStats.fetchStatus).toEqual([]);
   });
 });

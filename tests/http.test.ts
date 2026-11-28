@@ -84,4 +84,38 @@ describe('fetchText (integration with mock server)', () => {
       server.stop(true);
     }
   });
+
+  test('retries on network rejection then throws HttpError', async () => {
+    let calls = 0;
+    const prevFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      throw new Error('socket closed');
+    }) as unknown as typeof fetch;
+    try {
+      await expect(
+        fetchText('http://example.invalid/', { retries: 1, timeout: 100 }),
+      ).rejects.toThrow('fetch failed: socket closed');
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+  });
+
+  test('aborts slow requests when timeout elapses', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch: async () => {
+        await Bun.sleep(150);
+        return new Response('late', { status: 200 });
+      },
+    });
+    try {
+      await expect(
+        fetchText(`http://localhost:${server.port}/`, { retries: 0, timeout: 15 }),
+      ).rejects.toThrow('fetch failed');
+    } finally {
+      server.stop(true);
+    }
+  });
 });
